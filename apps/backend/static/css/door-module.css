@@ -1,0 +1,224 @@
+/* ============================================================
+   Access Control (門禁) Module — door-module.css
+   ============================================================ */
+
+/* ── License notice ── */
+.ac-license-notice {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    background: var(--warning-bg, #fff8e1);
+    border: 1px solid var(--warning-border, #ffe082);
+    border-radius: 8px;
+    margin-bottom: 16px;
+    font-size: 0.9rem;
+    color: var(--text-warning, #8a4b00);
+}
+
+/* ── Tab bar ── */
+.ac-tab-bar {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 16px;
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 0;
+}
+.ac-tab-btn {
+    padding: 8px 18px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 0.9rem;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: color 0.2s, border-color 0.2s;
+}
+.ac-tab-btn.active {
+    color: var(--primary-color, #2196f3);
+    border-bottom-color: var(--primary-color, #2196f3);
+    font-weight: 600;
+}
+.ac-tab-btn:hover:not(.active) {
+    color: var(--text-primary);
+}
+
+/* ── Tab panels ── */
+.ac-panel { display: none; }
+.ac-panel.active { display: block; }
+
+/* ── Door grid ── */
+.door-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 14px;
+    margin-top: 12px;
+}
+
+.door-card {
+    background: var(--card-bg, #fff);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transition: box-shadow 0.2s;
+    position: relative;
+}
+.door-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+
+.door-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.door-card-name {
+    font-weight: 600;
+    font-size: 1rem;
+    color: var(--text-primary);
+}
+.door-card-location {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.door-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+.door-status-badge.open    { background: #e8f5e9; color: #388e3c; }
+.door-status-badge.close   { background: #f3f3f3; color: #666; }
+.door-status-badge.alarm   { background: #ffebee; color: #c62828; }
+.door-status-badge.unknown { background: #f5f5f5; color: #999; }
+
+.door-card-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 4px;
+}
+.door-action-btn {
+    flex: 1;
+    padding: 6px 0;
+    border-radius: 6px;
+    border: none;
+    font-size: 0.82rem;
+    cursor: pointer;
+    font-weight: 500;
+    transition: opacity 0.2s;
+}
+.door-action-btn:hover { opacity: 0.85; }
+.door-action-btn.open-btn   { background: #4caf50; color: #fff; }
+.door-action-btn.close-btn  { background: #607d8b; color: #fff; }
+.door-action-btn.edit-btn   { background: var(--border-color); color: var(--text-primary); }
+.door-action-btn.delete-btn { background: #ffebee; color: #c62828; }
+
+/* ── Cards table ── */
+.ac-cards-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+.ac-search-input {
+    padding: 7px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 0.88rem;
+    background: var(--input-bg, #fff);
+    color: var(--text-primary);
+    min-width: 200px;
+}
+
+.ac-table-wrap {
+    overflow-x: auto;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+.ac-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+}
+.ac-table th {
+    background: var(--table-header-bg, #f5f5f5);
+    padding: 10px 12px;
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border-color);
+    white-space: nowrap;
+}
+.ac-table td {
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--border-color-light, #f0f0f0);
+    color: var(--text-primary);
+    vertical-align: middle;
+}
+.ac-table tr:last-child td { border-bottom: none; }
+.ac-table tr:hover td { background: var(--row-hover, #f9f9f9); }
+
+.card-active-badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+.card-active-badge.active   { background: #e8f5e9; color: #388e3c; }
+.card-active-badge.inactive { background: #ffebee; color: #c62828; }
+
+/* ── Events log ── */
+.ac-events-toolbar {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+.ac-events-filter {
+    padding: 7px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 0.88rem;
+    background: var(--input-bg, #fff);
+    color: var(--text-primary);
+}
+
+.event-type-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+.event-type-badge.access  { background: #e3f2fd; color: #1565c0; }
+.event-type-badge.denied  { background: #ffebee; color: #c62828; }
+.event-type-badge.alarm   { background: #fff3e0; color: #e65100; }
+.event-type-badge.open    { background: #e8f5e9; color: #2e7d32; }
+.event-type-badge.close   { background: #f3f3f3; color: #555; }
+.event-type-badge.tamper  { background: #fce4ec; color: #880e4f; }
+
+/* ── Modal helpers ── */
+.ac-form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px 16px;
+}
+.ac-form-grid .full-width { grid-column: 1 / -1; }
+
+/* ── Responsive ── */
+@media (max-width: 600px) {
+    .door-grid { grid-template-columns: 1fr; }
+    .ac-form-grid { grid-template-columns: 1fr; }
+    .ac-form-grid .full-width { grid-column: auto; }
+}

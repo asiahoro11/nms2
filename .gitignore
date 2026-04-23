@@ -1,0 +1,55 @@
+# Build outputs
+dist/
+build/
+release/
+releases/
+artifacts/
+!artifacts/.gitkeep
+
+# Runtime data
+runtime/data/*
+!runtime/data/.gitkeep
+runtime/bin/*
+!runtime/bin/.gitkeep
+apps/backend/data/
+
+# Logs
+*.log
+server*.log
+stdout.log
+stderr.log
+
+# Databases
+*.db
+*.db-shm
+*.db-wal
+
+# Binaries
+*.exe
+*.dll
+*.so
+*.dylib
+*.out
+*.test
+nms_server*
+nms_sync*
+nms-lite*
+ffmpeg
+ffmpeg.exe
+
+# Go
+*.coverprofile
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Local worktrees and backups
+.claude/
+source_bk/
+windows_release/
+linux_release/
+darwin_release/
+backend_sp999_backup/

@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo View</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        /* ===== LIGHT THEME (default) ===== */
+        :root {
+            --bg:        #f1f5f9;
+            --bg-panel:  #ffffff;
+            --bg-card:   #ffffff;
+            --border:    #e2e8f0;
+            --text:      #1e293b;
+            --text-muted:#64748b;
+            --accent:    #3b82f6;
+            --green:     #10b981;
+            --red:       #ef4444;
+            --yellow:    #f59e0b;
+            --purple:    #8b5cf6;
+            --header-h:  56px;
+            --shadow:    0 4px 12px rgba(0,0,0,0.08);
+        }
+
+        /* ===== DARK THEME ===== */
+        body.dark-theme {
+            --bg:        #0f172a;
+            --bg-panel:  #1e293b;
+            --bg-card:   #1e293b;
+            --border:    #334155;
+            --text:      #f1f5f9;
+            --text-muted:#94a3b8;
+            --shadow:    0 4px 12px rgba(0,0,0,0.4);
+        }
+
+        html, body {
+            height: 100%;
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            overflow: hidden;
+            transition: background 0.25s, color 0.25s;
+        }
+
+        /* ===== HEADER ===== */
+        .demo-header {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            height: var(--header-h);
+            background: var(--bg-panel);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            z-index: 100;
+            gap: 12px;
+            box-shadow: var(--shadow);
+            transition: background 0.25s, border-color 0.25s;
+        }
+
+        .demo-header-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-shrink: 0;
+            min-width: 0;
+        }
+
+        .demo-badge {
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            color: #fff;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            padding: 3px 10px;
+            border-radius: 20px;
+            text-transform: uppercase;
+            flex-shrink: 0;
+        }
+
+        .demo-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .demo-clock {
+            font-size: 12px;
+            font-variant-numeric: tabular-nums;
+            color: var(--text-muted);
+            font-family: 'Courier New', monospace;
+            flex-shrink: 0;
+        }
+
+        .demo-header-right {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        #demo-refresh-hint {
+            font-size: 11px;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+
+        .demo-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 5px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background 0.15s, border-color 0.15s;
+            white-space: nowrap;
+        }
+        .demo-btn:hover { background: rgba(99,102,241,0.12); border-color: #6366f1; }
+        .demo-btn.danger {
+            border-color: rgba(239,68,68,0.4);
+            color: #fca5a5;
+        }
+        .demo-btn.danger:hover { background: rgba(239,68,68,0.15); }
+        .demo-btn.icon-btn { padding: 5px 8px; }
+
+        /* Lang select */
+        .demo-lang-select {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 4px 6px;
+            border-radius: 8px;
+            font-size: 12px;
+            cursor: pointer;
+            outline: none;
+        }
+        .demo-lang-select option { background: #fff; color: #1e293b; }
+        body.dark-theme .demo-lang-select option { background: #1e293b; color: #f1f5f9; }
+
+        /* ===== MAIN LAYOUT ===== */
+        .demo-main {
+            position: fixed;
+            top: var(--header-h);
+            left: 0; right: 0; bottom: 0;
+            display: grid;
+            grid-template-columns: 1fr 340px;
+        }
+
+        /* ===== LEFT: TOPOLOGY ===== */
+        .demo-topology {
+            position: relative;
+            background: var(--bg);
+            border-right: 1px solid var(--border);
+            overflow: hidden;
+            transition: background 0.25s;
+        }
+
+        #demo-topo-svg { width: 100%; height: 100%; }
+
+        .demo-topo-controls {
+            position: absolute;
+            right: 14px; bottom: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .demo-topo-controls button {
+            width: 32px; height: 32px;
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            color: var(--text);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.15s;
+        }
+        .demo-topo-controls button:hover { background: rgba(99,102,241,0.15); }
+
+        /* Topology nodes/links */
+        .topology-node { cursor: default; }
+        .topology-node circle { transition: r 0.15s; }
+        .topology-node.offline circle { opacity: 0.45; }
+        .topology-node text { pointer-events: none; font-size: 11px; fill: var(--text); }
+        .topology-link { stroke-opacity: 0.7; }
+        .topology-link.lldp  { stroke: var(--green); stroke-dasharray: 6 3; }
+        .topology-link.auto  { stroke: var(--green); stroke-dasharray: 6 3; }
+        .topology-link.manual { stroke: var(--yellow); }
+        .topology-link.unknown { stroke: #64748b; stroke-dasharray: 4 4; }
+        .link-label { font-size: 10px; fill: var(--green); pointer-events: none; }
+
+        /* Legend */
+        .demo-legend {
+            position: absolute;
+            bottom: 14px; left: 14px;
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 6px 8px;
+            box-shadow: var(--shadow);
+            transition: background 0.25s;
+        }
+        .demo-legend-toggle {
+            background: none; border: none;
+            color: var(--text-muted);
+            cursor: pointer; font-size: 11px;
+            padding: 2px 4px; display: block;
+            transition: transform 0.2s;
+        }
+        .demo-legend.collapsed .demo-legend-toggle { transform: rotate(0deg); }
+        .demo-legend:not(.collapsed) .demo-legend-toggle { transform: rotate(90deg); margin-bottom: 4px; }
+        .demo-legend-body { display: flex; flex-direction: column; gap: 5px; }
+        .demo-legend.collapsed .demo-legend-body { display: none; }
+        .demo-legend-item {
+            display: flex; align-items: center;
+            gap: 7px; font-size: 11px;
+            color: var(--text-muted); white-space: nowrap;
+        }
+        .demo-legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+        .demo-legend-line { width: 16px; height: 2px; flex-shrink: 0; }
+
+        /* Tooltip */
+        .demo-tooltip {
+            position: absolute;
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 12px;
+            color: var(--text);
+            pointer-events: none;
+            z-index: 50;
+            opacity: 0;
+            transition: opacity 0.15s;
+            max-width: 200px;
+            line-height: 1.6;
+            box-shadow: var(--shadow);
+        }
+        .demo-tooltip.visible { opacity: 1; }
+        .demo-tooltip h4 { font-size: 13px; margin-bottom: 4px; }
+        .demo-tooltip .st-online  { color: var(--green); }
+        .demo-tooltip .st-offline { color: var(--red); }
+
+        /* Loading */
+        .demo-loading {
+            position: absolute; inset: 0;
+            background: rgba(15,23,42,0.7);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 10; font-size: 14px;
+            color: var(--text-muted); gap: 10px;
+        }
+        body.dark-theme .demo-loading { background: rgba(15,23,42,0.7); }
+        .spin {
+            width: 20px; height: 20px;
+            border: 2px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ===== RIGHT PANEL ===== */
+        .demo-right {
+            display: flex; flex-direction: column;
+            background: var(--bg-panel);
+            border-left: 1px solid var(--border);
+            overflow: hidden;
+            transition: background 0.25s;
+        }
+
+        /* Stats 2x2 */
+        .demo-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1px;
+            background: var(--border);
+            flex-shrink: 0;
+        }
+        .stat-card {
+            background: var(--bg-card);
+            padding: 14px 16px;
+            display: flex; flex-direction: column; gap: 4px;
+            transition: background 0.25s;
+        }
+        .stat-icon { font-size: 16px; }
+        .stat-label { font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted); }
+        .stat-value { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
+        .stat-value.total  { color: var(--accent); }
+        .stat-value.online { color: var(--green); }
+        .stat-value.offline{ color: var(--red); }
+        .stat-value.warning{ color: var(--yellow); }
+
+        /* Log panel */
+        .demo-log-header {
+            padding: 10px 16px 8px;
+            display: flex; align-items: center; justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+        .demo-log-title { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); }
+        .demo-log-live { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--green); }
+        .demo-live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.7)} }
+
+        .demo-log-list { flex: 1; overflow-y: auto; padding: 4px 0; }
+        .demo-log-list::-webkit-scrollbar { width: 4px; }
+        .demo-log-list::-webkit-scrollbar-track { background: transparent; }
+        .demo-log-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+        .log-entry {
+            padding: 7px 14px;
+            border-bottom: 1px solid var(--border);
+            display: grid; grid-template-columns: auto 1fr;
+            gap: 8px; align-items: start;
+        }
+        .log-entry:last-child { border-bottom: none; }
+        .log-severity {
+            font-size: 10px; font-weight: 700;
+            padding: 1px 6px; border-radius: 4px;
+            text-transform: uppercase; white-space: nowrap; margin-top: 1px;
+        }
+        .log-severity.critical { background: rgba(239,68,68,0.2); color: #fca5a5; }
+        .log-severity.error    { background: rgba(239,68,68,0.15); color: #fca5a5; }
+        .log-severity.warning  { background: rgba(245,158,11,0.2); color: #fcd34d; }
+        .log-severity.info     { background: rgba(59,130,246,0.2); color: #93c5fd; }
+        .log-severity.debug    { background: rgba(148,163,184,0.1); color: #94a3b8; }
+        .log-body { min-width: 0; }
+        .log-msg  { font-size: 12px; color: var(--text); word-break: break-word; line-height: 1.4; }
+        .log-time { font-size: 10px; color: var(--text-muted); margin-top: 2px; font-family: monospace; }
+        .log-empty { padding: 40px 16px; text-align: center; color: var(--text-muted); font-size: 13px; }
+    </style>
+</head>
+<body class="dark-theme">
+
+<!-- HEADER -->
+<header class="demo-header">
+    <div class="demo-header-left">
+        <span class="demo-badge">Demo</span>
+        <span class="demo-title" id="demo-sys-name"></span>
+        <span class="demo-clock" id="demo-clock"></span>
+    </div>
+    <div class="demo-header-right">
+        <span id="demo-refresh-hint"></span>
+        <select class="demo-lang-select" id="demo-lang-select" onchange="changeDemoLang(this.value)">
+            <option value="zh-TW">繁中</option>
+            <option value="zh-CN">简中</option>
+            <option value="en-US">EN</option>
+            <option value="ja-JP">日本語</option>
+            <option value="ko-KR">한국어</option>
+        </select>
+        <button class="demo-btn icon-btn" onclick="toggleDemoTheme()" id="theme-toggle-btn" title="切換主題">🌓</button>
+        <button class="demo-btn" id="btn-refresh" onclick="manualRefresh()">&#8635; <span data-di="refresh">刷新</span></button>
+        <button class="demo-btn" id="btn-fullscreen" onclick="toggleFullscreen()">&#9645; <span data-di="fullscreen">全螢幕</span></button>
+        <button class="demo-btn danger" id="btn-exit" onclick="exitDemo()">✕ <span data-di="exit">關閉 Demo</span></button>
+    </div>
+</header>
+
+<!-- MAIN -->
+<div class="demo-main">
+
+    <!-- LEFT: TOPOLOGY -->
+    <div class="demo-topology" id="demo-topology-wrap">
+        <div id="demo-topo-svg"></div>
+
+        <!-- Legend -->
+        <div class="demo-legend" id="demo-legend">
+            <button class="demo-legend-toggle" onclick="toggleDemoLegend()">&#9654;</button>
+            <div class="demo-legend-body" id="demo-legend-body">
+                <div class="demo-legend-item"><span class="demo-legend-dot" style="background:#6366f1"></span><span data-di="type_router"></span></div>
+                <div class="demo-legend-item"><span class="demo-legend-dot" style="background:#10b981"></span><span data-di="type_switch"></span></div>
+                <div class="demo-legend-item"><span class="demo-legend-dot" style="background:#8b5cf6"></span><span data-di="type_ap"></span></div>
+                <div class="demo-legend-item"><span class="demo-legend-dot" style="background:#ef4444"></span><span data-di="type_firewall"></span></div>
+                <div class="demo-legend-item"><span class="demo-legend-dot" style="background:#3b82f6"></span><span data-di="type_server"></span></div>
+                <div class="demo-legend-item"><span class="demo-legend-dot" style="background:#ec4899"></span><span data-di="type_codec"></span></div>
+                <div class="demo-legend-item"><span class="demo-legend-dot" style="background:#f59e0b"></span><span data-di="type_ipcam"></span></div>
+                <div class="demo-legend-item"><span class="demo-legend-dot" style="background:#6b7280"></span><span data-di="type_other"></span></div>
+                <div class="demo-legend-item"><span class="demo-legend-line" style="background:#10b981"></span><span data-di="lldp"></span></div>
+                <div class="demo-legend-item"><span class="demo-legend-line" style="background:#f59e0b"></span><span data-di="manual"></span></div>
+            </div>
+        </div>
+
+        <!-- Zoom controls -->
+        <div class="demo-topo-controls">
+            <button onclick="demoZoom(1.25)">+</button>
+            <button onclick="demoZoom(0.8)">−</button>
+            <button onclick="demoResetView()">&#8635;</button>
+        </div>
+
+        <!-- Tooltip -->
+        <div class="demo-tooltip" id="demo-tooltip"></div>
+
+        <!-- Loading -->
+        <div class="demo-loading" id="topo-loading">
+            <div class="spin"></div><span data-di="loading"></span>
+        </div>
+    </div>
+
+    <!-- RIGHT: STATS + LOG -->
+    <div class="demo-right">
+        <div class="demo-stats">
+            <div class="stat-card">
+                <div class="stat-icon">📡</div>
+                <div class="stat-label" data-di="total"></div>
+                <div class="stat-value total" id="stat-total">—</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">🟢</div>
+                <div class="stat-label" data-di="online"></div>
+                <div class="stat-value online" id="stat-online">—</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">🔴</div>
+                <div class="stat-label" data-di="offline"></div>
+                <div class="stat-value offline" id="stat-offline">—</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">⚠️</div>
+                <div class="stat-label" data-di="warning"></div>
+                <div class="stat-value warning" id="stat-warning">—</div>
+            </div>
+        </div>
+
+        <div class="demo-log-header">
+            <span class="demo-log-title" data-di="live_log"></span>
+            <span class="demo-log-live"><span class="demo-live-dot"></span> LIVE</span>
+        </div>
+        <div class="demo-log-list" id="demo-log-list">
+            <div class="log-empty" data-di="loading"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ===== TOKEN =====
+(function() {
+    const p = new URLSearchParams(window.location.search);
+    const t = p.get('token');
+    if (t) {
+        sessionStorage.setItem('nms_token', t);
+        window.history.replaceState({}, '', window.location.pathname);
+    }
+})();
+function getToken() { return sessionStorage.getItem('nms_token'); }
+
+// ===== API =====
+async function demoApi(path) {
+    const token = getToken();
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+    const res = await fetch('/api/v1' + path, { headers });
+    if (res.status === 401) { window.location.href = '/login'; throw new Error('Unauthorized'); }
+    return res.json();
+}
+
+// ===== i18n =====
+const LANGS = { 'zh-TW':'繁中', 'zh-CN':'简中', 'en-US':'EN', 'ja-JP':'日本語', 'ko-KR':'한국어' };
+
+// All UI strings keyed by lang
+const DEMO_STRINGS = {
+    'zh-TW': {
+        refresh:'刷新', fullscreen:'全螢幕', exit:'關閉 Demo',
+        total:'總設備', online:'在線', offline:'離線', warning:'警告事件',
+        live_log:'即時事件 Log', loading:'載入中...',
+        auto_refresh:'自動刷新',
+        type_router:'路由器', type_switch:'交換器', type_ap:'無線 AP',
+        type_firewall:'防火牆', type_server:'伺服器', type_codec:'Codec',
+        type_ipcam:'攝影機', type_other:'其他',
+        lldp:'自動發現 (LLDP)', manual:'手動連線',
+        online_s:'在線', offline_s:'離線', no_events:'尚無事件記錄',
+        tooltip_type:'類型'
+    },
+    'zh-CN': {
+        refresh:'刷新', fullscreen:'全屏', exit:'关闭 Demo',
+        total:'总设备', online:'在线', offline:'离线', warning:'警告事件',
+        live_log:'实时事件 Log', loading:'加载中...',
+        auto_refresh:'自动刷新',
+        type_router:'路由器', type_switch:'交换机', type_ap:'无线 AP',
+        type_firewall:'防火墙', type_server:'服务器', type_codec:'Codec',
+        type_ipcam:'摄像机', type_other:'其他',
+        lldp:'自动发现 (LLDP)', manual:'手动连线',
+        online_s:'在线', offline_s:'离线', no_events:'暂无事件记录',
+        tooltip_type:'类型'
+    },
+    'en-US': {
+        refresh:'Refresh', fullscreen:'Fullscreen', exit:'Close Demo',
+        total:'Total', online:'Online', offline:'Offline', warning:'Warnings',
+        live_log:'Live Event Log', loading:'Loading...',
+        auto_refresh:'Auto Refresh',
+        type_router:'Router', type_switch:'Switch', type_ap:'Wireless AP',
+        type_firewall:'Firewall', type_server:'Server', type_codec:'Codec',
+        type_ipcam:'IP Camera', type_other:'Other',
+        lldp:'Auto (LLDP)', manual:'Manual Link',
+        online_s:'Online', offline_s:'Offline', no_events:'No events',
+        tooltip_type:'Type'
+    },
+    'ja-JP': {
+        refresh:'更新', fullscreen:'全画面', exit:'Demo を閉じる',
+        total:'総デバイス', online:'オンライン', offline:'オフライン', warning:'警告イベント',
+        live_log:'リアルタイムログ', loading:'読み込み中...',
+        auto_refresh:'自動更新',
+        type_router:'ルーター', type_switch:'スイッチ', type_ap:'無線 AP',
+        type_firewall:'ファイアウォール', type_server:'サーバー', type_codec:'コーデック',
+        type_ipcam:'カメラ', type_other:'その他',
+        lldp:'自動検出 (LLDP)', manual:'手動リンク',
+        online_s:'オンライン', offline_s:'オフライン', no_events:'イベントなし',
+        tooltip_type:'タイプ'
+    },
+    'ko-KR': {
+        refresh:'새로고침', fullscreen:'전체화면', exit:'Demo 닫기',
+        total:'총 장치', online:'온라인', offline:'오프라인', warning:'경고 이벤트',
+        live_log:'실시간 이벤트 로그', loading:'로딩 중...',
+        auto_refresh:'자동 새로고침',
+        type_router:'라우터', type_switch:'스위치', type_ap:'무선 AP',
+        type_firewall:'방화벽', type_server:'서버', type_codec:'코덱',
+        type_ipcam:'카메라', type_other:'기타',
+        lldp:'자동 검색 (LLDP)', manual:'수동 링크',
+        online_s:'온라인', offline_s:'오프라인', no_events:'이벤트 없음',
+        tooltip_type:'유형'
+    }
+};
+
+let currentLang = localStorage.getItem('nms_lang') || 'zh-TW';
+if (!DEMO_STRINGS[currentLang]) currentLang = 'zh-TW';
+
+function di(key) {
+    return (DEMO_STRINGS[currentLang] || DEMO_STRINGS['zh-TW'])[key] || key;
+}
+
+function applyDemoI18n() {
+    document.querySelectorAll('[data-di]').forEach(el => {
+        el.textContent = di(el.dataset.di);
+    });
+    // Update select
+    const sel = document.getElementById('demo-lang-select');
+    if (sel) sel.value = currentLang;
+    // Update html lang
+    document.documentElement.lang = currentLang;
+}
+
+function changeDemoLang(lang) {
+    currentLang = lang;
+    localStorage.setItem('nms_lang', lang);
+    applyDemoI18n();
+    // re-render log (severity labels are static in HTML so just refresh)
+    loadLogs();
+}
+
+// ===== THEME =====
+function applyDemoTheme(theme) {
+    if (theme === 'dark') {
+        document.body.classList.add('dark-theme');
+    } else {
+        document.body.classList.remove('dark-theme');
+    }
+    localStorage.setItem('nms-theme', theme);
+}
+
+function toggleDemoTheme() {
+    const isDark = document.body.classList.contains('dark-theme');
+    applyDemoTheme(isDark ? 'light' : 'dark');
+}
+
+// ===== CLOCK =====
+function updateClock() {
+    const now = new Date();
+    document.getElementById('demo-clock').textContent =
+        now.toLocaleDateString('zh-TW') + '  ' +
+        now.toLocaleTimeString('zh-TW', { hour12: false });
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ===== FULLSCREEN =====
+function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+    } else {
+        document.exitFullscreen().catch(() => {});
+    }
+}
+
+function exitDemo() {
+    // Demo runs in a new tab opened from management mode.
+    // Try to close this tab — if blocked (e.g. opened directly by URL), fall back to '/'.
+    try {
+        window.close();
+        // If window.close() is async/non-blocking, give it 300ms then redirect
+        setTimeout(() => { window.location.replace('/'); }, 300);
+    } catch(e) {
+        window.location.replace('/');
+    }
+}
+
+// ===== LEGEND =====
+function toggleDemoLegend() {
+    const el = document.getElementById('demo-legend');
+    el.classList.toggle('collapsed');
+    try { localStorage.setItem('demo_legend_collapsed', el.classList.contains('collapsed')); } catch(e) {}
+}
+
+// ===== TOPOLOGY =====
+let demoSvg = null, demoG = null, demoZoomBeh = null, demoSim = null;
+let demoCurrentTransform = null; // persists zoom/pan across refreshes
+
+// Module-level traffic formatter (bytes/s → bps SI string)
+function fmtTraffic(bps) {
+    if (!bps) return '0';
+    if (bps >= 1e12) return (bps/1e12).toFixed(0)+'T';
+    if (bps >= 1e9)  return (bps/1e9).toFixed(0)+'G';
+    if (bps >= 1e6)  return (bps/1e6).toFixed(0)+'M';
+    if (bps >= 1e3)  return (bps/1e3).toFixed(0)+'K';
+    return String(bps);
+}
+
+const NODE_COLORS = {
+    router:'#6366f1', switch:'#10b981', firewall:'#ef4444',
+    server:'#3b82f6', ipcam:'#f59e0b', video_wall:'#8b5cf6',
+    access_point:'#8b5cf6', codec:'#ec4899', other:'#6b7280'
+};
+function getColor(t) { return NODE_COLORS[t] || NODE_COLORS.other; }
+
+function renderTopoDemo(nodes, links) {
+    const wrap = document.getElementById('demo-topology-wrap');
+    const container = document.getElementById('demo-topo-svg');
+    container.innerHTML = '';
+
+    const width  = wrap.clientWidth;
+    const height = wrap.clientHeight;
+
+    demoSvg = d3.select('#demo-topo-svg').append('svg')
+        .attr('width','100%').attr('height','100%');
+
+    demoSvg.append('defs').append('marker')
+        .attr('id','demo-arrow').attr('viewBox','-0 -5 10 10')
+        .attr('refX',40).attr('refY',0).attr('orient','auto')
+        .attr('markerWidth',6).attr('markerHeight',6)
+        .append('path').attr('d','M 0,-5 L 10,0 L 0,5')
+        .attr('fill','#64748b');
+
+    demoG = demoSvg.append('g');
+
+    demoZoomBeh = d3.zoom().scaleExtent([0.1, 5])
+        .on('zoom', (e) => {
+            demoCurrentTransform = e.transform; // save for next rebuild
+            demoG.attr('transform', e.transform);
+        });
+    demoSvg.call(demoZoomBeh);
+    // Restore previous zoom/pan if available
+    if (demoCurrentTransform) {
+        demoSvg.call(demoZoomBeh.transform, demoCurrentTransform);
+    }
+
+    if (!nodes || nodes.length === 0) {
+        demoG.append('text').attr('x', width/2).attr('y', height/2)
+            .attr('text-anchor','middle').attr('fill','#94a3b8')
+            .text(di('no_events'));
+        return;
+    }
+
+    const d3Nodes = nodes.map(n => ({
+        ...n,
+        x: n.x || (width/2  + (Math.random()-0.5)*200),
+        y: n.y || (height/2 + (Math.random()-0.5)*200),
+        fx: (n.x && n.x !== 0) ? n.x : null,
+        fy: (n.y && n.y !== 0) ? n.y : null,
+    }));
+
+    const nodeMap = new Map(d3Nodes.map(n => [n.id, n]));
+    const d3Links = (links || [])
+        .filter(l => nodeMap.has(l.source) && nodeMap.has(l.target))
+        .map(l => ({ ...l, source: nodeMap.get(l.source), target: nodeMap.get(l.target) }));
+
+    demoSim = d3.forceSimulation(d3Nodes)
+        .force('link',      d3.forceLink(d3Links).id(d=>d.id).distance(180))
+        .force('charge',    d3.forceManyBody().strength(-700))
+        .force('center',    d3.forceCenter(width/2, height/2))
+        .force('collision', d3.forceCollide().radius(70));
+
+    // Links
+    const linkSel = demoG.append('g').selectAll('line')
+        .data(d3Links).join('line')
+        .attr('class', d => 'topology-link ' + (d.link_type || 'unknown'))
+        .attr('stroke-width', 2)
+        .attr('marker-end', 'url(#demo-arrow)');
+
+    // Traffic labels — bandwidth_in/out are bytes/s, *8 for bps
+    const trafficLinks = d3Links.filter(l =>
+        l.source_if_id || l.target_if_id ||
+        (l.bandwidth_in||0)+(l.bandwidth_out||0) > 0
+    );
+
+    const linkLabelSel = demoG.append('g').selectAll('text')
+        .data(trafficLinks).join('text')
+        .attr('class','link-label')
+        .text(l => {
+            const bwIn  = (l.bandwidth_in  || 0) * 8;
+            const bwOut = (l.bandwidth_out || 0) * 8;
+            if (bwIn > 0 || bwOut > 0) return `↓${fmtTraffic(bwIn)} ↑${fmtTraffic(bwOut)}`;
+            if (l.link_speed > 0) return fmtTraffic(l.link_speed);
+            return '';
+        });
+
+    // Nodes
+    const nodeSel = demoG.append('g').selectAll('g')
+        .data(d3Nodes).join('g')
+        .attr('class', d => 'topology-node' + (d.is_online ? '' : ' offline'))
+        .call(d3.drag()
+            .on('start', (e,d) => { if (!e.active) demoSim.alphaTarget(0.3).restart(); d.fx=d.x; d.fy=d.y; })
+            .on('drag',  (e,d) => { d.fx=e.x; d.fy=e.y; })
+            .on('end',   (e,d) => { if (!e.active) demoSim.alphaTarget(0); d.fx=d.x; d.fy=d.y; })
+        )
+        .on('mouseover', showDemoTooltip)
+        .on('mousemove', moveDemoTooltip)
+        .on('mouseout',  hideDemoTooltip);
+
+    nodeSel.append('circle').attr('r',28)
+        .attr('fill', d=>getColor(d.device_type)).attr('fill-opacity',0.2)
+        .attr('stroke',d=>getColor(d.device_type)).attr('stroke-width',2);
+
+    nodeSel.append('circle').attr('r',20)
+        .attr('fill',d=>getColor(d.device_type)).attr('fill-opacity',0.85);
+
+    // Icon via SVG text (emoji fallback)
+    const ICONS = { router:'⬡', switch:'⊞', firewall:'⛨', server:'▣', ipcam:'⬤', video_wall:'⬛', access_point:'◈', codec:'◉', other:'●' };
+    nodeSel.append('text').attr('text-anchor','middle').attr('dy','0.35em')
+        .attr('font-size','14px').attr('fill','#fff').attr('pointer-events','none')
+        .text(d => ICONS[d.device_type] || ICONS.other);
+
+    nodeSel.append('text').attr('text-anchor','middle').attr('dy','2.8em')
+        .attr('font-size','11px').attr('fill','var(--text-muted)').attr('pointer-events','none')
+        .text(d => d.name || d.ip_address || '');
+
+    nodeSel.filter(d => !d.is_online).append('circle')
+        .attr('class','offline-dot').attr('r',7).attr('cx',18).attr('cy',-18)
+        .attr('fill','#ef4444').attr('stroke','#0f172a').attr('stroke-width',2);
+
+    demoSim.on('tick', () => {
+        linkSel.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y)
+               .attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
+        linkLabelSel
+            .attr('x',d=>(d.source.x+d.target.x)/2)
+            .attr('y',d=>(d.source.y+d.target.y)/2-6);
+        nodeSel.attr('transform',d=>`translate(${d.x},${d.y})`);
+    });
+}
+
+function demoZoom(f) {
+    if (demoSvg && demoZoomBeh) demoZoomBeh.scaleBy(demoSvg.transition().duration(200), f);
+}
+function demoResetView() {
+    demoCurrentTransform = null; // clear saved transform so next rebuild starts fresh
+    if (demoSvg && demoZoomBeh) demoSvg.transition().duration(300).call(demoZoomBeh.transform, d3.zoomIdentity);
+}
+
+// ===== TOOLTIP =====
+function escapeHtml(s) {
+    return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function showDemoTooltip(event, d) {
+    const tt = document.getElementById('demo-tooltip');
+    tt.innerHTML = `<h4>${escapeHtml(d.name||d.ip_address)}</h4>
+        <div>IP: ${d.ip_address||'—'}</div>
+        <div>${di('tooltip_type')}: ${d.device_type||'—'}</div>
+        <div class="${d.is_online?'st-online':'st-offline'}">${d.is_online?'● '+di('online_s'):'○ '+di('offline_s')}</div>`;
+    tt.classList.add('visible');
+    moveDemoTooltip(event);
+}
+function moveDemoTooltip(event) {
+    const tt  = document.getElementById('demo-tooltip');
+    const wrap = document.getElementById('demo-topology-wrap');
+    const rect = wrap.getBoundingClientRect();
+    let x = event.clientX - rect.left + 14;
+    let y = event.clientY - rect.top  - 10;
+    if (x + 210 > rect.width)  x = event.clientX - rect.left - 220;
+    if (y + 110 > rect.height) y = event.clientY - rect.top  - 120;
+    tt.style.left = x+'px'; tt.style.top = y+'px';
+}
+function hideDemoTooltip() {
+    document.getElementById('demo-tooltip').classList.remove('visible');
+}
+
+// ===== STATUS-ONLY REFRESH (preserves positions) =====
+async function refreshTopoStatus() {
+    if (!demoSvg) return;
+    try {
+        const res = await demoApi('/topology');
+        if (!res.success) return;
+
+        // Update node online/offline status
+        const statusMap = new Map((res.data.nodes||[]).map(n=>[n.id, n.is_online]));
+        demoSvg.selectAll('.topology-node').each(function(d) {
+            const online = statusMap.get(d.id);
+            if (online === undefined) return;
+            d.is_online = online;
+            const el = d3.select(this);
+            el.classed('offline', !online);
+            el.select('.offline-dot').remove();
+            if (!online) {
+                el.append('circle').attr('class','offline-dot')
+                    .attr('r',7).attr('cx',18).attr('cy',-18)
+                    .attr('fill','#ef4444').attr('stroke','#0f172a').attr('stroke-width',2);
+            }
+        });
+
+        // Update link traffic labels
+        const linkMap = new Map((res.data.links||[]).map(l=>[l.id, l]));
+        demoSvg.selectAll('.link-label').each(function(d) {
+            if (!d || !d.id) return;
+            const link = linkMap.get(d.id);
+            if (!link) return;
+            // Update datum so tooltip also reflects fresh data
+            d.bandwidth_in  = link.bandwidth_in;
+            d.bandwidth_out = link.bandwidth_out;
+            const bpsIn  = (link.bandwidth_in  || 0) * 8;
+            const bpsOut = (link.bandwidth_out || 0) * 8;
+            d3.select(this).text(`↓${fmtTraffic(bpsIn)} ↑${fmtTraffic(bpsOut)}`);
+        });
+    } catch(e) { console.warn('[Demo] refreshTopoStatus error', e); }
+}
+
+// ===== FULL TOPOLOGY LOAD =====
+async function loadTopoDemo() {
+    const overlay = document.getElementById('topo-loading');
+    try {
+        const res = await demoApi('/topology');
+        overlay.style.display = 'none';
+        if (res.success) renderTopoDemo(res.data.nodes||[], res.data.links||[]);
+    } catch(e) {
+        overlay.innerHTML = '<span style="color:#ef4444">載入失敗</span>';
+        console.warn('[Demo] topology error', e);
+    }
+}
+
+// ===== STATS =====
+async function loadStats() {
+    try {
+        const res = await demoApi('/dashboard');
+        if (!res.success) return;
+        const d = res.data;
+        document.getElementById('stat-total').textContent   = d.total_devices ?? '—';
+        document.getElementById('stat-online').textContent  = d.online_count  ?? '—';
+        document.getElementById('stat-offline').textContent = d.offline_count ?? '—';
+        const warn = (d.recent_events||[]).filter(e=>
+            ['warning','critical','error'].includes(e.severity)).length;
+        document.getElementById('stat-warning').textContent = warn;
+        if (d.system_name) {
+            document.getElementById('demo-sys-name').textContent = d.system_name + ' — Demo';
+        }
+    } catch(e) { console.warn('[Demo] stats error', e); }
+}
+
+// ===== LOGS =====
+function sevClass(s) {
+    if (!s) return 'info';
+    const sl = s.toLowerCase();
+    if (['critical','emergency','alert'].includes(sl)) return 'critical';
+    if (sl==='error')   return 'error';
+    if (sl==='warning') return 'warning';
+    if (['info','notice'].includes(sl)) return 'info';
+    return 'debug';
+}
+
+async function loadLogs() {
+    try {
+        const res = await demoApi('/events?limit=50');
+        const list = document.getElementById('demo-log-list');
+        if (!res.success || !res.data || res.data.length === 0) {
+            list.innerHTML = `<div class="log-empty">${di('no_events')}</div>`;
+            return;
+        }
+        list.innerHTML = res.data.map(e => {
+            const sc = sevClass(e.severity);
+            const ts = e.created_at ? new Date(e.created_at).toLocaleString('zh-TW',{hour12:false}) : '';
+            return `<div class="log-entry">
+                <span class="log-severity ${sc}">${(e.severity||'INFO').toUpperCase()}</span>
+                <div class="log-body">
+                    <div class="log-msg">${escapeHtml(e.message||e.event_type||'—')}</div>
+                    <div class="log-time">${ts}</div>
+                </div></div>`;
+        }).join('');
+    } catch(e) { console.warn('[Demo] events error', e); }
+}
+
+// ===== AUTO REFRESH =====
+let refreshTimer = null;
+let refreshCountdown = 5;
+const REFRESH_INTERVAL = 5;
+
+function startAutoRefresh() {
+    clearInterval(refreshTimer);
+    refreshCountdown = REFRESH_INTERVAL;
+    refreshTimer = setInterval(() => {
+        refreshCountdown--;
+        const hint = document.getElementById('demo-refresh-hint');
+        if (hint) hint.textContent = `${di('auto_refresh')}: ${refreshCountdown}s`;
+        if (refreshCountdown <= 0) {
+            refreshCountdown = REFRESH_INTERVAL;
+            loadStats();
+            loadLogs();
+            refreshTopoStatus(); // only status update, never rebuild
+        }
+    }, 1000);
+}
+
+async function manualRefresh() {
+    // Reset countdown to full interval (not 30)
+    refreshCountdown = REFRESH_INTERVAL;
+    const hint = document.getElementById('demo-refresh-hint');
+    if (hint) hint.textContent = `${di('auto_refresh')}: ${refreshCountdown}s`;
+    // Only refresh status (preserves zoom/pan positions), same as auto-refresh
+    await Promise.all([loadStats(), loadLogs(), refreshTopoStatus()]);
+}
+
+// ===== INIT =====
+document.addEventListener('DOMContentLoaded', async () => {
+    if (!getToken()) {
+        window.location.href = window.location.pathname.startsWith('/static/') ? '/static/login.html' : '/login';
+        return;
+    }
+
+    // Restore theme
+    const savedTheme = localStorage.getItem('nms-theme') || 'dark';
+    applyDemoTheme(savedTheme);
+
+    // Restore lang
+    currentLang = localStorage.getItem('nms_lang') || 'zh-TW';
+    if (!DEMO_STRINGS[currentLang]) currentLang = 'zh-TW';
+    applyDemoI18n();
+
+    // Restore legend state
+    try {
+        if (localStorage.getItem('demo_legend_collapsed') === 'true') {
+            document.getElementById('demo-legend').classList.add('collapsed');
+        }
+    } catch(e) {}
+
+    await Promise.all([loadStats(), loadLogs(), loadTopoDemo()]);
+    startAutoRefresh();
+});
+</script>
+</body>
+</html>

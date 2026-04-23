@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>戰情畫面</title>
+    <script src="/static/js/config.js"></script>
+    <script>
+        writeConfiguredStyles([
+            '/static/css/dashboard-view.css'
+        ]);
+    </script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+</head>
+<body class="dark-theme">
+    <div class="dashboard-container">
+        <!-- Header -->
+        <header class="dashboard-header">
+            <div class="header-left">
+                <h1>🎯 戰情畫面</h1>
+                <span class="update-time">最後更新: <span id="last-update">--:--:--</span></span>
+            </div>
+            <div class="header-right">
+                <!-- Camera layout selector (only shown when cameras available) -->
+                <div id="cam-layout-ctrl" style="display:none;align-items:center;gap:6px;margin-right:12px;">
+                    <span style="font-size:0.75rem;color:var(--text-secondary);">攝影機:</span>
+                    <button class="btn-small cam-layout-btn active" id="cam-btn-4"  onclick="setCamLayout(4)"  title="4ch 2×2">2×2</button>
+                    <button class="btn-small cam-layout-btn"        id="cam-btn-9"  onclick="setCamLayout(9)"  title="9ch 3×3">3×3</button>
+                    <button class="btn-small cam-layout-btn"        id="cam-btn-16" onclick="setCamLayout(16)" title="16ch 4×4">4×4</button>
+                </div>
+                <button class="btn-icon" onclick="toggleFullscreen()" title="切換全螢幕">
+                    <span id="fullscreen-icon">⛶</span>
+                </button>
+                <button class="btn-icon" onclick="backToModeSelection()" title="返回">↩</button>
+                <button class="btn-icon btn-logout" onclick="logout()" title="登出">🚪</button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="dashboard-main" id="dashboard-main">
+            <!-- Top Row: Topology + Device Status -->
+            <div class="top-row" id="top-row">
+                <!-- Topology Section -->
+                <section class="section topology-section">
+                    <div class="section-header">
+                        <h2>🗺️ 網路拓樸</h2>
+                        <div class="section-controls">
+                            <button class="btn-small" onclick="refreshTopology()">🔄</button>
+                        </div>
+                    </div>
+                    <div class="section-content">
+                        <div id="topology-svg" class="topology-canvas"></div>
+                    </div>
+                </section>
+
+                <!-- Device Status Section -->
+                <section class="section device-status-section">
+                    <div class="section-header">
+                        <h2>📊 設備狀態</h2>
+                    </div>
+                    <div class="section-content">
+                        <div class="stats-grid">
+                            <div class="stat-card stat-total">
+                                <div class="stat-icon">🖥️</div>
+                                <div class="stat-info">
+                                    <div class="stat-label">總設備數</div>
+                                    <div class="stat-value" id="total-devices">0</div>
+                                </div>
+                            </div>
+                            <div class="stat-card stat-online">
+                                <div class="stat-icon">✅</div>
+                                <div class="stat-info">
+                                    <div class="stat-label">在線</div>
+                                    <div class="stat-value" id="online-devices">0</div>
+                                </div>
+                            </div>
+                            <div class="stat-card stat-offline">
+                                <div class="stat-icon">❌</div>
+                                <div class="stat-info">
+                                    <div class="stat-label">離線</div>
+                                    <div class="stat-value" id="offline-devices">0</div>
+                                </div>
+                            </div>
+                            <div class="stat-card stat-warning">
+                                <div class="stat-icon">⚠️</div>
+                                <div class="stat-info">
+                                    <div class="stat-label">警告</div>
+                                    <div class="stat-value" id="warning-devices">0</div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Device List -->
+                        <div class="device-list">
+                            <h3>設備清單</h3>
+                            <div id="device-list-content" class="device-list-scrollable"></div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Camera Monitor Row (shows when cameras licensed and available) -->
+            <section class="section camera-section" id="camera-section" style="display:none;">
+                <div class="section-header">
+                    <h2>📹 攝影機監控</h2>
+                    <div class="section-controls">
+                        <button class="btn-small" onclick="dvRefreshCameras()">🔄</button>
+                    </div>
+                </div>
+                <div class="section-content" style="padding:0;">
+                    <div class="camera-grid cam-grid-4" id="dv-camera-grid"></div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script>
+        writeConfiguredScripts([
+            '/static/js/api.js',
+            '/static/js/utils.js',
+            '/static/js/i18n.js',
+            '/static/js/topology.js',
+            '/static/js/dashboard-view.js'
+        ]);
+    </script>
+</body>
+</html>

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>緩存測試</title>
+    <script>
+        // 當前時間戳 - 每次生成都不同
+        const timestamp = new Date().toISOString();
+        document.addEventListener('DOMContentLoaded', function () {
+            document.getElementById('info').innerHTML = `
+                <h2>JS 緩存測試</h2>
+                <p><strong>生成時間:</strong> ${timestamp}</p>
+                <p>如果這個時間沒有更新,表示瀏覽器還在使用舊的JS緩存。</p>
+                <hr>
+                <h3>清除緩存方法:</h3>
+                <ol>
+                    <li><strong>開發者工具法 (推薦)</strong>:
+                        <ul>
+                            <li>按 F12 打開開發者工具</li>
+                            <li>右鍵點擊刷新按鈕</li>
+                            <li>選擇"清空快取並強制重新整理"</li>
+                        </ul>
+                    </li>
+                    <li><strong>快捷鍵</strong>: Ctrl + Shift + F5</li>
+                    <li><strong>完全清除</strong>: Ctrl + Shift + Delete → 選擇"快取"</li>
+                </ol>
+            `;
+        });
+    </script>
+</head>
+
+<body style="font-family: Arial; padding: 40px; max-width: 800px; margin: 0 auto;">
+    <div id="info"></div>
+    <hr>
+    <a href="/" style="color: #0066cc; text-decoration: none;">← 返回 NMS</a>
+</body>
+
+</html>

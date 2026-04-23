@@ -1,0 +1,1356 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="description" content="網路設備管理">
+    <meta name="theme-color" content="#6366f1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="管理系統">
+    <meta name="mobile-web-app-capable" content="yes">
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/static/icons/favicon-16x16.png">
+    <title data-i18n="app.title">管理系統 - 管理系統</title>
+    <script src="/static/js/config.js"></script>
+    <script>
+        writeConfiguredStyles([
+            '/static/css/main.css',
+            '/static/css/dashboard.css',
+            '/static/css/topology.css',
+            '/static/css/components.css',
+            '/static/css/license.css',
+            '/static/css/user.css',
+            '/static/css/camera-module.css',
+            '/static/css/door-module.css',
+            '/static/css/pdu-module.css',
+            '/static/css/responsive.css'
+        ]);
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body class="dark-theme">
+    <div class="app-container">
+        <!-- 側邊欄 -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <img id="sidebar-logo" src="" alt="Logo" style="height: 32px; display: none;">
+                    <span class="logo-icon" id="default-logo-icon">📡</span>
+                    <span class="logo-text" id="sidebar-company-name">Management System</span>
+                </div>
+                <button class="sidebar-collapse-btn" onclick="toggleSidebarCollapse()" title="收合選單">
+                    <span class="collapse-icon">◀</span>
+                </button>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="#dashboard" class="nav-item active" data-page="dashboard" data-permission="all">
+                    <span class="nav-icon">📊</span>
+                    <span class="nav-text" data-i18n="nav.dashboard">佈告欄</span>
+                </a>
+                <a href="#devices" class="nav-item" data-page="devices" data-permission="all">
+                    <span class="nav-icon">🖥️</span>
+                    <span class="nav-text" data-i18n="nav.devices">設備清單</span>
+                </a>
+                <a href="#topology" class="nav-item" data-page="topology" data-permission="all">
+                    <span class="nav-icon">🌐</span>
+                    <span class="nav-text" data-i18n="nav.topology">網路拓樸</span>
+                </a>
+                <a href="#cameras" class="nav-item" id="nav-cameras" data-page="cameras" data-permission="editor,admin">
+                    <span class="nav-icon">📷</span>
+                    <span class="nav-text" data-i18n="nav.cameras">攝影機監控</span>
+                    <span class="nav-badge-lock" id="camera-nav-lock" title="需要攝影機授權" style="display:none;">🔒</span>
+                </a>
+                <a href="#access-control" class="nav-item" id="nav-access-control" data-page="access-control" data-permission="editor,admin">
+                    <span class="nav-icon">🔐</span>
+                    <span class="nav-text" data-i18n="nav.access_control">門禁管理</span>
+                    <span class="nav-badge-lock" id="ac-nav-lock" title="需要門禁授權" style="display:none;">🔒</span>
+                </a>
+                <a href="#pdu" class="nav-item" id="nav-pdu" data-page="pdu" data-permission="editor,admin">
+                    <span class="nav-icon">🔋</span>
+                    <span class="nav-text" data-i18n="nav.pdu">PDU/UPS 監控</span>
+                </a>
+                <a href="#logs" class="nav-item" data-page="logs" data-permission="editor,admin">
+                    <span class="nav-icon">📋</span>
+                    <span class="nav-text" data-i18n="nav.logs">日誌與稽核</span>
+                </a>
+                <a href="#admin" class="nav-item" data-page="admin" data-permission="admin">
+                    <span class="nav-icon">⚙️</span>
+                    <span class="nav-text" data-i18n="nav.admin">系統管理</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="theme-toggle" onclick="toggleTheme()">
+                    <span class="theme-toggle-label" data-i18n="sidebar.theme_toggle">主題切換</span>
+                    <div class="theme-toggle-switch"></div>
+                </div>
+                <div class="system-status">
+                    <span class="status-dot online"></span>
+                    <span class="status-text" data-i18n="sidebar.system_running">系統運行中</span>
+                    <span style="margin-left: 8px; font-size: 10px; color: var(--text-muted);"
+                        id="system-version" data-app-version>載入中...</span>
+                </div>
+                <!-- Anti-counterfeiting mark: Made by YoyoChao&YTSWorks -->
+                <div class="sidebar-credits" style="display: none;">
+                    Made by YoyoChao&YTSWorks
+                </div>
+            </div>
+
+        </aside>
+
+        <!-- 主內容區 -->
+        <!-- 全域頂部導航列 -->
+        <div class="global-header">
+            <button class="mobile-menu-btn" onclick="toggleSidebar()" aria-label="切換選單">☰</button>
+            <div class="global-header-right">
+                <button onclick="openDemoMode()" class="demo-mode-btn" title="返回主控台選擇畫面">
+                    🏠 主控台
+                </button>
+                <div class="header-user-section">
+                    <div id="lang-switcher-container" style="margin-right: 15px;"></div>
+                    <div class="header-user-info">
+                        <span class="header-username current-username">使用者</span>
+                        <span class="header-role current-role">-</span>
+                    </div>
+                    <div class="header-user-actions">
+                        <!-- 鈴鐺告警中心 -->
+                        <div class="notif-bell-wrapper" id="notif-bell-wrapper">
+                            <button class="header-action-btn notif-bell-btn" id="notif-bell-btn" onclick="toggleNotifPanel()" title="告警通知">
+                                🔔
+                                <span class="notif-badge" id="notif-badge" style="display:none;">0</span>
+                            </button>
+                            <!-- 通知彈窗 -->
+                            <div class="notif-panel" id="notif-panel" style="display:none;">
+                                <div class="notif-panel-header">
+                                    <span class="notif-panel-title">告警通知</span>
+                                    <div class="notif-panel-actions">
+                                        <button class="notif-action-link" onclick="markAllNotifsRead()">全部已讀</button>
+                                        <button class="notif-action-link notif-clear-all" onclick="clearAllNotifs()">全部清除</button>
+                                    </div>
+                                </div>
+                                <div class="notif-list" id="notif-list">
+                                    <div class="notif-empty">目前沒有告警通知</div>
+                                </div>
+                            </div>
+                        </div>
+                        <button class="header-action-btn" id="fullscreen-btn" onclick="toggleFullscreen()" title="全螢幕">⛶</button>
+                        <button class="header-action-btn" onclick="showChangePasswordModal()" title="變更密碼">🔑</button>
+                        <button class="header-action-btn" onclick="logout()" title="登出" id="logout-btn">🚪</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <main class="main-content">
+            <!-- Dashboard 頁面 -->
+            <section id="dashboard" class="page active">
+                <header class="page-header">
+                    <h1 data-i18n="nav.dashboard">儀表板</h1>
+                    <button class="btn btn-secondary" onclick="location.reload(true)" title="強制重新載入頁面 (Ctrl+F5)">
+                        <span>🔄</span> <span data-i18n="dashboard.reload_page">重整網頁</span>
+                    </button>
+                </header>
+
+                <!-- 系統摘要 -->
+                <div class="dashboard-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">🖥️</div>
+                        <div class="stat-content">
+                            <h3 class="stat-value" id="total-devices">0</h3>
+                            <p class="stat-label" data-i18n="dashboard.system_info">系統設備總數</p>
+                        </div>
+                    </div>
+
+                    <div class="stat-card online">
+                        <div class="stat-icon">🟢</div>
+                        <div class="stat-content">
+                            <h3 class="stat-value" id="online-devices">0</h3>
+                            <p class="stat-label" data-i18n="dashboard.online_devices">線上設備</p>
+                        </div>
+                    </div>
+
+                    <div class="stat-card offline">
+                        <div class="stat-icon">⚠️</div>
+                        <div class="stat-content">
+                            <h3 class="stat-value" id="offline-devices">0</h3>
+                            <p class="stat-label" data-i18n="dashboard.offline_devices">離線設備</p>
+                        </div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-icon">💾</div>
+                        <div class="stat-content">
+                            <h3 class="stat-value" id="memory-usage">0 MB</h3>
+                            <p class="stat-label" data-i18n="dashboard.memory_usage">記憶體使用</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 設備類型分布 -->
+                <div class="dashboard-section">
+                    <h2 data-i18n="dashboard.device_dist">設備類型分布</h2>
+                    <div class="device-types-chart" id="device-types-chart"></div>
+                </div>
+
+                <!-- Bottom Section: Top 5 & Events -->
+                <div class="dashboard-grid-2col">
+                    <!-- Top 5 Devices -->
+                    <div class="dashboard-section">
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                            <h2 id="top-devices-title" data-i18n="dashboard.top5.title_traffic">🔥 Top 5 流量排行</h2>
+                            <div class="top-switch-buttons">
+                                <button class="top-switch-btn active" data-type="traffic"
+                                    onclick="switchTopDevices('traffic')" data-i18n="dashboard.top5.traffic">流量</button>
+                                <button class="top-switch-btn" data-type="cpu" onclick="switchTopDevices('cpu')"
+                                    data-i18n="dashboard.top5.cpu">CPU</button>
+                                <button class="top-switch-btn" data-type="memory" onclick="switchTopDevices('memory')"
+                                    data-i18n="dashboard.top5.memory">記憶體</button>
+                            </div>
+                        </div>
+                        <div class="top-devices-list" id="top-devices-list">
+                            <p class="empty-message" data-i18n="common.loading">載入中...</p>
+                        </div>
+                    </div>
+
+                    <!-- 最近事件 -->
+                    <div class="dashboard-section">
+                        <h2 data-i18n="dashboard.events.title">最近事件</h2>
+                        <div class="events-list" id="recent-events">
+                            <p class="empty-message" data-i18n="dashboard.events.empty">暫無事件</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 設備清單頁面 -->
+            <section id="devices" class="page">
+                <header class="page-header">
+                    <h1 data-i18n="nav.devices">設備清單</h1>
+                    <div class="header-actions">
+                        <input type="text" id="device-search" class="search-input" placeholder="搜尋設備..."
+                            data-i18n="common.search">
+                        <select id="device-type-filter" class="select-input">
+                            <option value="" data-i18n="devices.all_types">所有類型</option>
+                            <option value="router" data-i18n="devices.type_router">路由器</option>
+                            <option value="switch" data-i18n="devices.type_switch">交換器</option>
+                            <option value="access_point" data-i18n="devices.type_ap">無線存取點 (AP)</option>
+                            <option value="firewall" data-i18n="devices.type_firewall">防火牆</option>
+                            <option value="server" data-i18n="devices.type_server">伺服器</option>
+                            <option value="codec" data-i18n="devices.type_codec">編解碼器 (Codec)</option>
+                            <option value="ipcam" data-i18n="devices.type_ipcam">攝影機 (IPCAM)</option>
+                            <option value="video_wall" data-i18n="devices.type_video_wall">電視牆控制器</option>
+                            <option value="access_control" data-i18n="devices.type_access_control">門禁系統</option>
+                            <option value="ups" data-i18n="devices.type_ups">UPS 不斷電系統</option>
+                            <option value="pdu" data-i18n="devices.type_pdu">PDU 電源分配器</option>
+                            <option value="other" data-i18n="devices.type_other">其他</option>
+                        </select>
+                        <select id="device-status-filter" class="select-input">
+                            <option value="" data-i18n="devices.all_status">所有狀態</option>
+                            <option value="online" data-i18n="devices.status_online">線上</option>
+                            <option value="offline" data-i18n="devices.status_offline">離線</option>
+                        </select>
+                        <div class="section-actions">
+                            <button class="btn btn-secondary" id="btn-subnet-group" onclick="toggleSubnetGroupMode()" title="依 /24 網段分群顯示">
+                                <span>⬡</span> 網段分群
+                            </button>
+                            <button class="btn btn-secondary" id="btn-bulk-edit" onclick="showBulkEditModal()"
+                                style="display: none; margin-right: 8px;" data-permission="editor,admin">
+                                <span>✏️</span> 批量編輯
+                            </button>
+                            <button class="btn btn-danger" id="btn-bulk-delete" onclick="bulkDeleteDevices()"
+                                style="display: none;" data-permission="editor,admin">
+                                <span>🗑️</span> 批量刪除
+                            </button>
+                            <button class="btn btn-secondary" onclick="showBulkAddModal()" data-permission="editor,admin">
+                                <span>📡</span> <span data-i18n="devices.bulk_scan">批量掃描</span>
+                            </button>
+                            <button class="btn btn-primary" onclick="showAddDeviceModal()" data-permission="editor,admin">
+                                <span>➕</span> <span data-i18n="devices.add_device">新增設備</span>
+                            </button>
+                        </div>
+                    </div>
+                </header>
+
+                <div id="devices-subnet-view" style="display:none;"></div>
+
+                <div class="devices-table-container">
+                    <table class="data-table" id="devices-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 40px;"><input type="checkbox" id="select-all-devices"
+                                        onclick="toggleSelectAll()"></th>
+                                <th data-i18n="common.status">狀態</th>
+                                <th data-i18n="devices.image">圖片</th>
+                                <th data-i18n="devices.name">名稱</th>
+                                <th data-i18n="devices.brand">品牌</th>
+                                <th data-i18n="devices.ip">IP 位址</th>
+                                <th data-i18n="devices.type">類型 / 監控</th>
+                                <th data-i18n="devices.last_seen">最後連線</th>
+                                <th data-i18n="common.action">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="devices-tbody">
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="pagination" id="devices-pagination"></div>
+            </section>
+
+            <!-- 網路拓樸頁面 -->
+            <section id="topology" class="page">
+                <header class="page-header">
+                    <h1 data-i18n="nav.topology">網路拓樸</h1>
+                    <div class="header-actions">
+                        <!-- 拓樸視圖切換 (v1.2.1) -->
+                        <div class="topology-view-toggle" id="topology-view-toggle">
+                            <button class="btn btn-secondary topo-view-btn" id="topo-btn-force" onclick="switchTopologyView('force')" title="切換到網狀圖">
+                                🌐 <span data-i18n="topology.view_force">網狀圖</span>
+                            </button>
+                            <button class="btn btn-secondary topo-view-btn" id="topo-btn-tree" onclick="switchTopologyView('tree')" title="切換到樹狀圖">
+                                🌳 <span data-i18n="topology.view_tree">樹狀圖</span>
+                            </button>
+                            <button class="btn btn-secondary topo-set-default-btn" id="topo-set-default-force" onclick="switchTopologyView('force', true)" title="設網狀圖為預設" style="font-size:0.78rem;padding:4px 8px;opacity:0.7;">
+                                ★ 設為預設
+                            </button>
+                            <button class="btn btn-secondary topo-set-default-btn" id="topo-set-default-tree" onclick="switchTopologyView('tree', true)" title="設樹狀圖為預設" style="font-size:0.78rem;padding:4px 8px;opacity:0.7;">
+                                ★ 設為預設
+                            </button>
+                        </div>
+                        <button class="btn btn-secondary" onclick="startLinkCreateMode()" title="手動建立連線" data-permission="editor,admin"><i
+                                class="fas fa-link"></i> <span data-i18n="topology.manual_connect">連線</span></button>
+                        <button class="btn btn-secondary" onclick="saveTopologyPositions()" title="儲存位置" data-permission="editor,admin"><i
+                                class="fas fa-save"></i> <span data-i18n="topology.save_positions">儲存</span></button>
+                        <button class="btn btn-primary" onclick="discoverTopology()" title="自動探測連線" data-permission="editor,admin"><i
+                                class="fas fa-sync"></i> <span data-i18n="topology.rediscover">重新探測</span></button>
+                        <button class="btn btn-secondary" onclick="resetTopologyView()">
+                            <span>🔄</span> <span data-i18n="common.refresh">重置視圖</span>
+                        </button>
+                    </div>
+                </header>
+
+                <div class="topology-wrapper">
+                    <!-- 設備側邊欄 -->
+                    <div class="topology-sidebar" id="topology-sidebar">
+                        <div class="sidebar-header">
+                            <h3>待佈署設備 (<span id="pending-count">0</span>)</h3>
+                            <button class="btn-icon" onclick="toggleTopologySidebar()" title="收合/展開">◀</button>
+                        </div>
+                        <div id="pending-devices-list" class="pending-list">
+                            <!-- 待佈署設備列表 -->
+                        </div>
+                    </div>
+
+                    <!-- 拓樸畫布 -->
+                    <div class="topology-container">
+                        <div id="topology-svg" class="topology-canvas"></div>
+                        <div class="topology-legend" id="topology-legend">
+                            <button class="legend-toggle-btn" id="legend-toggle-btn" onclick="toggleTopologyLegend()" title="顯示/隱藏圖例">&#9654;</button>
+                            <div class="legend-content" id="legend-content">
+                            <div class="legend-item">
+                                <span class="legend-dot router"></span> <span data-i18n="devices.type_router">路由器</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-dot switch"></span> <span data-i18n="devices.type_switch">交換器</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-dot access_point"></span> <span
+                                    data-i18n="devices.type_ap">無線存取點</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-dot firewall"></span> <span
+                                    data-i18n="devices.type_firewall">防火牆</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-dot server"></span> <span data-i18n="devices.type_server">伺服器</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-dot codec"></span> <span data-i18n="devices.type_codec">編解碼器</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-dot ipcam"></span> <span data-i18n="devices.type_ipcam">攝影機</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-dot video_wall"></span> <span
+                                    data-i18n="devices.type_videowall">電視牆</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-dot access_control"></span> <span
+                                     data-i18n="devices.type_access_control">門禁系統</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-dot other"></span> <span data-i18n="devices.type_other">其他</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-line-lldp"></span> <span data-i18n="topology.auto_lldp">自動發現
+                                    (LLDP)</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-line-manual"></span> <span
+                                    data-i18n="topology.manual_link">手動連線</span>
+                            </div>
+                            </div><!-- end legend-content -->
+                        </div>
+                        <div class="topology-controls">
+                            <button onclick="zoom.scaleBy(svg, 1.2)" title="放大">+</button>
+                            <button onclick="zoom.scaleBy(svg, 0.8)" title="縮小">-</button>
+                            <button onclick="resetTopologyView()" title="重置">⟲</button>
+                        </div>
+                    </div>
+                </div>
+
+
+            </section>
+
+            <!-- 系統日誌頁面 -->
+            <section id="logs" class="page">
+                <header class="page-header">
+                    <h1 data-i18n="nav.logs">日誌與稽核</h1>
+                    <div class="header-actions">
+                        <select id="log-type-select" class="select-input">
+                            <option value="system_logs">系統日誌</option>
+                            <option value="device_logs">設備日誌</option>
+                            <option value="audit_logs">稽核日誌</option>
+                            <option value="config_change_logs">設定變更</option>
+                        </select>
+                        <select id="log-severity-filter" class="select-input">
+                            <option value="" data-i18n="devices.all_status">所有等級</option>
+                            <option value="emergency">Emergency</option>
+                            <option value="alert">Alert</option>
+                            <option value="critical">Critical</option>
+                            <option value="error">Error</option>
+                            <option value="warning">Warning</option>
+                            <option value="notice">Notice</option>
+                            <option value="info">Info</option>
+                            <option value="debug">Debug</option>
+                        </select>
+                        <button class="btn btn-secondary" onclick="exportLogs()">
+                            <span>📥</span> <span data-i18n="logs.export">匯出</span>
+                        </button>
+                    </div>
+                </header>
+
+                <div class="logs-container">
+                    <table class="data-table" id="logs-table">
+                        <thead>
+                            <tr>
+                                <th data-i18n="logs.time">時間</th>
+                                <th data-i18n="logs.level">等級</th>
+                                <th id="logs-col3-header" data-i18n="logs.device">來源</th>
+                                <th data-i18n="logs.message">訊息</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logs-tbody">
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="pagination" id="logs-pagination"></div>
+            </section>
+
+            <!-- 系統管理頁面 -->
+            <section id="admin" class="page">
+                <header class="page-header">
+                    <h1><span data-i18n="nav.admin" id="admin-title-trigger" style="cursor: default; user-select: none;">系統管理</span></h1>
+                </header>
+
+                <div class="admin-tabs">
+                    <button class="tab-btn active" data-tab="host-status"
+                        data-i18n="admin.tabs.host_status">目前主機狀態</button>
+                    <button class="tab-btn" data-tab="users" data-i18n="admin.tabs.users">使用者管理</button>
+                    <button class="tab-btn" data-tab="audit" data-i18n="admin.tabs.audit">稽核日誌</button>
+                    <button class="tab-btn" data-tab="licenses" data-i18n="admin.tabs.licenses">授權管理</button>
+                    <button class="tab-btn" data-tab="reports" data-i18n="admin.tabs.reports">報表匯出</button>
+                    <button class="tab-btn" data-tab="alerts"
+                        data-i18n="admin.tabs.alerts">告警設定</button>
+                    <button class="tab-btn" data-tab="security" data-i18n="admin.tabs.security">安全設定</button>
+                    <button class="tab-btn advanced-only" data-tab="branding"
+                        data-i18n="admin.tabs.branding">系統品牌設定</button>
+                    <button class="tab-btn" data-tab="backup" data-i18n="admin.tabs.backup">系統備份</button>
+                    <button class="tab-btn advanced-only" data-tab="tools" data-i18n="admin.tabs.tools">診斷工具</button>
+                </div>
+
+                <!-- 使用者管理 -->
+                <div class="admin-tab-content" id="users-tab">
+                    <div class="section-header">
+                        <h2 data-i18n="admin.users.title">使用者列表</h2>
+                        <button class="btn btn-primary" onclick="showAddUserModal()">
+                            <span>➕</span> <span data-i18n="admin.users.add">新增使用者</span>
+                        </button>
+                    </div>
+                    <table class="data-table" id="users-table">
+                        <thead>
+                            <tr>
+                                <th data-i18n="admin.users.username">使用者名稱</th>
+                                <th data-i18n="admin.users.role">角色</th>
+                                <th data-i18n="common.status">狀態</th>
+                                <th data-i18n="admin.users.created_at">建立時間</th>
+                                <th data-i18n="common.action">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-tbody">
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 稽核日誌 -->
+                <div class="admin-tab-content" id="audit-tab">
+                    <div class="section-header">
+                        <h2>稽核日誌</h2>
+                        <button class="btn btn-secondary" onclick="exportAuditCSV()">⬇ 匯出 CSV</button>
+                    </div>
+
+                    <!-- 篩選列 -->
+                    <div class="audit-filters">
+                        <input type="text" id="audit-filter-username" placeholder="使用者" class="form-input" style="width:120px;" oninput="loadAuditLogs(1)">
+                        <select id="audit-filter-status" class="form-input" style="width:110px;" onchange="loadAuditLogs(1)">
+                            <option value="">全部狀態</option>
+                            <option value="success">成功</option>
+                            <option value="failed">失敗</option>
+                            <option value="warning">警告</option>
+                        </select>
+                        <input type="date" id="audit-filter-from" class="form-input" style="width:140px;" onchange="loadAuditLogs(1)">
+                        <span style="color:var(--text-muted)">至</span>
+                        <input type="date" id="audit-filter-to" class="form-input" style="width:140px;" onchange="loadAuditLogs(1)">
+                        <button class="btn btn-secondary" onclick="clearAuditFilters()">清除篩選</button>
+                    </div>
+
+                    <table class="data-table" id="audit-table">
+                        <thead>
+                            <tr>
+                                <th style="width:150px;">時間</th>
+                                <th style="width:100px;">使用者</th>
+                                <th style="width:120px;">來源 IP</th>
+                                <th style="width:130px;">來源 MAC</th>
+                                <th>操作項目</th>
+                                <th style="width:80px;">狀態</th>
+                                <th>詳細資訊</th>
+                            </tr>
+                        </thead>
+                        <tbody id="audit-tbody">
+                            <tr><td colspan="7" class="empty-message">載入中...</td></tr>
+                        </tbody>
+                    </table>
+                    <div id="audit-pagination" class="pagination-container"></div>
+                </div>
+
+                <!-- 授權管理 -->
+                <div class="admin-tab-content" id="licenses-tab">
+                    <!-- 頂部卡片區 -->
+                    <div class="license-top-row">
+                        <div class="license-card-compact">
+                            <h3><span>📊 </span><span data-i18n="admin.licenses.current_usage">設備使用量</span></h3>
+                            <div class="usage-compact">
+                                <span class="usage-current" id="current-device-count">0</span>
+                                <span class="usage-separator">/</span>
+                                <span class="usage-max" id="max-device-count">5</span>
+                                <span class="usage-unit">台</span>
+                            </div>
+                            <div class="progress-container-sm">
+                                <div class="progress-fill normal" id="device-usage-bar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        <div class="license-card-compact trial-card-compact" id="trial-card">
+                            <h3><span>🎁 </span><span data-i18n="admin.licenses.trial_14days">14天免費試用</span></h3>
+                            <p data-i18n="admin.licenses.trial_desc">額外10台設備額度</p>
+                            <button class="btn btn-success btn-sm" onclick="activateTrial()" id="trial-activate-btn">
+                                <span data-i18n="admin.licenses.trial_activate">立即啟用</span>
+                            </button>
+                        </div>
+                        <div class="license-card-compact">
+                            <h3><span>🔓 </span><span data-i18n="admin.licenses.input_key">輸入金鑰</span></h3>
+                            <p data-i18n="admin.licenses.has_license">已購授權</p>
+                            <button class="btn btn-primary btn-sm" onclick="showActivateLicenseModal()">
+                                <span data-i18n="admin.licenses.input_key">輸入金鑰</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="machine-id-row">
+                        <span class="machine-id-label"><span>🔑 </span><span
+                                data-i18n="admin.licenses.machine_id">系統識別碼</span><span>：</span></span>
+                        <code class="machine-id-code" id="machine-id-display">載入中...</code>
+                        <button class="btn btn-secondary btn-xs" onclick="copyMachineID()">
+                            <span data-i18n="admin.licenses.copy_id">複製</span>
+                        </button>
+                    </div>
+                    <div class="license-section">
+                        <h2><span>📋 </span><span data-i18n="admin.licenses.title">授權管理</span></h2>
+                        <table class="data-table" id="licenses-table">
+                            <thead>
+                                <tr>
+                                    <th data-i18n="admin.licenses.license_key_label">授權金鑰</th>
+                                    <th data-i18n="admin.licenses.license_type">類型</th>
+                                    <th data-i18n="admin.licenses.device_count">設備數</th>
+                                    <th data-i18n="admin.licenses.features">功能</th>
+                                    <th data-i18n="admin.licenses.valid_until">有效期限</th>
+                                    <th data-i18n="admin.licenses.status">狀態</th>
+                                </tr>
+                            </thead>
+                            <tbody id="licenses-tbody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 報表匯出 -->
+                <div class="admin-tab-content" id="reports-tab">
+                    <div class="reports-grid">
+                        <div class="report-card">
+                            <h3 data-i18n="admin.reports.device_report">設備報表</h3>
+                            <p data-i18n="admin.reports.device_report_desc">匯出所有設備資訊</p>
+                            <div class="report-actions">
+                                <button class="btn btn-secondary" onclick="exportReport('devices', 'csv')">📄 CSV</button>
+                                <button class="btn btn-secondary" onclick="exportReport('devices', 'pdf')">📄 PDF</button>
+                                <button class="btn btn-secondary" onclick="exportReport('devices', 'json')">📋 JSON</button>
+                            </div>
+                        </div>
+                        <div class="report-card">
+                            <h3 data-i18n="admin.reports.logs_report">日誌報表</h3>
+                            <p data-i18n="admin.reports.logs_report_desc">匯出系統日誌</p>
+                            <div class="report-actions">
+                                <button class="btn btn-secondary" onclick="exportReport('logs', 'csv')">📄 CSV</button>
+                                <button class="btn btn-secondary" onclick="exportReport('logs', 'pdf')">📄 PDF</button>
+                                <button class="btn btn-secondary" onclick="exportReport('logs', 'json')">📋 JSON</button>
+                            </div>
+                        </div>
+                        <div class="report-card">
+                            <h3 data-i18n="admin.reports.traffic_report">流量排行報表</h3>
+                            <p data-i18n="admin.reports.traffic_report_desc">Top 10 介面流量排行</p>
+                            <div class="report-actions">
+                                <button class="btn btn-secondary" onclick="exportTrafficReport('csv')">📄 CSV</button>
+                                <button class="btn btn-secondary" onclick="exportTrafficReport('pdf')">📄 PDF</button>
+                            </div>
+                        </div>
+                        <div class="report-card">
+                            <h3 data-i18n="admin.reports.health_report">設備健康度報表</h3>
+                            <p data-i18n="admin.reports.health_report_desc">Top CPU/Memory 使用率</p>
+                            <div class="report-actions">
+                                <button class="btn btn-secondary" onclick="exportHealthReport('csv')">📄 CSV</button>
+                                <button class="btn btn-secondary" onclick="exportHealthReport('pdf')">📄 PDF</button>
+                            </div>
+                        </div>
+                        <div class="report-card">
+                            <h3 data-i18n="admin.reports.avail_report">可用性報表</h3>
+                            <p data-i18n="admin.reports.avail_report_desc">設備線上/離線狀態統計</p>
+                            <div class="report-actions">
+                                <button class="btn btn-secondary" onclick="exportAvailabilityReport('csv')">📄 CSV</button>
+                                <button class="btn btn-secondary" onclick="exportAvailabilityReport('pdf')">📄 PDF</button>
+                            </div>
+                        </div>
+                        <div class="report-card">
+                            <h3 data-i18n="admin.reports.inventory_report">資產清單報表</h3>
+                            <p data-i18n="admin.reports.inventory_report_desc">詳細設備規格與資產資料</p>
+                            <div class="report-actions">
+                                <button class="btn btn-secondary" onclick="exportInventoryReport('csv')">📄 CSV</button>
+                                <button class="btn btn-secondary" onclick="exportInventoryReport('pdf')">📄 PDF</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 告警設定 -->
+                <div class="admin-tab-content" id="alerts-tab">
+                    <div class="alert-notice">
+                        <span>⚠️</span>
+                        <span data-i18n="admin.alerts.notice">請自行準備相關設定資訊 / API 金鑰進行設定</span>
+                    </div>
+                    <div class="alert-cards-grid" id="alert-settings-container">
+                        <p class="empty-message" data-i18n="common.loading">載入中...</p>
+                    </div>
+                </div>
+
+                <!-- 安全設定 -->
+                <div class="admin-tab-content" id="security-tab">
+                    <div class="section-header">
+                        <h2 data-i18n="admin.security.title">安全設定</h2>
+                    </div>
+                    <div class="card" style="padding: 24px; max-width: 800px;">
+                        <h3 data-i18n="admin.security.2fa_title">二階段驗證 (2FA)</h3>
+                        <p class="text-muted" style="margin-bottom: 20px;" data-i18n="admin.security.2fa_desc">
+                            啟用後，使用者登入時需輸入發送至 Email 的驗證碼。
+                        </p>
+                        <div class="form-group">
+                            <label class="nms-switch">
+                                <input type="checkbox" id="global-2fa-toggle" onchange="toggleGlobal2FA()">
+                                <span class="nms-slider round"></span>
+                            </label>
+                            <span id="global-2fa-status" style="margin-left: 10px;">已停用</span>
+                        </div>
+
+                        <hr style="margin: 24px 0; border: 0; border-top: 1px solid var(--border-color);">
+
+                        <h3 data-i18n="admin.security.password_expiry_title">密碼過期策略</h3>
+                        <p class="text-muted" style="margin-bottom: 20px;" data-i18n="admin.security.password_expiry_desc">
+                            強制使用者定期更換密碼。
+                        </p>
+                        <div class="form-group">
+                            <label data-i18n="admin.security.expiry_days_label">密碼有效天數 (0 表示永不過期)</label>
+                            <div style="display: flex; gap: 10px; align-items: center; margin-top: 8px;">
+                                <input type="number" id="password-expiry-days" class="text-input" min="0" value="90" style="width: 100px;">
+                                <span data-i18n="common.days">天</span>
+                                <button class="btn btn-primary" onclick="savePasswordExpiry()">
+                                    <span data-i18n="common.save">儲存</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <hr style="margin: 24px 0; border: 0; border-top: 1px solid var(--border-color);">
+
+                        <h3>密碼強度政策</h3>
+                        <div style="margin-top: 10px; padding: 16px; background: var(--bg-secondary, #f1f5f9); border-radius: 8px; font-size: 0.9rem; line-height: 1.8;">
+                            <strong>目前啟用的規則：</strong>
+                            <ul style="margin: 8px 0 0 20px; padding: 0;">
+                                <li>最少 <strong>8</strong> 個字元</li>
+                                <li>至少 1 個大寫字母 (A-Z)</li>
+                                <li>至少 1 個小寫字母 (a-z)</li>
+                                <li>至少 1 個數字 (0-9)</li>
+                                <li>至少 1 個特殊字元 (!@#$%^&* 等)</li>
+                                <li>禁止使用常見弱密碼 (如 password、admin123 等)</li>
+                                <li>新密碼不可與舊密碼相同</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 系統品牌設定 -->
+                <div class="admin-tab-content" id="branding-tab">
+                    <div class="section-header">
+                        <h2>公司品牌設定</h2>
+                    </div>
+                    <div class="branding-form">
+                        <div class="form-group">
+                            <label data-i18n="admin.branding.current_logo">目前 Logo</label>
+                            <div class="current-logo-preview">
+                                <img id="current-logo-img" src="" alt="公司 Logo" style="max-height: 80px; display: none;">
+                                <span id="no-logo-text" data-i18n="admin.branding.no_logo">尚未設定 Logo</span>
+                            </div>
+                            <button class="btn btn-danger btn-sm" id="btn-delete-logo" onclick="deleteCompanyLogo()" style="display: none; margin-top: 8px;" data-i18n="admin.branding.delete_logo">刪除 Logo</button>
+                        </div>
+                        <div class="form-group">
+                            <label>上傳新 Logo</label>
+                            <div class="logo-upload-area" onclick="document.getElementById('logo-file-input').click()">
+                                <input type="file" id="logo-file-input" accept="image/*" style="display:none" onchange="previewLogoFile(this)">
+                                <div class="upload-placeholder">
+                                    <span>📷</span>
+                                    <p>點擊選擇圖片</p>
+                                    <small style="display:block; color:var(--text-muted); margin-top:5px;">建議解析度: 200x50 或等比例 (PNG/JPG)</small>
+                                </div>
+                                <img id="logo-preview-img" src="" style="max-height: 80px; display: none;">
+                            </div>
+                            <button class="btn btn-primary" onclick="uploadCompanyLogo()" style="margin-top: 12px;">上傳 Logo</button>
+                        </div>
+                        <div class="form-group">
+                            <label>公司名稱</label>
+                            <input type="text" id="company-name-input" class="text-input" placeholder="例如: ABC 科技公司">
+                        </div>
+                        <div class="form-group" style="margin-top: 16px;">
+                            <label data-i18n="admin.branding.company_name_color">公司名稱顏色</label>
+                            <div style="display: flex; align-items: center; gap: 10px; margin-top: 8px;">
+                                <input type="color" id="company-name-color" value="#ffffff" style="width: 50px; height: 30px; padding: 0; border: none; cursor: pointer;">
+                                <span id="color-hex-value">#ffffff</span>
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin-top: 16px;">
+                            <label><span data-i18n="admin.branding.font_size">字體大小</span>: <span id="font-size-value">18</span>px</label>
+                            <input type="range" id="company-name-font-size" min="12" max="48" value="18" style="width: 100%; margin-top: 8px;" oninput="updateFontSizePreview(this.value)">
+                        </div>
+                        <div class="form-group" style="margin-top: 16px;">
+                            <label data-i18n="admin.branding.name_position">名稱位置 (相對於 Logo)</label>
+                            <select id="company-name-position" class="select-input" style="width: 100%; margin-top: 8px; padding: 8px;">
+                                <option value="right" data-i18n="admin.branding.pos_right">右側 (預設)</option>
+                                <option value="left" data-i18n="admin.branding.pos_left">左側</option>
+                                <option value="top" data-i18n="admin.branding.pos_top">上方</option>
+                                <option value="bottom" data-i18n="admin.branding.pos_bottom">下方</option>
+                            </select>
+                        </div>
+                        <div class="form-actions" style="margin-top: 20px;">
+                            <button class="btn btn-secondary" onclick="saveBrandingInfo()" data-i18n="admin.branding.save_settings">儲存設定</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 系統備份 -->
+                <div class="admin-tab-content" id="backup-tab">
+                    <div class="section-header">
+                        <h2 data-i18n="admin.backup.title">系統備份與還原</h2>
+                    </div>
+                    <div class="card" style="padding: 24px; max-width: 600px;">
+                        <h3 data-i18n="admin.backup.backup_title">📦 系統備份</h3>
+                        <p class="text-muted" style="margin-bottom: 20px;" data-i18n="admin.backup.backup_desc">
+                            下載包含系統資料庫、設定檔以及所有上傳圖片的完整備份檔案 (.zip)。
+                        </p>
+                        <button class="btn btn-primary" onclick="downloadBackup()">
+                            <span>⬇️</span> <span data-i18n="admin.backup.download_btn">下載系統備份</span>
+                        </button>
+                        <hr style="margin: 24px 0; border: 0; border-top: 1px solid var(--border-color);">
+                        <h3 data-i18n="admin.backup.restore_title">🔄 系統還原</h3>
+                        <p class="text-muted" style="margin-bottom: 20px;">
+                            <span data-i18n="admin.backup.restore_desc">上傳備份檔案 (.zip) 以還原系統資料與設定。</span>
+                            <br><span style="color: var(--danger-color);" data-i18n="admin.backup.restore_warning">⚠️ 還原後系統將自動重啟，所有未備份資料將遺失。</span>
+                        </p>
+                        <div class="form-group">
+                            <input type="file" id="restore-file-input" accept=".zip" style="width: 100%;">
+                        </div>
+                        <button class="btn btn-danger" id="btn-restore-upload" onclick="uploadRestore()" style="margin-top: 10px;">
+                            <span>🔄</span> <span data-i18n="admin.backup.upload_btn">上傳並還原</span>
+                        </button>
+                        <div id="restore-status" style="display: none; margin-top: 20px; padding: 16px; background: var(--bg-tertiary); border-radius: var(--radius-md);">
+                            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                                <div class="spinner" id="restore-spinner"></div>
+                                <span id="restore-status-text" style="font-weight: 500;" data-i18n="admin.backup.processing">處理中...</span>
+                            </div>
+                            <div class="progress-bar" id="restore-progress-bar" style="display: none;">
+                                <div class="progress-fill" id="restore-progress-fill"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 診斷工具 -->
+                <div class="admin-tab-content" id="tools-tab">
+                    <div class="section-header">
+                        <h2 data-i18n="admin.tools.title">網路診斷工具</h2>
+                    </div>
+                    <div class="tools-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div class="tool-card card">
+                            <h3 data-i18n="admin.tools.ping_title">Ping 檢測</h3>
+                            <p class="text-muted" data-i18n="admin.tools.ping_desc">輸入 IP 位址進行連線測試 (每行一個或是以逗號分隔)</p>
+                            <div class="form-group">
+                                <textarea id="ping-targets" class="text-input" rows="5" placeholder="192.168.1.1&#10;192.168.1.2"></textarea>
+                            </div>
+                            <button class="btn btn-primary" onclick="runPingTool()" id="btn-ping-run">
+                                <span>📡</span> <span data-i18n="admin.tools.ping_btn">開始 Ping</span>
+                            </button>
+                            <div class="tool-output" style="margin-top: 15px;">
+                                <label data-i18n="admin.tools.result">執行結果:</label>
+                                <pre id="ping-output" class="log-viewer" style="height: 200px; background: #1a1a1a; color: #0f0; padding: 10px; overflow: auto; border-radius: 4px;" data-i18n="admin.tools.waiting">等待執行...</pre>
+                            </div>
+                        </div>
+                        <div class="tool-card card">
+                            <h3 data-i18n="admin.tools.traceroute_title">路由追蹤 (Traceroute)</h3>
+                            <p class="text-muted" data-i18n="admin.tools.traceroute_desc">輸入 IP 位址進行路由路徑分析</p>
+                            <div class="form-group">
+                                <input type="text" id="traceroute-target" class="text-input" placeholder="8.8.8.8">
+                            </div>
+                            <button class="btn btn-primary" onclick="runTracerouteTool()" id="btn-traceroute-run">
+                                <span>👣</span> <span data-i18n="admin.tools.traceroute_btn">開始追蹤</span>
+                            </button>
+                            <div class="tool-output" style="margin-top: 15px;">
+                                <label data-i18n="admin.tools.result">執行結果:</label>
+                                <pre id="traceroute-output" class="log-viewer" style="height: 200px; background: #1a1a1a; color: #0f0; padding: 10px; overflow: auto; border-radius: 4px;" data-i18n="admin.tools.waiting">等待執行...</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 目前主機狀態 -->
+                <div class="admin-tab-content active" id="host-status-tab">
+                    <div class="section-header">
+                        <h2 data-i18n="admin.tabs.host_status">目前主機狀態</h2>
+                        <button class="btn btn-secondary btn-sm" onclick="loadHostStatus()">
+                            <span>🔄</span> <span data-i18n="common.refresh">刷新</span>
+                        </button>
+                    </div>
+                    <div class="host-status-grid">
+                        <div class="status-card host-info-card">
+                            <h3>🌐 <span data-i18n="admin.host.system_info">系統資訊</span></h3>
+                            <div class="info-group">
+                                <span class="info-label" data-i18n="admin.host.os">作業系統:</span>
+                                <span class="info-value" id="host-os" data-i18n="common.loading">載入中...</span>
+                            </div>
+                            <div class="info-group">
+                                <span class="info-label" data-i18n="admin.host.platform">平台版本:</span>
+                                <span class="info-value" id="host-platform" data-i18n="common.loading">載入中...</span>
+                            </div>
+                            <div class="info-group">
+                                <span class="info-label" data-i18n="admin.host.hostname">主機名稱:</span>
+                                <span class="info-value" id="host-hostname" data-i18n="common.loading">載入中...</span>
+                            </div>
+                            <div class="info-group">
+                                <span class="info-label" data-i18n="admin.host.uptime">運行時間:</span>
+                                <span class="info-value" id="host-uptime" data-i18n="common.loading">載入中...</span>
+                            </div>
+                            <div class="info-group">
+                                <span class="info-label">GPU 加速:</span>
+                                <span class="info-value" id="host-gpu-name" data-i18n="common.loading">載入中...</span>
+                            </div>
+                            <div class="info-group">
+                                <span class="info-label">解碼方式:</span>
+                                <span class="info-value" id="host-gpu-method">-</span>
+                            </div>
+                            <div class="info-group">
+                                <span class="info-label">建議最大串流:</span>
+                                <span class="info-value" id="host-gpu-maxcams">-</span>
+                            </div>
+                        </div>
+                        <div class="status-card host-usage-card">
+                            <h3><span>🎛️</span> <span data-i18n="admin.host.resource_usage">資源使用率</span></h3>
+                            <div class="host-gauges-container">
+                                <div id="host-cpu-gauge-box" class="gauge-box"></div>
+                                <div id="host-mem-gauge-box" class="gauge-box"></div>
+                                <div id="host-disk-gauge-box" class="gauge-box"></div>
+                            </div>
+                            <div class="host-usage-details">
+                                <div class="info-group">
+                                    <span class="info-label" data-i18n="admin.host.memory_usage_detail">記憶體目前使用 (已用 / 總計):</span>
+                                    <span class="info-value" id="host-mem-val" data-i18n="common.parsing">解析中...</span>
+                                </div>
+                                <div class="info-group">
+                                    <span class="info-label" data-i18n="admin.host.disk_usage_detail">磁碟空間目前使用 (已用 / 總計):</span>
+                                    <span class="info-value" id="host-disk-val" data-i18n="common.parsing">解析中...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 攝影機監控頁面 -->
+            <section id="cameras" class="page">
+                <header class="page-header">
+                    <h1 data-i18n="nav.cameras">攝影機監控</h1>
+                    <div id="camera-page-actions" style="display:flex;gap:8px;align-items:center;">
+                        <div id="cam-layout-btns" style="display:flex;gap:4px;">
+                            <button class="cam-grid-btn active" data-grid="grid-4" onclick="setGridMode('grid-4')" title="4畫面">⊞</button>
+                            <button class="cam-grid-btn" data-grid="grid-9" onclick="setGridMode('grid-9')" title="9畫面">⊟</button>
+                            <button class="cam-grid-btn" data-grid="grid-16" onclick="setGridMode('grid-16')" title="16畫面">⊠</button>
+                        </div>
+                        <span id="cam-gpu-hint" style="font-size:0.75rem;color:var(--text-secondary);padding:4px 8px;border:1px solid var(--border-color);border-radius:4px;" title=""></span>
+                        <button class="btn btn-primary" id="cam-add-btn" onclick="showAddCameraModal()" data-permission="admin">
+                            ＋ <span data-i18n="cameras.add">新增攝影機</span>
+                        </button>
+                        <button class="btn btn-secondary" onclick="discoverCameras()" data-permission="admin">
+                            🔍 <span data-i18n="cameras.discover">自動搜尋</span>
+                        </button>
+                        <button class="btn btn-secondary" onclick="openBulkScanModal()" data-permission="admin">
+                            📡 <span data-i18n="cameras.bulk_scan">批次搜尋</span>
+                        </button>
+                        <button class="btn btn-secondary" onclick="openBatchCredentialsModal()" data-permission="admin">
+                            🔑 <span data-i18n="cameras.batch_credentials">批次修改帳密</span>
+                        </button>
+                    </div>
+                </header>
+
+                <!-- 授權狀態提示列 (無授權時顯示，有授權自動隱藏) -->
+                <div id="camera-license-notice" class="camera-license-notice" style="display:none;">
+                    <span class="license-notice-icon">🔒</span>
+                    <span data-i18n="cameras.license_notice">攝影機監控模組需加購 License 方可新增攝影機。</span>
+                    <button class="btn btn-sm btn-outline-primary" onclick="loadPage('admin')" style="margin-left:12px;">
+                        🔑 <span data-i18n="cameras.go_license">前往授權管理</span>
+                    </button>
+                </div>
+
+                <!-- 攝影機主介面 (永遠顯示，無授權時新增按鈕反灰) -->
+                <div id="camera-module-content">
+                    <!-- Tab 切換 -->
+                    <div class="cam-tab-bar" style="display:flex;gap:4px;margin-bottom:12px;border-bottom:1px solid var(--border-color);padding-bottom:6px;align-items:center;flex-wrap:wrap;">
+                        <button class="btn btn-sm btn-primary cam-main-tab-btn active" id="cam-tab-live" onclick="switchCameraTab('live')">🎥 <span data-i18n="cameras.tab_live">即時監看</span></button>
+                        <button class="btn btn-sm btn-secondary cam-main-tab-btn" id="cam-tab-nvr" onclick="switchCameraTab('nvr')">📼 <span data-i18n="cameras.tab_nvr">錄影管理</span></button>
+                    </div>
+
+                    <!-- Live 視訊 -->
+                    <div id="cam-panel-live">
+                        <div class="nvr-container">
+                            <!-- 左側攝影機清單 -->
+                            <div class="cam-sidebar" id="cam-sidebar">
+                                <div class="cam-sidebar-header">
+                                    <span data-i18n="cameras.sidebar_title">攝影機清單</span>
+                                    <span class="cam-count-badge" id="sidebar-cam-count">0</span>
+                                    <button class="cam-sidebar-toggle" onclick="toggleCameraSidebar()" title="收合">◀</button>
+                                </div>
+                                <div class="cam-sidebar-list" id="cam-sidebar-list"></div>
+                            </div>
+                            <!-- 右側視訊格 -->
+                            <div class="cam-main">
+                                <div class="cam-grid grid-4" id="camera-grid"></div>
+                                <div id="cam-pagination"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- NVR 錄影管理 -->
+                    <div id="cam-panel-nvr" style="display:none;">
+                        <div style="display:grid;grid-template-columns:220px 1fr;gap:16px;height:calc(100vh - 260px);min-height:400px;">
+
+                            <!-- 左：攝影機清單 + 錄影控制 -->
+                            <div style="display:flex;flex-direction:column;gap:0;border:1px solid var(--border-color);border-radius:8px;overflow:hidden;">
+                                <div style="padding:10px 12px;background:var(--bg-tertiary);border-bottom:1px solid var(--border-color);font-size:0.8rem;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--text-muted);display:flex;align-items:center;justify-content:space-between;gap:4px;">
+                                    <span>攝影機清單</span>
+                                    <div style="display:flex;gap:4px;">
+                                        <button class="btn btn-sm btn-secondary" style="padding:1px 6px;font-size:0.75rem;" onclick="window.nvrLoadStatus()" title="刷新狀態">↻</button>
+                                        <button class="btn btn-sm btn-secondary" style="padding:1px 6px;font-size:0.75rem;" onclick="window.openNVRSettings()" title="NVR 設定">⚙</button>
+                                    </div>
+                                </div>
+                                <div id="nvr-cam-list" style="flex:1;overflow-y:auto;"></div>
+                            </div>
+
+                            <!-- 右：錄影記錄 + 播放器 -->
+                            <div style="display:flex;flex-direction:column;gap:12px;overflow:hidden;">
+                                <!-- 日期篩選 + 批次刪除工具列 -->
+                                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                                    <div class="form-group" style="margin:0;">
+                                        <label style="font-size:0.8rem;">日期</label>
+                                        <select id="nvr-filter-date" class="select-input" onchange="window.nvrFilterChange()">
+                                            <option value="">全部日期</option>
+                                        </select>
+                                    </div>
+                                    <div style="margin-top:16px;display:flex;gap:6px;align-items:center;">
+                                        <button class="btn btn-sm btn-secondary" onclick="window.nvrLoadRecordings(1)">🔍 搜尋</button>
+                                        <button class="btn btn-sm btn-secondary" id="nvr-batch-select-btn" onclick="window.nvrToggleBatchMode()" title="批次選取">☑ 批次選取</button>
+                                        <button class="btn btn-sm btn-danger" id="nvr-batch-delete-btn" onclick="window.nvrBatchDelete()" style="display:none;" title="刪除已選取">🗑 刪除已選</button>
+                                        <span id="nvr-batch-count" style="display:none;font-size:0.8rem;color:var(--text-muted);"></span>
+                                    </div>
+                                </div>
+
+                                <!-- 當日時間軸（選擇攝影機+日期後顯示） -->
+                                <div id="nvr-day-timeline-wrap" style="display:none;background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:8px;padding:10px 14px;">
+                                    <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:6px;">當日錄影時間軸（點擊跳至該錄影）</div>
+                                    <div style="position:relative;height:40px;background:#1e1e2e;border-radius:4px;overflow:hidden;cursor:crosshair;" id="nvr-day-timeline-bar" onclick="window.nvrDayTimelineClick(event)">
+                                        <div id="nvr-day-timeline-ticks" style="position:absolute;width:100%;height:100%;pointer-events:none;"></div>
+                                        <div id="nvr-day-timeline-blocks" style="position:absolute;width:100%;height:100%;top:0;left:0;pointer-events:none;"></div>
+                                        <div id="nvr-day-timeline-now" style="position:absolute;width:2px;height:100%;background:rgba(239,68,68,0.6);top:0;display:none;pointer-events:none;"></div>
+                                    </div>
+                                    <div style="display:flex;justify-content:space-between;font-size:0.65rem;color:var(--text-muted);margin-top:2px;padding:0 2px;">
+                                        <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span>
+                                    </div>
+                                </div>
+
+                                <!-- 錄影清單表頭 -->
+                                <div id="nvr-list-header" style="display:none;display:grid;grid-template-columns:28px 70px 1fr 70px 60px 110px;gap:6px;padding:6px 14px;background:var(--bg-tertiary);border:1px solid var(--border-color);border-radius:8px 8px 0 0;font-size:0.75rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;">
+                                    <span id="nvr-select-all-wrap" style="display:none;"><input type="checkbox" id="nvr-select-all" onchange="window.nvrSelectAll(this.checked)"></span>
+                                    <span>時間</span><span>攝影機</span><span>時長</span><span>大小</span><span>操作</span>
+                                </div>
+
+                                <!-- 錄影清單 -->
+                                <div id="nvr-recording-list" style="flex:1;border:1px solid var(--border-color);border-top:none;border-radius:0 0 8px 8px;overflow-y:auto;">
+                                    <div style="padding:40px;text-align:center;color:var(--text-muted);">← 點選左側攝影機查看錄影</div>
+                                </div>
+                                <div id="nvr-pagination" style="display:flex;justify-content:center;gap:8px;"></div>
+
+                                <!-- 內嵌播放器 (改為大彈出視窗) -->
+                                <div id="nvr-player-wrap" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:9999;background:rgba(0,0,0,0.85);backdrop-filter:blur(4px);padding:40px;box-sizing:border-box;overflow-y:auto;">
+                                    <div style="margin: 0 auto; width:100%;max-width:1200px;background:var(--bg-primary);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 10px 30px rgba(0,0,0,0.5);">
+                                        <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 24px;border-bottom:1px solid var(--border-color);background:var(--bg-secondary);">
+                                            <div style="display:flex; align-items:center; gap:12px;">
+                                                <span id="nvr-player-title" style="font-size:1.1rem;font-weight:600;"></span>
+                                                <span id="nvr-player-time" style="font-size:0.9rem;color:var(--text-muted);font-variant-numeric: tabular-nums;"></span>
+                                            </div>
+                                            <button class="btn btn-secondary" onclick="window.nvrClosePlayer()" style="font-size:1.1rem;padding:4px 12px;cursor:pointer;">✕ 關閉</button>
+                                        </div>
+                                        <div style="padding:24px;display:flex;flex-direction:column;gap:16px;background:#1a1a1a;">
+                                            <video id="nvr-player-video" controls style="width:100%;height:65vh;border-radius:4px;background:#000;"></video>
+                                            
+                                            <!-- 時間軸 UI -->
+                                            <div id="nvr-timeline-wrap" style="position:relative; height:60px; background:#2d2d2d; border:1px solid #444; border-radius:6px; overflow:hidden; cursor:crosshair;" onclick="window.nvrTimelineClick(event)">
+                                                <!-- 時間刻度 (每小時) -->
+                                                <div id="nvr-timeline-ticks" style="position:absolute; width:100%; height:100%; pointer-events:none;"></div>
+                                                <!-- 錄影區塊 (動態生成) -->
+                                                <div id="nvr-timeline-blocks" style="position:absolute; width:100%; height:100%; top:0; left:0; pointer-events:none;"></div>
+                                                <!-- 當前播放時間線 (紅線) -->
+                                                <div id="nvr-timeline-cursor" style="position:absolute; width:2px; height:100%; background:#ef4444; top:0; left:0; display:none; pointer-events:none; z-index:10; box-shadow:0 0 4px #ef4444;">
+                                                    <div style="position:absolute; top:-24px; left:-24px; background:#ef4444; color:#fff; font-size:0.75rem; padding:2px 6px; border-radius:4px;" id="nvr-timeline-cursor-label"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ══ Access Control (門禁管理) ══ -->
+            <section id="access-control" class="page">
+                <header class="page-header">
+                    <h1 data-i18n="nav.access_control">門禁管理</h1>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <button class="btn btn-primary" id="ac-add-door-btn" onclick="acOpenAddDoorModal()" data-permission="admin">
+                            ＋ <span data-i18n="ac.add_door">新增門禁設備</span>
+                        </button>
+                        <button class="btn btn-secondary" id="ac-add-card-btn" onclick="acOpenAddCardModal()" data-permission="admin">
+                            🪪 <span data-i18n="ac.add_card">新增門禁卡</span>
+                        </button>
+                        <button class="btn btn-secondary" id="ac-add-sched-btn" onclick="acOpenAddScheduleModal()" data-permission="admin">
+                            📅 <span data-i18n="ac.add_schedule">新增排程</span>
+                        </button>
+                        <button class="btn btn-secondary" onclick="acInit()">↻</button>
+                    </div>
+                </header>
+
+                <!-- License notice -->
+                <div id="ac-license-notice" class="ac-license-notice" style="display:none;">
+                    <span>🔒</span>
+                    <span data-i18n="ac.license_notice">門禁管理模組需加購 License 方可使用。</span>
+                    <button class="btn btn-sm btn-outline-primary" onclick="loadPage('admin')" style="margin-left:12px;">
+                        🔑 <span data-i18n="ac.go_license">前往授權管理</span>
+                    </button>
+                </div>
+
+                <div id="ac-module-content">
+                    <!-- Tab bar -->
+                    <div class="ac-tab-bar">
+                        <button class="ac-tab-btn active" data-tab="doors" onclick="acSwitchTab('doors')" data-i18n="ac.tab_doors">門禁設備</button>
+                        <button class="ac-tab-btn" data-tab="cards" onclick="acSwitchTab('cards')" data-i18n="ac.tab_cards">門禁卡管理</button>
+                        <button class="ac-tab-btn" data-tab="schedules" onclick="acSwitchTab('schedules')" data-i18n="ac.tab_schedules">定時排程</button>
+                        <button class="ac-tab-btn" data-tab="events" onclick="acSwitchTab('events')" data-i18n="ac.tab_events">出入紀錄</button>
+                    </div>
+
+                    <!-- Panel: Doors -->
+                    <div class="ac-panel active" id="ac-panel-doors">
+                        <div class="door-grid" id="ac-door-grid"></div>
+                    </div>
+
+                    <!-- Panel: Cards -->
+                    <div class="ac-panel" id="ac-panel-cards">
+                        <div class="ac-cards-toolbar">
+                            <input type="text" class="ac-search-input" id="ac-card-search"
+                                placeholder="搜尋姓名 / 卡號 / 部門..."
+                                oninput="acLoadCards(this.value)">
+                        </div>
+                        <div class="ac-table-wrap">
+                            <table class="ac-table">
+                                <thead>
+                                    <tr>
+                                        <th data-i18n="ac.card_number">卡號</th>
+                                        <th data-i18n="ac.holder_name">持卡人</th>
+                                        <th data-i18n="ac.department">部門</th>
+                                        <th data-i18n="ac.status">狀態</th>
+                                        <th data-i18n="ac.valid_until">有效期</th>
+                                        <th data-i18n="common.actions">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ac-cards-tbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Panel: Schedules -->
+                    <div class="ac-panel" id="ac-panel-schedules">
+                        <div class="ac-cards-toolbar" style="margin-bottom:12px;">
+                            <select class="ac-events-filter" id="ac-sched-status-filter" onchange="acLoadSchedules(this.value)">
+                                <option value="" data-i18n="ac.all_statuses">全部狀態</option>
+                                <option value="pending" data-i18n="ac.status_pending">待審核</option>
+                                <option value="approved" data-i18n="ac.status_approved">已核准</option>
+                                <option value="rejected" data-i18n="ac.status_rejected">已拒絕</option>
+                                <option value="expired" data-i18n="ac.status_expired">已過期</option>
+                            </select>
+                            <button class="btn btn-secondary btn-sm" onclick="acLoadSchedules()">↻ 重新整理</button>
+                        </div>
+                        <div class="ac-table-wrap">
+                            <table class="ac-table">
+                                <thead>
+                                    <tr>
+                                        <th data-i18n="ac.card_number">卡號</th>
+                                        <th data-i18n="ac.holder_name">持卡人</th>
+                                        <th data-i18n="ac.door">適用門禁</th>
+                                        <th data-i18n="ac.valid_range">有效日期</th>
+                                        <th data-i18n="ac.time_range">允許時段</th>
+                                        <th data-i18n="ac.status">狀態</th>
+                                        <th data-i18n="ac.approved_by">核准者</th>
+                                        <th data-i18n="common.actions">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ac-schedules-tbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Panel: Events -->
+                    <div class="ac-panel" id="ac-panel-events">
+                        <div class="ac-events-toolbar">
+                            <select class="ac-events-filter" id="ac-ev-type-filter" onchange="acLoadEvents()">
+                                <option value="" data-i18n="ac.all_types">所有類型</option>
+                                <option value="access" data-i18n="ac.ev_access">正常進出</option>
+                                <option value="denied" data-i18n="ac.ev_denied">拒絕</option>
+                                <option value="alarm"  data-i18n="ac.ev_alarm">告警</option>
+                                <option value="open"   data-i18n="ac.ev_open">開門</option>
+                                <option value="close"  data-i18n="ac.ev_close">關門</option>
+                                <option value="tamper" data-i18n="ac.ev_tamper">破壞警報</option>
+                            </select>
+                            <select class="ac-events-filter" id="ac-ev-limit" onchange="acLoadEvents()">
+                                <option value="50">50 筆</option>
+                                <option value="100" selected>100 筆</option>
+                                <option value="500">500 筆</option>
+                            </select>
+                            <button class="btn btn-secondary btn-sm" onclick="acLoadEvents()">↻ 重新整理</button>
+                        </div>
+                        <div class="ac-table-wrap">
+                            <table class="ac-table">
+                                <thead>
+                                    <tr>
+                                        <th data-i18n="ac.time">時間</th>
+                                        <th data-i18n="ac.door">門禁點</th>
+                                        <th data-i18n="ac.card_number">卡號</th>
+                                        <th data-i18n="ac.holder_name">持卡人</th>
+                                        <th data-i18n="ac.event_type">事件類型</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ac-events-tbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ══ PDU/UPS Monitor ══ -->
+            <section id="pdu" class="page">
+                <header class="page-header">
+                    <h1 data-i18n="nav.pdu">PDU/UPS 監控</h1>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <button class="btn btn-secondary" onclick="pduLoadDevices()" title="重新整理">↻</button>
+                        <button class="btn btn-primary" id="pdu-add-btn" onclick="pduAdd()" data-permission="admin">
+                            + <span data-i18n="pdu.add">新增裝置</span>
+                        </button>
+                    </div>
+                </header>
+                <!-- License notice -->
+                <div id="pdu-license-notice">
+                    <span class="license-notice-icon">🔒</span>
+                    <span class="license-notice-text" data-i18n="pdu.license_notice">PDU/UPS 監控模組需加購 License 方可使用。</span>
+                    <button class="btn btn-sm btn-outline-primary" onclick="loadPage('admin')">
+                        🔑 <span data-i18n="cameras.go_license">前往授權管理</span>
+                    </button>
+                </div>
+                <!-- Device grid -->
+                <div id="pdu-grid" class="pdu-grid"></div>
+            </section>
+
+        </main>
+
+    </div>
+
+    <!-- Door modal -->
+    <div class="modal-overlay" id="ac-door-modal" style="display:none;" onclick="if(event.target===this)acHideOverlay('ac-door-modal')">
+        <div class="modal" style="max-width:640px;width:95%;">
+            <button class="modal-close" onclick="acHideOverlay('ac-door-modal')">&times;</button>
+            <div class="modal-body">
+                <div id="ac-door-modal-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card modal -->
+    <div class="modal-overlay" id="ac-card-modal" style="display:none;" onclick="if(event.target===this)acHideOverlay('ac-card-modal')">
+        <div class="modal" style="max-width:540px;width:95%;">
+            <button class="modal-close" onclick="acHideOverlay('ac-card-modal')">&times;</button>
+            <div class="modal-body">
+                <div id="ac-card-modal-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Schedule modal -->
+    <div class="modal-overlay" id="ac-sched-modal" style="display:none;" onclick="if(event.target===this)acHideOverlay('ac-sched-modal')">
+        <div class="modal" style="max-width:640px;width:95%;">
+            <button class="modal-close" onclick="acHideOverlay('ac-sched-modal')">&times;</button>
+            <div class="modal-body">
+                <div id="ac-sched-modal-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 模態框 -->
+    <div class="modal-overlay" id="modal-overlay">
+        <div class="modal" id="modal">
+            <div class="modal-header">
+                <h2 id="modal-title">標題</h2>
+                <button class="modal-close" onclick="hideModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <!-- Mobile Bottom Navigation Bar -->
+    <nav class="mobile-bottom-nav" id="mobile-bottom-nav">
+        <button class="bottom-nav-item active" data-page="dashboard" onclick="loadPage('dashboard')">
+            <span class="bottom-nav-icon">📊</span>
+            <span class="bottom-nav-label" data-i18n="nav.dashboard">儀表板</span>
+        </button>
+        <button class="bottom-nav-item" data-page="devices" onclick="loadPage('devices')">
+            <span class="bottom-nav-icon">🖥️</span>
+            <span class="bottom-nav-label" data-i18n="nav.devices">設備清單</span>
+        </button>
+        <button class="bottom-nav-item" data-page="topology" onclick="loadPage('topology')">
+            <span class="bottom-nav-icon">🔗</span>
+            <span class="bottom-nav-label" data-i18n="nav.topology">網路拓樸</span>
+        </button>
+        <button class="bottom-nav-item nav-cameras" id="bottom-nav-cameras" data-page="cameras" data-permission="editor,admin" onclick="loadPage('cameras')">
+            <span class="bottom-nav-icon">📷</span>
+            <span class="bottom-nav-label" data-i18n="nav.cameras">攝影機</span>
+        </button>
+        <button class="bottom-nav-item nav-access-control" id="bottom-nav-access-control" data-page="access-control" data-permission="editor,admin" onclick="loadPage('access-control')">
+            <span class="bottom-nav-icon">🔐</span>
+            <span class="bottom-nav-label" data-i18n="nav.access_control">門禁</span>
+        </button>
+        <button class="bottom-nav-item nav-pdu" id="bottom-nav-pdu" data-page="pdu" data-permission="editor,admin" onclick="loadPage('pdu')">
+            <span class="bottom-nav-icon">🔋</span>
+            <span class="bottom-nav-label" data-i18n="nav.pdu">PDU/UPS</span>
+        </button>
+        <button class="bottom-nav-item nav-logs" data-page="logs" onclick="loadPage('logs')">
+            <span class="bottom-nav-icon">📋</span>
+            <span class="bottom-nav-label" data-i18n="nav.logs">日誌與稽核</span>
+        </button>
+        <button class="bottom-nav-item nav-admin" data-page="admin" onclick="loadPage('admin')">
+            <span class="bottom-nav-icon">⚙️</span>
+            <span class="bottom-nav-label" data-i18n="nav.admin">系統管理</span>
+        </button>
+    </nav>
+
+    <!-- Toast 通知 -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- JavaScript -->
+
+    <script>
+        writeConfiguredScripts([
+            '/static/js/i18n.js',
+            '/static/js/api.js',
+            '/static/js/utils.js',
+            '/static/js/dashboard.js',
+            '/static/js/devices.js',
+            '/static/js/topology.js',
+            '/static/js/logs.js',
+            '/static/js/admin.js',
+            '/static/js/reports.js',
+            '/static/js/auth.js',
+            '/static/js/camera-module.js',
+            '/static/js/door-module.js',
+            '/static/js/pdu-module.js',
+            '/static/js/notifications.js',
+            '/static/js/app.js'
+        ]);
+    </script>
+    <script>
+        // Return to mode selection console
+        function openDemoMode() {
+            window.location.href = '/mode-selection.html';
+        }
+    </script>
+    <script>
+        // PWA Service Worker Registration
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+            navigator.serviceWorker.register(getConfiguredServiceWorkerUrl())
+                    .then(reg => console.log('[PWA] SW registered, scope:', reg.scope))
+                    .catch(err => console.warn('[PWA] SW registration failed:', err));
+            });
+        }
+    </script>
+</body>
+
+</html>

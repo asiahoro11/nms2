@@ -1,0 +1,45 @@
+server:
+  host: "0.0.0.0"
+  port: "18080"
+  base_url: ""
+
+database:
+  driver: "sqlite"
+  path: "./data/nms.db"
+
+security:
+  jwt_secret: "nms-lite-secret-key-change-in-production"
+  enable_tls: false
+  cert_file: ""
+  key_file: ""
+  allowed_origins:
+    - "*"
+
+system:
+  name: "System Server"
+  version: "v1.2.2alpha4"
+
+syslog:
+  port: 514
+  retention_days: 90
+
+snmp:
+  community: "public"
+  default_community: "public"
+  timeout: 2
+  retries: 3
+
+logging:
+  level: "info"
+  filename: "server.log"
+  max_size: 100
+  max_backups: 3
+  max_age: 30
+  compress: true
+
+cloud:
+  enabled: false
+  broker_url: "ssl://localhost:8883"
+  heartbeat_interval: 60
+  metrics_interval: 300
+  buffer_max_size: 10000

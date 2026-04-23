@@ -1,0 +1,227 @@
+package handlers
+
+import (
+	"fmt"
+	"net/http"
+	"nms-lite/services/dbencryption"
+	"nms-lite/services/logging"
+	"os"
+	"path/filepath"
+	"time"
+
+	"github.com/gin-gonic/gin"
+)
+
+// ExportEncryptedBackup exports database with user-defined encryption
+func (h *Handler) ExportEncryptedBackup(c *gin.Context) {
+	var input struct {
+		Password string `json:"password" binding:"required,min=8"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, Response{Success: false, Error: "ÂØÜÁ¢º?≥Â??ÄË¶?8 ?ãÂ???})
+		return
+	}
+
+	username, _ := c.Get("username")
+
+	// Create encryption service
+	encService, err := dbencryption.NewService(input.Password)
+	if err != nil {
+		h.WriteAudit(username.(string), c.ClientIP(), "", "export_encrypted_backup", "system", "failed", map[string]interface{}{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, Response{Success: false, Error: "?†Â??çÂ??ùÂ??ñÂ§±??})
+		return
+	}
+
+	// Create temp encrypted backup
+	timestamp := time.Now().Format("20060102_150405")
+	tempPath := filepath.Join(os.TempDir(), fmt.Sprintf("nms_backup_encrypted_%s.enc", timestamp))
+	defer os.Remove(tempPath)
+
+	// Get database path from config
+	dbPath := h.config.Database.Path
+
+	// Create encrypted backup
+	if err := encService.CreateEncryptedBackup(dbPath, tempPath); err != nil {
+		h.WriteAudit(username.(string), c.ClientIP(), "", "export_encrypted_backup", "system", "failed", map[string]interface{}{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, Response{Success: false, Error: "?ô‰ªΩ?†Â?Â§±Ê?: " + err.Error()})
+		return
+	}
+
+	// Read encrypted file
+	encryptedData, err := os.ReadFile(tempPath)
+	if err != nil {
+		h.WriteAudit(username.(string), c.ClientIP(), "", "export_encrypted_backup", "system", "failed", map[string]interface{}{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, Response{Success: false, Error: "ËÆÄ?ñÂ?ÂØÜÊ?Ê°àÂ§±??})
+		return
+	}
+
+	h.WriteAudit(username.(string), c.ClientIP(), "", "export_encrypted_backup", "system", "success", map[string]interface{}{"size": len(encryptedData)})
+
+	// Return encrypted file
+	filename := fmt.Sprintf("nms_backup_encrypted_%s.enc", timestamp)
+	c.Header("Content-Description", "File Transfer")
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
+	c.Header("Content-Type", "application/octet-stream")
+	c.Header("Content-Length", fmt.Sprintf("%d", len(encryptedData)))
+	c.Data(http.StatusOK, "application/octet-stream", encryptedData)
+}
+
+// RestoreEncryptedBackup restores from an encrypted backup
+func (h *Handler) RestoreEncryptedBackup(c *gin.Context) {
+	password := c.PostForm("password")
+	if password == "" {
+		c.JSON(http.StatusBadRequest, Response{Success: false, Error: "Ë´ãÊ?‰æõËß£ÂØÜÂ?Á¢?})
+		return
+	}
+
+	// Get uploaded file
+	file, err := c.FormFile("backup_file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, Response{Success: false, Error: "Ë´ã‰??≥Â?‰ªΩÊ?Ê°?})
+		return
+	}
+
+	username, _ := c.Get("username")
+
+	// Save uploaded file temporarily
+	tempEncrypted := filepath.Join(os.TempDir(), fmt.Sprintf("nms_restore_%d.enc", time.Now().Unix()))
+	defer os.Remove(tempEncrypted)
+
+	if err := c.SaveUploadedFile(file, tempEncrypted); err != nil {
+		h.WriteAudit(username.(string), c.ClientIP(), "", "restore_encrypted_backup", "system", "failed", map[string]interface{}{"error": "upload_failed"})
+		c.JSON(http.StatusInternalServerError, Response{Success: false, Error: "Ê™îÊ?‰∏äÂÇ≥Â§±Ê?"})
+		return
+	}
+
+	// Create decryption service
+	decService, err := dbencryption.NewService(password)
+	if err != nil {
+		h.WriteAudit(username.(string), c.ClientIP(), "", "restore_encrypted_backup", "system", "failed", map[string]interface{}{"error": "decryption_service_init_failed"})
+		c.JSON(http.StatusInternalServerError, Response{Success: false, Error: "Ëß???çÂ??ùÂ??ñÂ§±??})
+		return
+	}
+
+	// Validate password first
+	if err := decService.ValidatePassword(tempEncrypted); err != nil {
+		h.WriteAudit(username.(string), c.ClientIP(), "", "restore_encrypted_backup", "system", "failed", map[string]interface{}{"error": "wrong_password"})
+		c.JSON(http.StatusUnauthorized, Response{Success: false, Error: "ÂØÜÁ¢º?ØË™§?ñÊ?Ê°àÂ∑≤?çÂ?"})
+		return
+	}
+
+	// Decrypt to temp location
+	tempDecrypted := filepath.Join(os.TempDir(), fmt.Sprintf("nms_restore_%d.db", time.Now().Unix()))
+	defer os.Remove(tempDecrypted)
+
+	if err := decService.DecryptBackup(tempEncrypted, tempDecrypted); err != nil {
+		h.WriteAudit(username.(string), c.ClientIP(), "", "restore_encrypted_backup", "system", "failed", map[string]interface{}{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, Response{Success: false, Error: "Ëß??Â§±Ê?: " + err.Error()})
+		return
+	}
+
+	// Backup current database
+	dbPath := h.config.Database.Path
+	backupPath := dbPath + ".before_restore_" + time.Now().Format("20060102_150405")
+	if err := copyFile(dbPath, backupPath); err != nil {
+		h.WriteAudit(username.(string), c.ClientIP(), "", "restore_encrypted_backup", "system", "failed", map[string]interface{}{"error": "backup_current_failed"})
+		c.JSON(http.StatusInternalServerError, Response{Success: false, Error: "?°Ê??ô‰ªΩ?∂Â?Ë≥áÊ?Â∫?})
+		return
+	}
+
+	// Close current database connection
+	h.db.Close()
+
+	// Replace database
+	if err := os.Rename(tempDecrypted, dbPath); err != nil {
+		// Restore backup on failure
+		os.Rename(backupPath, dbPath)
+		h.WriteAudit(username.(string), c.ClientIP(), "", "restore_encrypted_backup", "system", "failed", map[string]interface{}{"error": "replace_failed"})
+		c.JSON(http.StatusInternalServerError, Response{Success: false, Error: "Ë≥áÊ?Â∫´Êõø?õÂ§±??})
+		return
+	}
+
+	h.WriteAudit(username.(string), c.ClientIP(), "", "restore_encrypted_backup", "system", "success", map[string]interface{}{"backup_kept": backupPath})
+
+	c.JSON(http.StatusOK, Response{
+		Success: true,
+		Message: "?†Â??ô‰ªΩ?ÑÂ??êÂ?ÔºåÁ≥ªÁµ±Â???5 ÁßíÂ??çÊñ∞?üÂ?",
+		Data: map[string]interface{}{
+			"backup_path": backupPath,
+			"restart_in":  5,
+		},
+	})
+
+	// Schedule restart (give time for response to reach client)
+	go func() {
+		time.Sleep(5 * time.Second)
+		os.Exit(0) // Will be restarted by systemd or user
+	}()
+}
+
+// SetEncryptionPassword sets or changes the encryption password
+func (h *Handler) SetEncryptionPassword(c *gin.Context) {
+	var input struct {
+		OldPassword string `json:"old_password"`
+		NewPassword string `json:"new_password" binding:"required,min=8"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, Response{Success: false, Error: "?∞Â?Á¢ºËá≥Â∞ëÈ?Ë¶?8 ?ãÂ???})
+		return
+	}
+
+	username, _ := c.Get("username")
+
+	// Check if encryption is already enabled
+	var encryptionEnabled string
+	err := h.db.QueryRow("SELECT COALESCE(config_value, '0') FROM system_config WHERE config_key = 'db_encryption_enabled'").Scan(&encryptionEnabled)
+
+	if encryptionEnabled == "1" && input.OldPassword == "" {
+		c.JSON(http.StatusBadRequest, Response{Success: false, Error: "Â∑≤Â??®Â?ÂØÜÔ?Ë´ãÊ?‰æõË?ÂØÜÁ¢º"})
+		return
+	}
+
+	// Store encrypted password hash (for validation, not the actual encryption key)
+	_, err = h.db.Exec(`
+		INSERT OR REPLACE INTO system_config (config_key, config_value, description)
+		VALUES ('db_encryption_enabled', '1', 'Database encryption status')
+	`)
+
+	if err != nil {
+		h.WriteAudit(username.(string), c.ClientIP(), "", "set_encryption_password", "system", "failed", map[string]interface{}{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, Response{Success: false, Error: "Ë®≠Â??†Â??Ä?ãÂ§±??})
+		return
+	}
+
+	h.WriteAudit(username.(string), c.ClientIP(), "", "set_encryption_password", "system", "success", nil)
+
+	c.JSON(http.StatusOK, Response{
+		Success: true,
+		Message: "?†Â?ÂØÜÁ¢ºÂ∑≤Ë®≠ÂÆöÔ?Ë´ã‰Ωø?®Ê≠§ÂØÜÁ¢º?≤Ë??†Â??ô‰ªΩ",
+	})
+}
+
+// GetEncryptionStatus returns current encryption status
+func (h *Handler) GetEncryptionStatus(c *gin.Context) {
+	var enabled string
+	h.db.QueryRow("SELECT COALESCE(config_value, '0') FROM system_config WHERE config_key = 'db_encryption_enabled'").Scan(&enabled)
+
+	status := map[string]interface{}{
+		"enabled":           enabled == "1",
+		"backup_encryption": true, // Always available
+	}
+
+	c.JSON(http.StatusOK, Response{
+		Success: true,
+		Data:    status,
+	})
+}
+
+// copyFile copies a file from src to dst
+func copyFile(src, dst string) error {
+	data, err := os.ReadFile(src)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(dst, data, 0600)
+}

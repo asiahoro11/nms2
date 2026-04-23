@@ -1,0 +1,808 @@
+/* ===== Topology Styles ===== */
+
+.topology-container {
+    position: relative;
+    width: 100%;
+    height: calc(100vh - 200px);
+    min-height: 500px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+}
+
+.topology-canvas {
+    width: 100%;
+    height: 100%;
+}
+
+.topology-canvas svg {
+    width: 100%;
+    height: 100%;
+}
+
+/* ===== Topology Nodes ===== */
+.topology-node {
+    cursor: grab;
+}
+
+.topology-node:active {
+    cursor: grabbing;
+}
+
+.topology-node circle {
+    stroke-width: 3px;
+    transition: all var(--transition-fast);
+}
+
+.topology-node:hover circle {
+    stroke-width: 4px;
+    filter: drop-shadow(0 0 10px currentColor);
+}
+
+.topology-node.router circle {
+    fill: #6366f1;
+    stroke: #818cf8;
+}
+
+.topology-node.switch circle {
+    fill: #10b981;
+    stroke: #34d399;
+}
+
+.topology-node.firewall circle {
+    fill: #ef4444;
+    stroke: #f87171;
+}
+
+.topology-node.server circle {
+    fill: #3b82f6;
+    stroke: #60a5fa;
+}
+
+.topology-node.access_point circle {
+    fill: #8b5cf6;
+    stroke: #a78bfa;
+}
+
+.topology-node.codec circle {
+    fill: #ec4899;
+    stroke: #f472b6;
+}
+
+.topology-node.ipcam circle {
+    fill: #f59e0b;
+    stroke: #fbbf24;
+}
+
+.topology-node.video_wall circle {
+    fill: #0ea5e9;
+    stroke: #38bdf8;
+}
+
+.topology-node.access_control circle {
+    fill: #06b6d4;
+    stroke: #22d3ee;
+}
+
+.topology-node.unknown circle {
+    fill: #6b7280;
+    stroke: #9ca3af;
+}
+
+.topology-node.offline circle {
+    fill: #374151;
+    stroke: #4b5563;
+    opacity: 0.6;
+}
+
+.topology-node.has-hidden-alert .tree-collapse-badge {
+    fill: #ef4444;
+    stroke: #ffffff;
+    stroke-width: 1.2px;
+}
+
+.topology-node.has-hidden-alert .tree-collapse-ring {
+    fill: none;
+    stroke: rgba(239, 68, 68, 0.7);
+    stroke-width: 3px;
+    animation: group-alert-ring-breath 1.6s ease-in-out infinite;
+}
+
+.topology-node.has-hidden-alert .tree-collapse-dot {
+    fill: #ef4444;
+    stroke: #0f172a;
+    stroke-width: 1.5px;
+    animation: group-alert-ring-breath 1.6s ease-in-out infinite;
+}
+
+.topology-node text {
+    fill: var(--text-primary);
+    font-size: 12px;
+    font-weight: 500;
+    text-anchor: middle;
+    pointer-events: none;
+}
+
+.topology-node image {
+    pointer-events: none;
+}
+
+/* ===== Topology Links ===== */
+.topology-link {
+    fill: none;
+    stroke: var(--border-color);
+    stroke-width: 2px;
+    transition: all var(--transition-fast);
+}
+
+.topology-link:hover {
+    stroke: var(--primary-color);
+    stroke-width: 3px;
+}
+
+.topology-link.lldp {
+    stroke: var(--success-color);
+    stroke-dasharray: none;
+}
+
+.topology-link.manual {
+    stroke: var(--warning-color);
+    stroke-dasharray: 5, 5;
+}
+
+/* ===== Topology Legend - Theme Aware ===== */
+.topology-legend {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    /* Light theme: light background, dark text */
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    box-shadow: var(--shadow-md);
+    min-width: 32px;
+}
+
+.legend-toggle-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text-secondary);
+    padding: 2px 4px;
+    align-self: flex-start;
+    line-height: 1;
+    transition: transform 0.2s ease, color 0.2s ease;
+    margin-bottom: 0;
+}
+
+.legend-toggle-btn:hover {
+    color: var(--primary-color);
+}
+
+.topology-legend.collapsed .legend-toggle-btn {
+    transform: rotate(0deg);
+    margin-bottom: 0;
+}
+
+.topology-legend:not(.collapsed) .legend-toggle-btn {
+    transform: rotate(90deg);
+    margin-bottom: 6px;
+}
+
+.legend-content {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.topology-legend.collapsed .legend-content {
+    display: none;
+}
+
+/* Dark theme: dark background, light text */
+body.dark-theme .topology-legend {
+    background: var(--surface-overlay);
+    color: var(--text-primary);
+}
+
+body.dark-theme .legend-item {
+    color: var(--text-primary);
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    /* Use theme-aware text color */
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.legend-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.legend-dot.router {
+    background: #6366f1;
+}
+
+.legend-dot.switch {
+    background: #10b981;
+}
+
+.legend-dot.firewall {
+    background: #ef4444;
+}
+
+.legend-dot.server {
+    background: #3b82f6;
+}
+
+.legend-dot.access_point {
+    background: #8b5cf6;
+}
+
+.legend-dot.codec {
+    background: #ec4899;
+}
+
+.legend-dot.ipcam {
+    background: #f59e0b;
+}
+
+.legend-dot.video_wall {
+    background: #0ea5e9;
+}
+
+.legend-dot.access_control {
+    background: #06b6d4;
+}
+
+.legend-dot.unknown {
+    background: #6b7280;
+}
+
+/* Legend Line Manual */
+.legend-line-manual {
+    width: 20px;
+    height: 3px;
+    background: #fbbf24;
+    display: inline-block;
+    flex-shrink: 0;
+}
+
+/* Legend Line LLDP */
+.legend-line-lldp {
+    width: 20px;
+    height: 3px;
+    background: #10b981;
+    display: inline-block;
+    flex-shrink: 0;
+}
+
+/* ===== Topology Tooltip ===== */
+.topology-tooltip {
+    position: absolute;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 16px;
+    pointer-events: none;
+    z-index: 100;
+    box-shadow: var(--shadow-lg);
+    min-width: 200px;
+    display: none;
+}
+
+.topology-tooltip.visible {
+    display: block;
+}
+
+.topology-tooltip h4 {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--text-primary);
+}
+
+.topology-tooltip p {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+}
+
+.topology-tooltip .status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+    padding: 4px 8px;
+    border-radius: var(--radius-full);
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.topology-tooltip .status.online {
+    background: var(--success-light);
+    color: var(--success-color);
+}
+
+.topology-tooltip .status.offline {
+    background: var(--danger-light);
+    color: var(--danger-color);
+}
+
+/* ===== Topology Controls - Theme Aware ===== */
+.topology-controls {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.topology-controls button {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-md);
+    /* Light theme: light background */
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition-fast);
+    box-shadow: var(--shadow-sm);
+}
+
+/* Dark theme controls */
+body.dark-theme .topology-controls button {
+    background: var(--surface-overlay);
+}
+
+.topology-controls button:hover {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+}
+
+/* ===== Link Creation Mode ===== */
+.topology-container.link-create-mode {
+    cursor: crosshair;
+}
+
+.topology-container.link-create-mode .topology-node {
+    cursor: pointer;
+}
+
+/* ===== Link Labels ===== */
+.link-label {
+    font-size: 10px;
+    fill: var(--text-secondary);
+    pointer-events: none;
+}
+
+.topology-link.manual {
+    stroke: var(--warning-color);
+    stroke-width: 3px;
+    cursor: pointer;
+}
+
+.topology-link.manual:hover {
+    stroke: #fbbf24;
+    stroke-width: 4px;
+}
+
+/* ===== Link Endpoints in Modal ===== */
+.link-endpoints {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    padding: 20px;
+    margin-bottom: 20px;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-md);
+}
+
+.endpoint {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.endpoint-icon {
+    font-size: 32px;
+}
+
+.endpoint-name {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.link-arrow {
+    font-size: 24px;
+    color: var(--primary-color);
+}
+
+/* ===== Form Row ===== */
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+/* ===== Topology Layout (Sidebar + Canvas) ===== */
+.topology-wrapper {
+    display: flex;
+    gap: 16px;
+    height: calc(100vh - 200px);
+    min-height: 500px;
+}
+
+.topology-sidebar {
+    width: 260px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-header {
+    padding: 16px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.sidebar-header h3 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.pending-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.pending-device {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 12px;
+    cursor: grab;
+    transition: all var(--transition-fast);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.pending-device:hover {
+    border-color: var(--primary-color);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-sm);
+}
+
+.pending-device:active {
+    cursor: grabbing;
+}
+
+.pending-icon {
+    font-size: 24px;
+}
+
+.pending-info {
+    flex: 1;
+    overflow: hidden;
+}
+
+.pending-name {
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.pending-ip {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.topology-container {
+    flex: 1;
+    height: 100%;
+    /* Take full height of wrapper */
+    min-height: auto;
+    /* Reset min-height */
+}
+
+/* ===== Collapsible Sidebar ===== */
+.topology-sidebar {
+    transition: width 0.3s ease, min-width 0.3s ease;
+    overflow: hidden;
+    position: relative;
+}
+
+.topology-sidebar.collapsed {
+    width: 60px;
+    min-width: 60px;
+}
+
+.topology-sidebar.collapsed .sidebar-header h3,
+.topology-sidebar.collapsed .pending-list {
+    display: none;
+}
+
+.topology-sidebar.collapsed .sidebar-header {
+    justify-content: center;
+    padding: 10px;
+}
+
+.btn-icon {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 16px;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.btn-icon:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+/* ===== Link Flow Animations ===== */
+@keyframes link-flow {
+    to {
+        stroke-dashoffset: -20;
+    }
+}
+
+.topology-link.snmp-flow {
+    stroke: #ef4444;
+    /* Red for SNMP */
+    stroke-dasharray: 10, 5;
+    animation: link-flow 1s linear infinite;
+}
+
+.topology-link.ping-flow {
+    stroke: #3b82f6;
+    /* Blue for Ping */
+    stroke-dasharray: 10, 5;
+    animation: link-flow 1s linear infinite;
+}
+
+/* Ensure flow links are visible on dark/light themes */
+.topology-link.snmp-flow:hover {
+    stroke: #dc2626;
+    stroke-width: 4px;
+    animation-play-state: paused;
+}
+
+.topology-link.ping-flow:hover {
+    stroke: #2563eb;
+    stroke-width: 4px;
+    animation-play-state: paused;
+}
+
+/* Base link hover for non-flow links */
+.topology-link:hover {
+    stroke-width: 4px;
+    cursor: pointer;
+    filter: drop-shadow(0 0 5px rgba(0, 0, 0, 0.2));
+}
+
+/* ===== v1.2.2: 群組縮圖 Bubble ===== */
+@keyframes group-alert-pulse {
+    0%   { r: 0; opacity: 0.8; }
+    50%  { r: 16px; opacity: 0.4; }
+    100% { r: 0; opacity: 0; }
+}
+
+@keyframes group-alert-ring-breath {
+    0%, 100% { opacity: 0.3; stroke-width: 3px; }
+    50%       { opacity: 0.9; stroke-width: 6px; }
+}
+
+/* 群組背景圓 */
+.topo-group-bubble .group-bg-circle {
+    fill: rgba(99, 102, 241, 0.1);
+    stroke: #6366f1;
+    stroke-width: 2px;
+    stroke-dasharray: 8 4;
+}
+
+.topo-group-bubble:hover .group-bg-circle {
+    fill: rgba(99, 102, 241, 0.2);
+    stroke-width: 3px;
+}
+
+/* 異常時：紅色呼吸外圈 */
+.topo-group-bubble.has-alert .group-bg-circle {
+    fill: rgba(239, 68, 68, 0.08);
+    stroke: #ef4444;
+    stroke-dasharray: 8 4;
+}
+
+.topo-group-bubble.has-alert .group-alert-ring {
+    fill: none;
+    stroke: #ef4444;
+    stroke-width: 4px;
+    animation: group-alert-ring-breath 1.6s ease-in-out infinite;
+}
+
+/* 群組中央圖示 */
+.group-bubble-icon {
+    font-size: 26px;
+    fill: #6366f1;
+    pointer-events: none;
+}
+
+.topo-group-bubble.has-alert .group-bubble-icon {
+    fill: #ef4444;
+}
+
+/* 群組設備數量 */
+.group-bubble-count {
+    font-size: 11px;
+    font-weight: 600;
+    fill: var(--text-primary);
+    pointer-events: none;
+}
+
+/* 子網標籤（下方） */
+.group-bubble-label {
+    font-size: 12px;
+    font-weight: 500;
+    fill: var(--text-secondary);
+    pointer-events: none;
+}
+
+/* 告警文字 */
+.group-alert-label {
+    font-size: 11px;
+    font-weight: 600;
+    fill: #ef4444;
+    pointer-events: none;
+}
+
+/* ===== 子網群組 Sidebar Panel ===== */
+.subnet-group-panel {
+    border-top: 1px solid var(--border-color);
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+.subnet-group-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.subnet-group-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 8px;
+    border-radius: var(--radius-sm);
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    transition: border-color 0.2s;
+}
+
+.subnet-group-item.has-alert {
+    border-color: rgba(239, 68, 68, 0.4);
+    background: rgba(239, 68, 68, 0.04);
+}
+
+.subnet-group-info {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+    min-width: 0;
+}
+
+.subnet-alert-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #ef4444;
+    flex-shrink: 0;
+    animation: group-alert-ring-breath 1.6s ease-in-out infinite;
+}
+
+.subnet-ok-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #10b981;
+    flex-shrink: 0;
+}
+
+.subnet-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.subnet-count {
+    font-size: 11px;
+    color: var(--text-secondary);
+    flex-shrink: 0;
+}
+
+.subnet-offline-badge {
+    font-size: 10px;
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+    border-radius: 10px;
+    padding: 1px 6px;
+    flex-shrink: 0;
+    font-weight: 600;
+}
+
+.subnet-toggle-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-size: 12px;
+    padding: 2px 4px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    transition: color 0.2s, background 0.2s;
+}
+
+.subnet-toggle-btn:hover {
+    color: var(--primary-color);
+    background: var(--bg-hover);
+}
+
+/* ===== 群組按鈕 in view switcher ===== */
+#topo-btn-group {
+    font-size: 16px;
+    opacity: 0.5;
+}
+#topo-btn-group.active {
+    opacity: 1;
+    color: #6366f1;
+}

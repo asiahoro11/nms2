@@ -1,0 +1,6 @@
+Product: Management System
+Version: v1.2.2alpha4
+Platform: windows-amd64
+BuildDate: 2026-04-18 01:03:17 +08:00
+Artifact: nms_server.exe
+ReleaseNotes: RELEASE_NOTES.md

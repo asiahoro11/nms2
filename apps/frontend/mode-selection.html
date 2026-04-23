@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>選擇模式</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: linear-gradient(135deg, #f0f4f8 0%, #d9e2ec 50%, #f0f4f8 100%);
+            --card-bg: rgba(255,255,255,0.95);
+            --card-border: rgba(0,0,0,0.08);
+            --text-primary: #1e293b;
+            --text-secondary: #475569;
+            --text-muted: #64748b;
+            --input-bg: rgba(241,245,249,0.8);
+            --input-border: rgba(0,0,0,0.1);
+            --shadow: rgba(0,0,0,0.1);
+        }
+        body.dark-theme {
+            --bg: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+            --card-bg: rgba(30,41,59,0.95);
+            --card-border: rgba(255,255,255,0.1);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --input-bg: rgba(0,0,0,0.3);
+            --input-border: rgba(255,255,255,0.1);
+            --shadow: rgba(0,0,0,0.5);
+        }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            transition: background 0.3s ease;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 700px;
+            padding: 20px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 40px;
+            backdrop-filter: blur(20px);
+            box-shadow: 0 25px 50px -12px var(--shadow);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+
+        .logo-icon { font-size: 2.2rem; }
+
+        .logo-text {
+            font-size: 1.7rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .welcome {
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+            margin-top: 6px;
+        }
+
+        .user-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--input-bg);
+            border: 1px solid var(--input-border);
+            border-radius: 20px;
+            padding: 5px 14px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-top: 12px;
+        }
+
+        .role-tag {
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 10px;
+            background: rgba(99,102,241,0.15);
+            color: #6366f1;
+        }
+
+        body.dark-theme .role-tag { background: rgba(99,102,241,0.25); color: #a5b4fc; }
+
+        /* Mode cards */
+        .mode-cards {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 28px;
+        }
+
+        .mode-cards.single { grid-template-columns: 1fr; max-width: 320px; margin-left: auto; margin-right: auto; }
+
+        .mode-card {
+            border: 2px solid var(--card-border);
+            border-radius: 14px;
+            padding: 28px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            background: var(--input-bg);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .mode-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 4px;
+            opacity: 0;
+            transition: opacity 0.25s ease;
+        }
+
+        .mode-card.admin-card::before { background: linear-gradient(90deg, #3b82f6, #6366f1); }
+        .mode-card.monitor-card::before { background: linear-gradient(90deg, #10b981, #06b6d4); }
+
+        .mode-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 30px var(--shadow);
+        }
+
+        .mode-card.admin-card:hover { border-color: #3b82f6; }
+        .mode-card.monitor-card:hover { border-color: #10b981; }
+
+        .mode-card:hover::before { opacity: 1; }
+
+        .mode-icon { font-size: 3rem; margin-bottom: 14px; }
+
+        .mode-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+
+        .mode-desc {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+
+        .mode-btn {
+            display: inline-block;
+            margin-top: 16px;
+            padding: 8px 22px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .admin-card .mode-btn {
+            background: linear-gradient(135deg, #3b82f6, #6366f1);
+            color: white;
+        }
+
+        .monitor-card .mode-btn {
+            background: linear-gradient(135deg, #10b981, #06b6d4);
+            color: white;
+        }
+
+        .mode-btn:hover { transform: scale(1.05); opacity: 0.9; }
+
+        /* Footer bar */
+        .footer-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 20px;
+            border-top: 1px solid var(--card-border);
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .footer-left { display: flex; align-items: center; gap: 10px; }
+
+        .footer-text {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+        }
+
+        .logout-btn {
+            padding: 7px 16px;
+            border-radius: 20px;
+            border: 1px solid rgba(239,68,68,0.4);
+            background: transparent;
+            color: #ef4444;
+            font-size: 0.82rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .logout-btn:hover { background: rgba(239,68,68,0.1); }
+
+        .theme-toggle {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            padding: 6px 12px;
+            border-radius: 20px;
+            background: var(--input-bg);
+            border: 1px solid var(--input-border);
+            transition: all 0.2s ease;
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+        }
+
+        .theme-toggle:hover { border-color: #60a5fa; }
+
+        .lang-select {
+            background: var(--input-bg);
+            border: 1px solid var(--input-border);
+            border-radius: 20px;
+            padding: 6px 28px 6px 12px;
+            color: var(--text-secondary);
+            font-size: 0.82rem;
+            cursor: pointer;
+            outline: none;
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 8px center;
+            background-size: 0.9em;
+            transition: all 0.2s ease;
+        }
+
+        .lang-select:hover { border-color: #60a5fa; }
+
+        .lang-select option {
+            background: #f8fafc;
+            color: #1e293b;
+        }
+
+        body.dark-theme .lang-select {
+            color: #e2e8f0;
+            background-color: rgba(15, 23, 42, 0.9);
+        }
+
+        body.dark-theme .lang-select option {
+            background: #0f172a;
+            color: #e2e8f0;
+        }
+
+        @media (max-width: 500px) {
+            .mode-cards { grid-template-columns: 1fr; }
+            .card { padding: 28px 20px; }
+            .footer-bar { flex-direction: column; align-items: flex-start; }
+        }
+    </style>
+</head>
+<body class="dark-theme">
+    <div class="container">
+        <div class="card">
+            <div class="header">
+                <div class="logo">
+                    <span class="logo-icon" id="ms-logo-icon">📡</span>
+                    <span class="logo-text" id="ms-company-name"></span>
+                </div>
+                <p class="welcome" id="ms-welcome">選擇要進入的模式</p>
+                <div class="user-badge">
+                    <span>👤</span>
+                    <span id="ms-username">—</span>
+                    <span class="role-tag" id="ms-role-tag">—</span>
+                </div>
+            </div>
+
+            <div class="mode-cards" id="ms-mode-cards">
+                <!-- Rendered by JS based on role -->
+            </div>
+
+            <div class="footer-bar">
+                <div class="footer-left">
+                    <select class="lang-select" id="ms-lang-select" onchange="msChangeLang(this.value)">
+                        <option value="zh-TW">繁中</option>
+                        <option value="zh-CN">简中</option>
+                        <option value="en-US">EN</option>
+                        <option value="ja-JP">日本語</option>
+                        <option value="ko-KR">한국어</option>
+                    </select>
+                    <div class="theme-toggle" onclick="msToggleTheme()">
+                        <span id="ms-theme-icon">☀️</span>
+                        <span id="ms-theme-label">主題</span>
+                    </div>
+                </div>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span class="footer-text" data-app-version data-app-version-template="© 2026 {version}"></span>
+                    <button class="logout-btn" id="ms-logout-btn" onclick="msLogout()">⏏ 登出</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script src="/static/js/config.js"></script>
+<script>
+// ===== i18n =====
+const MS_STRINGS = {
+    'zh-TW': {
+        welcome: '選擇要進入的模式',
+        admin_title: '管理模式',
+        admin_desc: '完整管理介面，可進行設備管理、設定調整、報表查詢等所有操作',
+        admin_btn: '進入管理',
+        monitor_title: '監控模式',
+        monitor_desc: '全螢幕監控畫面，顯示網路拓樸、設備狀態與即時事件（唯讀）',
+        monitor_btn: '進入監控',
+        role_admin: '管理者', role_editor: '編輯者', role_viewer: '檢視者',
+        logout: '登出', theme: '主題',
+        title: '選擇模式'
+    },
+    'zh-CN': {
+        welcome: '选择要进入的模式',
+        admin_title: '管理模式',
+        admin_desc: '完整管理界面，可进行设备管理、设置调整、报表查询等所有操作',
+        admin_btn: '进入管理',
+        monitor_title: '监控模式',
+        monitor_desc: '全屏监控画面，显示网络拓扑、设备状态与即时事件（只读）',
+        monitor_btn: '进入监控',
+        role_admin: '管理者', role_editor: '编辑者', role_viewer: '查看者',
+        logout: '登出', theme: '主题',
+        title: '選擇模式'
+    },
+    'en-US': {
+        welcome: 'Select a mode to continue',
+        admin_title: 'Admin Mode',
+        admin_desc: 'Full management interface for device management, settings, and reports',
+        admin_btn: 'Enter Admin',
+        monitor_title: 'Monitor Mode',
+        monitor_desc: 'Fullscreen read-only view with network topology, device status and live events',
+        monitor_btn: 'Enter Monitor',
+        role_admin: 'Admin', role_editor: 'Editor', role_viewer: 'Viewer',
+        logout: 'Logout', theme: 'Theme',
+        title: 'Select Mode'
+    },
+    'ja-JP': {
+        welcome: 'モードを選択してください',
+        admin_title: '管理モード',
+        admin_desc: 'デバイス管理、設定変更、レポートなどすべての操作が可能',
+        admin_btn: '管理へ進む',
+        monitor_title: '監視モード',
+        monitor_desc: 'ネットワークトポロジーとデバイス状態の全画面監視（読取専用）',
+        monitor_btn: '監視へ進む',
+        role_admin: '管理者', role_editor: '編集者', role_viewer: '閲覧者',
+        logout: 'ログアウト', theme: 'テーマ',
+        title: 'モード選択'
+    },
+    'ko-KR': {
+        welcome: '모드를 선택하세요',
+        admin_title: '관리 모드',
+        admin_desc: '장치 관리, 설정 변경, 보고서 등 모든 작업 가능',
+        admin_btn: '관리 진입',
+        monitor_title: '모니터 모드',
+        monitor_desc: '네트워크 토폴로지와 장치 상태의 전체화면 모니터링 (읽기 전용)',
+        monitor_btn: '모니터 진입',
+        role_admin: '관리자', role_editor: '편집자', role_viewer: '뷰어',
+        logout: '로그아웃', theme: '테마',
+        title: '모드 선택'
+    }
+};
+
+let msLang = localStorage.getItem('nms_lang') || 'zh-TW';
+if (!MS_STRINGS[msLang]) msLang = 'zh-TW';
+
+function ms(key) {
+    return (MS_STRINGS[msLang] || MS_STRINGS['zh-TW'])[key] || key;
+}
+
+function msApplyI18n() {
+    document.getElementById('ms-welcome').textContent = ms('welcome');
+    document.getElementById('ms-logout-btn').textContent = '⏏ ' + ms('logout');
+    document.getElementById('ms-theme-label').textContent = ms('theme');
+    document.getElementById('ms-lang-select').value = msLang;
+    document.title = ms('title');
+    const footerText = document.querySelector('.footer-text');
+    if (footerText && typeof getAppVersion === 'function') {
+        footerText.textContent = String.fromCharCode(169) + ' 2026 ' + getAppVersion();
+    }
+    msRenderCards();
+}
+
+function msChangeLang(lang) {
+    msLang = lang;
+    localStorage.setItem('nms_lang', lang);
+    msApplyI18n();
+}
+
+// ===== THEME =====
+function msToggleTheme() {
+    const isDark = document.body.classList.toggle('dark-theme');
+    localStorage.setItem('nms-theme', isDark ? 'dark' : 'light');
+    document.getElementById('ms-theme-icon').textContent = isDark ? '🌙' : '☀️';
+}
+
+// ===== AUTH =====
+function getToken() { return sessionStorage.getItem('nms_token'); }
+function getUser()  {
+    try { return JSON.parse(sessionStorage.getItem('nms_user')); } catch { return null; }
+}
+
+// ===== RENDER CARDS =====
+function msRenderCards() {
+    const user = getUser();
+    const role = user ? user.role : null;
+    const container = document.getElementById('ms-mode-cards');
+
+    // viewer: monitor only
+    // admin/editor: both
+    const canAdmin   = role === 'admin' || role === 'editor';
+    const canMonitor = true; // all roles
+
+    const cards = [];
+
+    if (canAdmin) {
+        cards.push(`
+            <div class="mode-card admin-card" onclick="msEnterAdmin()">
+                <div class="mode-icon">🎛️</div>
+                <div class="mode-title">${ms('admin_title')}</div>
+                <div class="mode-desc">${ms('admin_desc')}</div>
+                <button class="mode-btn" onclick="msEnterAdmin()">${ms('admin_btn')}</button>
+            </div>
+        `);
+    }
+
+    if (canMonitor) {
+        cards.push(`
+            <div class="mode-card monitor-card" onclick="msEnterMonitor()">
+                <div class="mode-icon">📺</div>
+                <div class="mode-title">${ms('monitor_title')}</div>
+                <div class="mode-desc">${ms('monitor_desc')}</div>
+                <button class="mode-btn" onclick="msEnterMonitor()">${ms('monitor_btn')}</button>
+            </div>
+        `);
+    }
+
+    container.innerHTML = cards.join('');
+    // Single card: center it
+    if (cards.length === 1) container.classList.add('single');
+    else container.classList.remove('single');
+}
+
+// ===== NAVIGATION =====
+function msEnterAdmin() {
+    const route = window.location.pathname.startsWith('/static/') ? '/static/index.html' : '/index.html';
+    window.location.replace(route + '?_cb=' + Date.now());
+}
+
+function msEnterMonitor() {
+    // Pass token via URL param for monitor page (same as before)
+    const token = getToken();
+    const loginRoute = window.location.pathname.startsWith('/static/') ? '/static/login.html' : '/login';
+    const monitorRoute = window.location.pathname.startsWith('/static/') ? '/static/monitor.html' : '/monitor.html';
+    if (!token) { window.location.replace(loginRoute); return; }
+    window.location.replace(monitorRoute + '?token=' + encodeURIComponent(token) + '&_cb=' + Date.now());
+}
+
+function msLogout() {
+    sessionStorage.removeItem('nms_token');
+    sessionStorage.removeItem('nms_user');
+    sessionStorage.removeItem('nms_expires');
+    sessionStorage.removeItem('nms_session_active');
+    sessionStorage.removeItem('nms_active_page');
+    const loginRoute = window.location.pathname.startsWith('/static/') ? '/static/login.html' : '/login';
+    window.location.replace(loginRoute);
+}
+
+// ===== INIT =====
+document.addEventListener('DOMContentLoaded', () => {
+    // Theme
+    const savedTheme = localStorage.getItem('nms-theme');
+    document.body.classList.toggle('dark-theme', savedTheme !== 'light');
+    if (savedTheme !== 'light') {
+        document.getElementById('ms-theme-icon').textContent = '🌙';
+    }
+
+    // Check auth
+    const token = getToken();
+    if (!token) {
+        const loginRoute = window.location.pathname.startsWith('/static/') ? '/static/login.html' : '/login';
+        window.location.replace(loginRoute);
+        return;
+    }
+
+    // Verify token
+    fetch('/api/v1/auth/me', {
+        headers: { 'Authorization': 'Bearer ' + token }
+    }).then(res => {
+        if (!res.ok) { msLogout(); return; }
+        return res.json();
+    }).then(data => {
+        if (!data || !data.success) { msLogout(); return; }
+        // Refresh user info in sessionStorage
+        sessionStorage.setItem('nms_user', JSON.stringify(data.data));
+
+        const user = data.data;
+        document.getElementById('ms-username').textContent = user.username || '—';
+
+        const roleMap = { admin: ms('role_admin'), editor: ms('role_editor'), viewer: ms('role_viewer') };
+        document.getElementById('ms-role-tag').textContent = roleMap[user.role] || user.role;
+
+        // Apply branding
+        fetch('/api/v1/branding').then(r => r.json()).then(b => {
+            if (b.success && b.data) {
+                const icon = document.getElementById('ms-logo-icon');
+                const name = document.getElementById('ms-company-name');
+                if (b.data.logo_path) { icon.style.display='none'; }
+                if (b.data.company_name) name.textContent = b.data.company_name;
+            }
+        }).catch(()=>{});
+
+        msApplyI18n();
+    }).catch(() => { msLogout(); });
+});
+</script>
+</body>
+</html>

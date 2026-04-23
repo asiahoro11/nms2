@@ -1,0 +1,123 @@
+/* Sidebar User Section - Moved to header */
+/* Remove the old sidebar-user absolute positioning */
+.sidebar-user {
+    display: none;
+    /* Hidden - moved to header */
+}
+
+/* ===== Global Header Bar ===== */
+.global-header {
+    position: fixed;
+    top: 0;
+    right: 0;
+    left: var(--sidebar-width);
+    height: 56px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 0 24px;
+    z-index: 100;
+    box-shadow: var(--shadow-sm);
+}
+
+.global-header-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+/* User Actions in Header (Top Right) */
+.header-user-section {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.header-user-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+.header-username {
+    color: var(--text-primary);
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
+.header-role {
+    color: var(--text-muted);
+    font-size: 0.7rem;
+    text-transform: none !important;
+}
+
+.header-user-actions {
+    display: flex;
+    gap: 8px;
+}
+
+/* Demo Mode Button */
+.demo-mode-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    background: linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.15));
+    border: 1px solid rgba(99,102,241,0.4);
+    border-radius: 20px;
+    color: #a5b4fc;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s, transform 0.15s;
+    white-space: nowrap;
+    letter-spacing: 0.02em;
+}
+
+.demo-mode-btn:hover {
+    background: linear-gradient(135deg, rgba(99,102,241,0.3), rgba(139,92,246,0.3));
+    border-color: rgba(99,102,241,0.7);
+    transform: translateY(-1px);
+}
+
+.header-action-btn {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 1rem;
+}
+
+.header-action-btn:hover {
+    background: var(--primary-light);
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+.header-action-btn[title="登出"]:hover {
+    background: var(--danger-light);
+    border-color: var(--danger-color);
+    color: var(--danger-color);
+}
+
+/* Adjust main content to account for global header */
+.main-content {
+    padding-top: 72px !important;
+    /* 56px header + 16px spacing */
+}
+
+/* Responsive - hide global header on mobile */
+@media (max-width: 1024px) {
+    .global-header {
+        left: 0;
+    }
+}

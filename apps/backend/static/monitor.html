@@ -1,0 +1,2240 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>&#30435;&#25511;&#27169;&#24335;</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        /* ===== LIGHT THEME (default) ===== */
+        :root {
+            --bg:        #f1f5f9;
+            --bg-panel:  #ffffff;
+            --bg-card:   #ffffff;
+            --border:    #e2e8f0;
+            --text:      #1e293b;
+            --text-muted:#64748b;
+            --accent:    #3b82f6;
+            --green:     #10b981;
+            --red:       #ef4444;
+            --yellow:    #f59e0b;
+            --purple:    #8b5cf6;
+            --header-h:  48px;
+            --topbar-h:  72px;
+            --shadow:    0 4px 12px rgba(0,0,0,0.08);
+        }
+
+        /* ===== DARK THEME ===== */
+        body.dark-theme {
+            --bg:        #1e2128;
+            --bg-panel:  #272c35;
+            --bg-card:   #272c35;
+            --border:    #3a4050;
+            --text:      #e8ecf1;
+            --text-muted:#8b96a8;
+            --shadow:    0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        html, body {
+            height: 100%;
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            overflow: hidden;
+            transition: background 0.25s, color 0.25s;
+        }
+
+        /* ===== HEADER ===== */
+        .demo-header {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            height: var(--header-h);
+            background: var(--bg-panel);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 14px;
+            z-index: 100;
+            gap: 10px;
+            box-shadow: var(--shadow);
+            transition: background 0.25s, border-color 0.25s;
+        }
+
+        .demo-header-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+            min-width: 0;
+        }
+
+        .demo-badge {
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            color: #fff;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            padding: 3px 9px;
+            border-radius: 20px;
+            text-transform: uppercase;
+            flex-shrink: 0;
+        }
+
+        .demo-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .demo-clock {
+            font-size: 12px;
+            font-variant-numeric: tabular-nums;
+            color: var(--text-muted);
+            font-family: 'Courier New', monospace;
+            flex-shrink: 0;
+        }
+
+        .demo-header-right {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            flex-shrink: 0;
+        }
+
+        .demo-user-badge {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 2px 9px;
+            font-size: 11px;
+            color: var(--text-muted);
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .demo-user-badge .user-role {
+            font-size: 10px;
+            background: var(--accent);
+            color: #fff;
+            border-radius: 10px;
+            padding: 1px 5px;
+            font-weight: 600;
+        }
+
+        #demo-refresh-hint {
+            font-size: 11px;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+
+        .demo-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 4px 10px;
+            border-radius: 7px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: background 0.15s, border-color 0.15s;
+            white-space: nowrap;
+        }
+        .demo-btn:hover { background: rgba(99,102,241,0.12); border-color: #6366f1; }
+        .demo-btn.danger { border-color: rgba(239,68,68,0.4); color: #ef4444; }
+        .demo-btn.danger:hover { background: rgba(239,68,68,0.12); }
+        .demo-btn.icon-btn { padding: 4px 7px; }
+
+        body.dark-theme .demo-btn.danger { color: #fca5a5; }
+
+        /* Lang select */
+        .demo-lang-select {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 3px 5px;
+            border-radius: 7px;
+            font-size: 11px;
+            cursor: pointer;
+            outline: none;
+        }
+        .demo-lang-select option { background: #1e293b; color: #f1f5f9; }
+
+        /* ===== TOP STATS BAR ===== */
+        /* ===== TOP STATS BAR =====
+         * Layout (position: fixed, below header):
+         *   [?餉挽憭 [?函瑪] [蝳餌瑪] [霅血?+Log scrollable]
+         *   4 columns, fixed height (--topbar-h defined in :root above)
+         */
+        .demo-topbar {
+            position: fixed;
+            top: var(--header-h);
+            left: 0; right: 0;
+            height: var(--topbar-h);
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 0.55fr)) 1fr;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-panel);
+            z-index: 90;
+            transition: background 0.25s;
+        }
+
+        .topbar-stat {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-right: 1px solid var(--border);
+            min-width: 0;
+        }
+        .topbar-stat-icon { display: none; }
+        .topbar-stat-info { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+        .topbar-stat-label {
+            font-size: 9px; font-weight: 700;
+            letter-spacing: 0.06em; text-transform: uppercase;
+            color: var(--text-muted);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .topbar-stat-value {
+            font-size: 22px; font-weight: 800;
+            font-variant-numeric: tabular-nums; line-height: 1;
+        }
+        .topbar-stat-value.total   { color: var(--accent); }
+        .topbar-stat-value.online  { color: var(--green); }
+        .topbar-stat-value.offline { color: var(--red); }
+        .topbar-stat-value.warning { color: var(--yellow); }
+
+        /* Log cell in topbar */
+        .topbar-log {
+            display: flex; flex-direction: column;
+            overflow: hidden;
+            border-right: none;
+        }
+        .topbar-log-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 4px 12px 3px;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+        .topbar-log-title {
+            font-size: 10px; font-weight: 700;
+            letter-spacing: 0.06em; text-transform: uppercase;
+            color: var(--text-muted);
+        }
+        .topbar-log-live { display: flex; align-items: center; gap: 4px; font-size: 10px; color: var(--green); }
+        .demo-live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.7)} }
+
+        .topbar-log-list { flex: 1; overflow-y: auto; }
+        .topbar-log-list::-webkit-scrollbar { width: 3px; }
+        .topbar-log-list::-webkit-scrollbar-track { background: transparent; }
+        .topbar-log-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+        .log-entry {
+            padding: 3px 12px;
+            border-bottom: 1px solid var(--border);
+            display: flex; align-items: baseline;
+            gap: 7px;
+        }
+        .log-entry:last-child { border-bottom: none; }
+        .log-severity {
+            font-size: 9px; font-weight: 700;
+            padding: 1px 5px; border-radius: 3px;
+            text-transform: uppercase; white-space: nowrap; flex-shrink: 0;
+        }
+        .log-severity.critical { background: rgba(239,68,68,0.2); color: #fca5a5; }
+        .log-severity.error    { background: rgba(239,68,68,0.15); color: #fca5a5; }
+        .log-severity.warning  { background: rgba(245,158,11,0.2); color: #fcd34d; }
+        .log-severity.info     { background: rgba(59,130,246,0.2); color: #93c5fd; }
+        .log-severity.debug    { background: rgba(148,163,184,0.1); color: #94a3b8; }
+        .log-msg  { font-size: 12px; color: var(--text); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .log-time { font-size: 10px; color: var(--text-muted); font-family: monospace; flex-shrink: 0; }
+        .log-empty { padding: 12px 10px; text-align: center; color: var(--text-muted); font-size: 11px; }
+
+        /* ===== MAIN CONTENT (below header + topbar) ===== */
+        .demo-main {
+            position: fixed;
+            top: calc(var(--header-h) + var(--topbar-h));
+            left: 0; right: 0; bottom: 0;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            transition: top 0.25s;
+        }
+
+        /* ===== LEFT: TOPOLOGY ===== */
+        .demo-topology {
+            position: relative;
+            background: var(--bg);
+            border-right: 1px solid var(--border);
+            overflow: hidden;
+            transition: background 0.25s;
+        }
+
+        #demo-topo-svg { width: 100%; height: 100%; }
+
+        .demo-topo-controls {
+            position: absolute;
+            right: 10px; bottom: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .demo-topo-controls button {
+            width: 30px; height: 30px;
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            color: var(--text);
+            border-radius: 7px;
+            cursor: pointer;
+            font-size: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.15s;
+        }
+        .demo-topo-controls button:hover { background: rgba(99,102,241,0.15); }
+        .mon-view-btn.active { background: rgba(99,102,241,0.3) !important; border-color: #6366f1 !important; }
+        .link-label { font-size: 10px; fill: #10b981; pointer-events: none; }
+
+        /* Topology nodes/links */
+        .topology-node { cursor: default; }
+        .topology-node circle { transition: r 0.15s; }
+        .topology-node.offline circle { opacity: 0.45; }
+        .topology-node text { pointer-events: none; font-size: 11px; fill: var(--text); }
+        .topology-node.collapsed { cursor: pointer; }
+        .topology-node.has-hidden-alert .tree-collapse-badge {
+            fill: rgba(239, 68, 68, 0.95);
+            stroke: rgba(15, 23, 42, 0.9);
+        }
+        .topology-node.has-hidden-alert .tree-collapse-ring {
+            fill: none;
+            stroke: #ef4444;
+            stroke-width: 4px;
+            animation: mon-tree-alert-breath 1.6s ease-in-out infinite;
+        }
+        .topology-node.has-hidden-alert .tree-collapse-dot {
+            fill: #ef4444;
+            animation: mon-tree-alert-dot 1.6s ease-in-out infinite;
+        }
+        @keyframes mon-tree-alert-breath {
+            0%, 100% { opacity: 0.3; stroke-width: 3px; }
+            50% { opacity: 0.95; stroke-width: 6px; }
+        }
+        @keyframes mon-tree-alert-dot {
+            0%, 100% { opacity: 0.55; transform: scale(0.9); }
+            50% { opacity: 1; transform: scale(1.15); }
+        }
+        .topology-link { stroke-opacity: 0.7; }
+        .topology-link.lldp    { stroke: var(--green);  stroke-dasharray: 10 5; animation: link-flow 1s linear infinite; }
+        .topology-link.auto    { stroke: var(--green);  stroke-dasharray: 10 5; animation: link-flow 1s linear infinite; }
+        .topology-link.manual  { stroke: var(--yellow); stroke-dasharray: 10 5; animation: link-flow 1.2s linear infinite; }
+        .topology-link.unknown { stroke: #64748b; stroke-dasharray: 4 4; }
+        .topology-link.snmp-flow { stroke: #ef4444; stroke-dasharray: 10 5; animation: link-flow 1s linear infinite; }
+        .topology-link.ping-flow { stroke: #3b82f6; stroke-dasharray: 10 5; animation: link-flow 1s linear infinite; }
+        @keyframes link-flow { to { stroke-dashoffset: -20; } }
+        .link-label { font-size: 10px; fill: var(--green); pointer-events: none; }
+
+        /* Legend */
+        .demo-legend {
+            position: absolute;
+            bottom: 10px; left: 10px;
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 5px 7px;
+            box-shadow: var(--shadow);
+            transition: background 0.25s;
+        }
+        .demo-legend-toggle {
+            background: none; border: none;
+            color: var(--text-muted);
+            cursor: pointer; font-size: 10px;
+            padding: 2px 4px; display: block;
+            transition: transform 0.2s;
+        }
+        .demo-legend.collapsed .demo-legend-toggle { transform: rotate(0deg); }
+        .demo-legend:not(.collapsed) .demo-legend-toggle { transform: rotate(90deg); margin-bottom: 4px; }
+        .demo-legend-body { display: flex; flex-direction: column; gap: 4px; }
+        .demo-legend.collapsed .demo-legend-body { display: none; }
+        .demo-legend-item {
+            display: flex; align-items: center;
+            gap: 6px; font-size: 10px;
+            color: var(--text-muted); white-space: nowrap;
+        }
+        .demo-legend-dot  { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+        .demo-legend-line { width: 14px; height: 2px; flex-shrink: 0; }
+
+        /* Tooltip */
+        .demo-tooltip {
+            position: absolute;
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 9px 12px;
+            font-size: 12px;
+            color: var(--text);
+            pointer-events: none;
+            z-index: 50;
+            opacity: 0;
+            transition: opacity 0.15s;
+            max-width: 200px;
+            line-height: 1.6;
+            box-shadow: var(--shadow);
+        }
+        .demo-tooltip.visible { opacity: 1; }
+        .demo-tooltip h4 { font-size: 12px; margin-bottom: 3px; }
+        .demo-tooltip .st-online  { color: var(--green); }
+        .demo-tooltip .st-offline { color: var(--red); }
+
+        /* Loading */
+        .demo-loading {
+            position: absolute; inset: 0;
+            background: rgba(15,23,42,0.65);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 10; font-size: 13px;
+            color: var(--text-muted); gap: 10px;
+        }
+        .spin {
+            width: 18px; height: 18px;
+            border: 2px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ===== RIGHT: CAMERA PANEL ===== */
+        .demo-cam-panel {
+            display: flex; flex-direction: column;
+            background: #0a0a0a;
+            overflow: hidden;
+        }
+
+        .demo-cam-panel-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 5px 10px;
+            background: var(--bg-panel);
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+        .demo-cam-panel-title {
+            font-size: 11px; font-weight: 700;
+            letter-spacing: 0.06em; text-transform: uppercase;
+            color: var(--text-muted);
+        }
+        .demo-cam-panel-controls { display: flex; align-items: center; gap: 5px; }
+
+        .cam-layout-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            padding: 2px 7px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            transition: all 0.15s;
+        }
+        .cam-layout-btn.active,
+        .cam-layout-btn:hover {
+            background: rgba(59,130,246,0.2);
+            border-color: #3b82f6;
+            color: #93c5fd;
+        }
+
+        .demo-cam-grid-wrap {
+            flex: 1; min-height: 0; overflow: hidden; padding: 4px;
+        }
+
+        .demo-cam-grid {
+            display: grid; gap: 3px;
+            height: 100%; width: 100%;
+        }
+        .demo-cam-grid.grid-4  { grid-template-columns: repeat(2,1fr); grid-template-rows: repeat(2,1fr); }
+        .demo-cam-grid.grid-9  { grid-template-columns: repeat(3,1fr); grid-template-rows: repeat(3,1fr); }
+        .demo-cam-grid.grid-16 { grid-template-columns: repeat(4,1fr); grid-template-rows: repeat(4,1fr); }
+
+        .demo-cam-cell {
+            position: relative; background: #111;
+            border-radius: 3px; overflow: hidden;
+            border: 1px solid #1e1e1e;
+        }
+        .demo-cam-cell.monitor-inline-fullscreen {
+            position: fixed;
+            inset: 18px;
+            z-index: 1600;
+            border-radius: 16px;
+            border-color: rgba(245, 158, 11, 0.7);
+            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .demo-cam-cell img {
+            width: 100%; height: 100%; object-fit: cover; display: block;
+        }
+        .demo-cam-cell.monitor-inline-fullscreen img {
+            object-fit: contain !important;
+            background: #000;
+        }
+        .demo-cam-cell-label {
+            position: absolute; bottom: 0; left: 0; right: 0;
+            background: linear-gradient(transparent, rgba(0,0,0,0.78));
+            padding: 14px 6px 4px;
+            font-size: 10px; color: #fff;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .demo-cam-dot {
+            position: absolute; top: 4px; left: 4px;
+            width: 6px; height: 6px; border-radius: 50%;
+            background: #ef4444;
+        }
+        .demo-cam-dot.online { background: #22c55e; }
+        .demo-cam-fs-btn {
+            position: absolute; top: 4px; right: 4px;
+            width: 24px; height: 24px;
+            display: inline-flex; align-items: center; justify-content: center;
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 6px;
+            background: rgba(15, 23, 42, 0.68);
+            color: #fff;
+            cursor: pointer;
+            z-index: 2;
+        }
+        .demo-cam-fs-btn:hover {
+            background: rgba(59, 130, 246, 0.32);
+            border-color: rgba(147, 197, 253, 0.45);
+        }
+        .monitor-cam-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(2, 6, 23, 0.12);
+            backdrop-filter: none;
+            z-index: 1500;
+        }
+        .demo-cam-cell.empty {
+            background: #0d0d0d; border: 1px dashed #2a2a2a;
+            display: flex; align-items: center; justify-content: center;
+            color: #333; font-size: 13px;
+        }
+
+        /* No-camera placeholder */
+        .cam-no-license {
+            flex: 1; display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            color: #444; gap: 8px;
+        }
+        .cam-no-license .cam-no-icon { font-size: 36px; }
+        .cam-no-license .cam-no-text { font-size: 12px; }
+
+        /* ===== NOTIFICATION BELL ===== */
+        .notif-bell-wrapper { position: relative; display: inline-flex; align-items: center; }
+        .notif-bell-btn {
+            background: transparent; border: 1px solid var(--border);
+            color: var(--text); padding: 4px 7px; border-radius: 7px;
+            font-size: 16px; cursor: pointer; position: relative;
+            transition: background 0.15s; line-height: 1;
+        }
+        .notif-bell-btn:hover { background: rgba(99,102,241,0.12); border-color: #6366f1; }
+        .notif-bell-btn.has-notif { animation: bell-shake 1.2s ease infinite; }
+        @keyframes bell-shake {
+            0%,100%{transform:rotate(0)} 15%{transform:rotate(15deg)} 30%{transform:rotate(-12deg)}
+            45%{transform:rotate(10deg)} 60%{transform:rotate(-8deg)} 75%{transform:rotate(5deg)}
+        }
+        .notif-badge {
+            position: absolute; top: -4px; right: -4px;
+            min-width: 17px; height: 17px; background: #ef4444;
+            color: #fff; font-size: 10px; font-weight: 700;
+            border-radius: 9px; display: flex; align-items: center;
+            justify-content: center; padding: 0 3px; pointer-events: none; z-index: 10;
+        }
+        .notif-panel {
+            position: absolute; top: calc(100% + 8px); right: 0;
+            width: 340px; max-height: 440px;
+            background: var(--bg-panel); border: 1px solid var(--border);
+            border-radius: 10px; box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+            z-index: 9999; display: flex; flex-direction: column; overflow: hidden;
+        }
+        .notif-panel-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 10px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+        }
+        .notif-panel-title { font-size: 13px; font-weight: 600; color: var(--text); }
+        .notif-panel-actions { display: flex; gap: 6px; }
+        .notif-action-link {
+            background: none; border: none; color: #7b8cde; font-size: 11px;
+            cursor: pointer; padding: 2px 5px; border-radius: 4px; transition: background 0.15s;
+        }
+        .notif-action-link:hover { background: rgba(123,140,222,0.15); }
+        .notif-clear-all { color: #ef4444 !important; }
+        .notif-list { overflow-y: auto; flex: 1; }
+        .notif-empty { text-align: center; color: var(--text-muted); padding: 24px 14px; font-size: 12px; }
+        .notif-item {
+            display: flex; align-items: flex-start; justify-content: space-between;
+            padding: 10px 12px; border-bottom: 1px solid var(--border); gap: 7px; transition: background 0.15s;
+        }
+        .notif-item:hover { background: rgba(99,102,241,0.06); }
+        .notif-unread { background: rgba(123,140,222,0.06); }
+        .notif-item-left { display: flex; gap: 9px; flex: 1; min-width: 0; }
+        .notif-sev-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+        .notif-sev-warning .notif-sev-dot { background: #f59e0b; box-shadow: 0 0 5px #f59e0b; }
+        .notif-sev-info    .notif-sev-dot { background: #3b82f6; box-shadow: 0 0 5px #3b82f6; }
+        .notif-sev-error   .notif-sev-dot { background: #ef4444; box-shadow: 0 0 7px #ef4444; animation: pulse-red 1.5s infinite; }
+        @keyframes pulse-red { 0%,100%{box-shadow:0 0 4px #ef4444} 50%{box-shadow:0 0 12px #ef4444} }
+        .notif-item-body { min-width: 0; }
+        .notif-item-title { font-size: 12px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .notif-read .notif-item-title { color: var(--text-muted); font-weight: 400; }
+        .notif-item-msg { font-size: 11px; color: var(--text-muted); margin-top: 2px; word-break: break-word; }
+        .notif-item-time { font-size: 10px; color: var(--text-muted); margin-top: 3px; }
+        .notif-item-actions { display: flex; gap: 3px; flex-shrink: 0; }
+        .notif-item-btn {
+            background: none; border: none; color: var(--text-muted); font-size: 12px;
+            cursor: pointer; width: 22px; height: 22px; border-radius: 4px;
+            display: flex; align-items: center; justify-content: center; transition: background 0.15s, color 0.15s;
+        }
+        .notif-item-btn:hover { background: rgba(99,102,241,0.12); color: var(--text); }
+        .notif-item-del:hover { background: rgba(239,68,68,0.15); color: #ef4444; }
+        #notif-toast-container {
+            position: fixed; bottom: 20px; right: 20px; z-index: 99999;
+            display: flex; flex-direction: column; gap: 8px; max-width: 340px;
+        }
+        .notif-toast {
+            background: var(--bg-panel); border-radius: 9px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.35); padding: 12px 14px;
+            border-left: 4px solid #f59e0b; animation: toast-in 0.3s ease;
+        }
+        @keyframes toast-in { from{opacity:0;transform:translateX(40px)} to{opacity:1;transform:translateX(0)} }
+        .notif-toast-warning{border-left-color:#f59e0b} .notif-toast-error{border-left-color:#ef4444} .notif-toast-info{border-left-color:#3b82f6}
+        .notif-toast-header { display: flex; align-items: center; gap: 7px; margin-bottom: 5px; }
+        .notif-toast-header strong { flex: 1; color: var(--text); font-size: 12px; }
+        .notif-toast-close { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 13px; padding: 0; line-height: 1; }
+        .notif-toast-msg { font-size: 11px; color: var(--text-muted); margin-bottom: 8px; }
+        .notif-toast-footer { text-align: right; }
+        .notif-toast-ack {
+            background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3);
+            color: #ef4444; font-size: 11px; padding: 3px 10px; border-radius: 4px; cursor: pointer; transition: background 0.15s;
+        }
+        .notif-toast-ack:hover { background: rgba(239,68,68,0.22); }
+    </style>
+</head>
+<body class="dark-theme">
+
+<!-- HEADER -->
+<header class="demo-header">
+    <div class="demo-header-left">
+        <span class="demo-badge" data-di="badge">監控模式</span>
+        <span class="demo-title" id="demo-sys-name"></span>
+        <span class="demo-clock" id="demo-clock"></span>
+    </div>
+    <div class="demo-header-right">
+        <div class="demo-user-badge" id="demo-user-badge" style="display:none">
+            <span>👤</span>
+            <span id="demo-user-name"></span>
+            <span class="user-role" id="demo-user-role"></span>
+        </div>
+        <span id="demo-refresh-hint"></span>
+        <select class="demo-lang-select" id="demo-lang-select" onchange="changeDemoLang(this.value)">
+            <option value="zh-TW">繁中</option>
+            <option value="zh-CN">简中</option>
+            <option value="en-US">EN</option>
+            <option value="ja-JP">日本語</option>
+            <option value="ko-KR">한국어</option>
+        </select>
+        <!-- Notifications -->
+        <div class="notif-bell-wrapper" id="notif-bell-wrapper">
+            <button class="notif-bell-btn" id="notif-bell-btn" onclick="toggleNotifPanel()" title="Notifications">
+                &#128276;
+                <span class="notif-badge" id="notif-badge" style="display:none;">0</span>
+            </button>
+            <div class="notif-panel" id="notif-panel" style="display:none;">
+                <div class="notif-panel-header">
+                    <span class="notif-panel-title">&#36890;&#30693;&#20013;&#24515;</span>
+                    <div class="notif-panel-actions">
+                        <button class="notif-action-link" onclick="markAllNotifsRead()">&#20840;&#37096;&#24050;&#35712;</button>
+                        <button class="notif-action-link notif-clear-all" onclick="clearAllNotifs()">&#28165;&#38500;&#20840;&#37096;</button>
+                    </div>
+                </div>
+                <div class="notif-list" id="notif-list">
+                    <div class="notif-empty">&#30446;&#21069;&#27794;&#26377;&#36890;&#30693;</div>
+                </div>
+            </div>
+        </div>
+        <button class="demo-btn icon-btn" onclick="toggleDemoTheme()" title="切換主題">🌙</button>
+        <button class="demo-btn" id="btn-refresh" onclick="manualRefresh()">&#8635; <span data-di="refresh">重新整理</span></button>
+        <button class="demo-btn" id="btn-fullscreen" onclick="toggleFullscreen()">&#9645; <span data-di="fullscreen">全螢幕</span></button>
+        <button class="demo-btn danger" id="btn-exit" onclick="exitMonitor()">⎋ <span data-di="exit">離開監控</span></button>
+    </div>
+</header>
+
+<!-- TOP STATS BAR -->
+<div class="demo-topbar">
+    <!-- 蝮質身??-->
+    <div class="topbar-stat">
+        <div class="topbar-stat-icon"></div>
+        <div class="topbar-stat-info">
+            <div class="topbar-stat-label" data-di="total">總設備數量</div>
+            <div class="topbar-stat-value total" id="stat-total">-</div>
+        </div>
+    </div>
+    <!-- ?函? -->
+    <div class="topbar-stat">
+        <div class="topbar-stat-icon"></div>
+        <div class="topbar-stat-info">
+            <div class="topbar-stat-label" data-di="online">設備上線數量</div>
+            <div class="topbar-stat-value online" id="stat-online">-</div>
+        </div>
+    </div>
+    <!-- ?Ｙ? -->
+    <div class="topbar-stat">
+        <div class="topbar-stat-icon"></div>
+        <div class="topbar-stat-info">
+            <div class="topbar-stat-label" data-di="offline">設備離線數量</div>
+            <div class="topbar-stat-value offline" id="stat-offline">-</div>
+        </div>
+    </div>
+    <!-- ?單? Log (霅血???+ scrollable log) -->
+    <div class="topbar-stat topbar-log">
+        <div class="topbar-log-header">
+            <span class="topbar-log-title" data-di="live_log">即時事件 Log</span>
+            <span class="topbar-log-live"><span class="demo-live-dot"></span> LIVE</span>
+        </div>
+        <div class="topbar-log-list" id="demo-log-list">
+            <div class="log-empty" data-di="loading">載入中...</div>
+        </div>
+    </div>
+</div>
+
+<!-- MAIN: LEFT topology / RIGHT cameras -->
+<div class="demo-main">
+
+    <!-- LEFT: TOPOLOGY -->
+    <div class="demo-topology" id="demo-topology-wrap">
+        <div id="demo-topo-svg"></div>
+
+        <!-- Legend -->
+        <div class="demo-legend collapsed" id="demo-legend">
+            <button class="demo-legend-toggle" onclick="toggleDemoLegend()">&#9654;</button>
+            <div class="demo-legend-body" id="demo-legend-body">
+                <div class="demo-legend-item"><span class="demo-legend-dot" style="background:#6366f1"></span><span data-di="type_router"></span></div>
+                <div class="demo-legend-item"><span class="demo-legend-dot" style="background:#10b981"></span><span data-di="type_switch"></span></div>
+                <div class="demo-legend-item"><span class="demo-legend-dot" style="background:#8b5cf6"></span><span data-di="type_ap"></span></div>
+                <div class="demo-legend-item"><span class="demo-legend-dot" style="background:#ef4444"></span><span data-di="type_firewall"></span></div>
+                <div class="demo-legend-item"><span class="demo-legend-dot" style="background:#3b82f6"></span><span data-di="type_server"></span></div>
+                <div class="demo-legend-item"><span class="demo-legend-dot" style="background:#ec4899"></span><span data-di="type_codec"></span></div>
+                <div class="demo-legend-item"><span class="demo-legend-dot" style="background:#f59e0b"></span><span data-di="type_ipcam"></span></div>
+                <div class="demo-legend-item"><span class="demo-legend-dot" style="background:#6b7280"></span><span data-di="type_other"></span></div>
+                <div class="demo-legend-item"><span class="demo-legend-line" style="background:#10b981"></span><span data-di="lldp"></span></div>
+                <div class="demo-legend-item"><span class="demo-legend-line" style="background:#f59e0b"></span><span data-di="manual"></span></div>
+            </div>
+        </div>
+
+        <!-- Zoom + View controls -->
+        <div class="demo-topo-controls">
+            <button onclick="demoZoom(1.25)">+</button>
+            <button onclick="demoZoom(0.8)">-</button>
+            <button onclick="demoResetView()">&#8635;</button>
+            <button id="mon-btn-force" class="mon-view-btn active" onclick="monSwitchView('force')" title="Force Layout">◎</button>
+            <button id="mon-btn-tree"  class="mon-view-btn"        onclick="monSwitchView('tree')"  title="Tree Layout">🌲</button>
+        </div>
+
+        <!-- Tooltip -->
+        <div class="demo-tooltip" id="demo-tooltip"></div>
+
+        <!-- Loading -->
+        <div class="demo-loading" id="topo-loading">
+            <div class="spin"></div><span data-di="loading">載入中...</span>
+        </div>
+    </div>
+
+    <!-- RIGHT: CAMERA PANEL -->
+    <div class="demo-cam-panel" id="demo-cam-panel">
+        <div class="demo-cam-panel-header">
+            <span class="demo-cam-panel-title">監控攝影機</span>
+            <div class="demo-cam-panel-controls">
+                <button class="cam-layout-btn active" id="cam-btn-4"  onclick="monSetLayout(4)"  title="2x2">2x2</button>
+                <button class="cam-layout-btn"        id="cam-btn-9"  onclick="monSetLayout(9)"  title="3x3">3x3</button>
+                <button class="cam-layout-btn"        id="cam-btn-16" onclick="monSetLayout(16)" title="4x4">4x4</button>
+                <button class="cam-layout-btn" onclick="monRefreshCams()" title="重新整理">↻</button>
+            </div>
+        </div>
+        <div class="demo-cam-grid-wrap">
+            <div class="demo-cam-grid grid-4" id="demo-cam-grid">
+                <!-- placeholder until init -->
+            </div>
+        </div>
+    </div>
+
+</div><!-- end demo-main -->
+
+<script>
+// ===== TOKEN + cache-bust strip =====
+(function() {
+    const p = new URLSearchParams(window.location.search);
+    const t = p.get('token');
+    if (t) sessionStorage.setItem('nms_token', t);
+    if (p.has('token') || p.has('_cb')) {
+        window.history.replaceState({}, '', window.location.pathname);
+    }
+})();
+function getToken() { return sessionStorage.getItem('nms_token'); }
+
+// ===== API =====
+async function demoApi(path) {
+    const token = getToken();
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+    const res = await fetch('/api/v1' + path, { headers });
+    if (res.status === 401) { window.location.href = '/login'; throw new Error('Unauthorized'); }
+    return res.json();
+}
+
+// API helpers used by notifications.js
+async function apiGet(path) { return demoApi(path); }
+async function apiPut(path, body) {
+    const token = getToken();
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+    const res = await fetch('/api/v1' + path, { method: 'PUT', headers, body: JSON.stringify(body) });
+    if (res.status === 401) { window.location.href = '/login'; throw new Error('Unauthorized'); }
+    return res.json();
+}
+async function apiDelete(path) {
+    const token = getToken();
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+    const res = await fetch('/api/v1' + path, { method: 'DELETE', headers });
+    if (res.status === 401) { window.location.href = '/login'; throw new Error('Unauthorized'); }
+    return res.json();
+}
+
+// escapeHtmlNotif alias (used by notifications.js)
+function escapeHtmlNotif(text) {
+    if (!text) return '';
+    const d = document.createElement('div');
+    d.textContent = text;
+    return d.innerHTML;
+}
+
+// ===== i18n =====
+/*
+const DEMO_STRINGS = {
+    'zh-TW': {
+        refresh: '重新整理',
+        fullscreen: '全螢幕',
+        exit: '離開監控',
+        total: '總設備數量',
+        online: '設備上線數量',
+        offline: '設備離線數量',
+        warning: '警告',
+        live_log: '即時事件 Log',
+        loading: '載入中...',
+        auto_refresh: '自動刷新',
+        type_router: '路由器',
+        type_switch: '交換器',
+        type_ap: '無線 AP',
+        type_firewall: '防火牆',
+        type_server: '伺服器',
+        type_codec: '編解碼器',
+        type_ipcam: '攝影機',
+        type_other: '其他',
+        lldp: '自動連線 (LLDP)',
+        manual: '手動連線',
+        online_s: '在線',
+        offline_s: '離線',
+        no_events: '目前沒有事件',
+        tooltip_type: '類型',
+        badge: '監控模式',
+        title_suffix: '監控模式',
+        role_admin: '管理者',
+        role_editor: '編輯者',
+        role_viewer: '檢視者',
+        cam_no_license: '攝影機模組需加購 License'
+    },
+    'zh-CN': {
+        refresh: '刷新',
+        fullscreen: '全屏',
+        exit: '退出监控',
+        total: '设备总数',
+        online: '设备上线数量',
+        offline: '设备离线数量',
+        warning: '告警',
+        live_log: '实时事件日志',
+        loading: '加载中...',
+        auto_refresh: '自动刷新',
+        type_router: '路由器',
+        type_switch: '交换机',
+        type_ap: '无线 AP',
+        type_firewall: '防火墙',
+        type_server: '服务器',
+        type_codec: '编解码器',
+        type_ipcam: '摄像机',
+        type_other: '其他',
+        lldp: '自动连接 (LLDP)',
+        manual: '手动连接',
+        online_s: '在线',
+        offline_s: '离线',
+        no_events: '暂无事件',
+        tooltip_type: '类型',
+        badge: '监控模式',
+        title_suffix: '监控模式',
+        role_admin: '管理员',
+        role_editor: '编辑者',
+        role_viewer: '查看者',
+        cam_no_license: '摄像机模块需要加购 License'
+    },
+    'en-US': {
+        refresh: 'Refresh',
+        fullscreen: 'Fullscreen',
+        exit: 'Exit Monitor',
+        total: 'Total Devices',
+        online: 'Online Devices',
+        offline: 'Offline Devices',
+        warning: 'Warnings',
+        live_log: 'Live Event Log',
+        loading: 'Loading...',
+        auto_refresh: 'Auto Refresh',
+        type_router: 'Router',
+        type_switch: 'Switch',
+        type_ap: 'Wireless AP',
+        type_firewall: 'Firewall',
+        type_server: 'Server',
+        type_codec: 'Codec',
+        type_ipcam: 'IP Camera',
+        type_other: 'Other',
+        lldp: 'Auto Link (LLDP)',
+        manual: 'Manual Link',
+        online_s: 'Online',
+        offline_s: 'Offline',
+        no_events: 'No events',
+        tooltip_type: 'Type',
+        badge: 'Monitor Mode',
+        title_suffix: 'Monitor Mode',
+        role_admin: 'Admin',
+        role_editor: 'Editor',
+        role_viewer: 'Viewer',
+        cam_no_license: 'Camera module not licensed'
+    },
+    'ja-JP': {
+        refresh: '更新',
+        fullscreen: '全画面',
+        exit: '監視終了',
+        total: '総設備数',
+        online: 'オンライン機器数',
+        offline: 'オフライン機器数',
+        warning: '警告',
+        live_log: 'ライブイベントログ',
+        loading: '読み込み中...',
+        auto_refresh: '自動更新',
+        type_router: 'ルーター',
+        type_switch: 'スイッチ',
+        type_ap: '無線 AP',
+        type_firewall: 'ファイアウォール',
+        type_server: 'サーバー',
+        type_codec: 'コーデック',
+        type_ipcam: 'カメラ',
+        type_other: 'その他',
+        lldp: '自動接続 (LLDP)',
+        manual: '手動接続',
+        online_s: 'オンライン',
+        offline_s: 'オフライン',
+        no_events: 'イベントはありません',
+        tooltip_type: '種類',
+        badge: '監視モード',
+        title_suffix: '監視モード',
+        role_admin: '管理者',
+        role_editor: '編集者',
+        role_viewer: '閲覧者',
+        cam_no_license: 'カメラモジュールの License が必要です'
+    },
+    'ko-KR': {
+        refresh: '새로고침',
+        fullscreen: '전체화면',
+        exit: '모니터 종료',
+        total: '총 장비 수',
+        online: '온라인 장비 수',
+        offline: '오프라인 장비 수',
+        warning: '경고',
+        live_log: '실시간 이벤트 로그',
+        loading: '불러오는 중...',
+        auto_refresh: '자동 새로고침',
+        type_router: '라우터',
+        type_switch: '스위치',
+        type_ap: '무선 AP',
+        type_firewall: '방화벽',
+        type_server: '서버',
+        type_codec: '코덱',
+        type_ipcam: '카메라',
+        type_other: '기타',
+        lldp: '자동 연결 (LLDP)',
+        manual: '수동 연결',
+        online_s: '온라인',
+        offline_s: '오프라인',
+        no_events: '이벤트가 없습니다',
+        tooltip_type: '유형',
+        badge: '모니터 모드',
+        title_suffix: '모니터 모드',
+        role_admin: '관리자',
+        role_editor: '편집자',
+        role_viewer: '뷰어',
+        cam_no_license: '카메라 모듈은 License가 필요합니다'
+    }
+};
+*/
+
+const DEMO_STRINGS = {};
+/*
+const CLEAN_DEMO_STRINGS = {
+    'zh-TW': {
+        refresh: '重新整理',
+        fullscreen: '全螢幕',
+        exit: '離開監控',
+        total: '總設備數量',
+        online: '設備上線數量',
+        offline: '設備離線數量',
+        warning: '警告',
+        live_log: '即時事件 Log',
+        loading: '載入中...',
+        auto_refresh: '自動刷新',
+        type_router: '路由器',
+        type_switch: '交換器',
+        type_ap: '無線 AP',
+        type_firewall: '防火牆',
+        type_server: '伺服器',
+        type_codec: '編解碼器',
+        type_ipcam: '攝影機',
+        type_other: '其他',
+        lldp: '自動連線 (LLDP)',
+        manual: '手動連線',
+        online_s: '在線',
+        offline_s: '離線',
+        no_events: '目前沒有事件',
+        tooltip_type: '類型',
+        badge: '監控模式',
+        title_suffix: '監控模式',
+        role_admin: '管理者',
+        role_editor: '編輯者',
+        role_viewer: '檢視者',
+        cam_no_license: '攝影機模組未授權'
+    },
+    'zh-CN': {
+        refresh: '刷新',
+        fullscreen: '全屏',
+        exit: '退出监控',
+        total: '总设备数量',
+        online: '设备在线数量',
+        offline: '设备离线数量',
+        warning: '警告',
+        live_log: '实时事件 Log',
+        loading: '加载中...',
+        auto_refresh: '自动刷新',
+        type_router: '路由器',
+        type_switch: '交换机',
+        type_ap: '无线 AP',
+        type_firewall: '防火墙',
+        type_server: '服务器',
+        type_codec: '编解码器',
+        type_ipcam: '摄像机',
+        type_other: '其他',
+        lldp: '自动链路 (LLDP)',
+        manual: '手动链路',
+        online_s: '在线',
+        offline_s: '离线',
+        no_events: '暂无事件',
+        tooltip_type: '类型',
+        badge: '监控模式',
+        title_suffix: '监控模式',
+        role_admin: '管理员',
+        role_editor: '编辑者',
+        role_viewer: '查看者',
+        cam_no_license: '摄像机模块未授权'
+    },
+    'en-US': {
+        refresh: 'Refresh',
+        fullscreen: 'Fullscreen',
+        exit: 'Exit Monitor',
+        total: 'Total Devices',
+        online: 'Online Devices',
+        offline: 'Offline Devices',
+        warning: 'Warnings',
+        live_log: 'Live Event Log',
+        loading: 'Loading...',
+        auto_refresh: 'Auto Refresh',
+        type_router: 'Router',
+        type_switch: 'Switch',
+        type_ap: 'Wireless AP',
+        type_firewall: 'Firewall',
+        type_server: 'Server',
+        type_codec: 'Codec',
+        type_ipcam: 'IP Camera',
+        type_other: 'Other',
+        lldp: 'Auto Link (LLDP)',
+        manual: 'Manual Link',
+        online_s: 'Online',
+        offline_s: 'Offline',
+        no_events: 'No events',
+        tooltip_type: 'Type',
+        badge: 'Monitor Mode',
+        title_suffix: 'Monitor Mode',
+        role_admin: 'Admin',
+        role_editor: 'Editor',
+        role_viewer: 'Viewer',
+        cam_no_license: 'Camera module not licensed'
+    },
+    'ja-JP': {
+        refresh: '更新',
+        fullscreen: '全画面',
+        exit: '監視終了',
+        total: '総設備数',
+        online: 'オンライン設備数',
+        offline: 'オフライン設備数',
+        warning: '警告',
+        live_log: 'リアルタイムイベント Log',
+        loading: '読み込み中...',
+        auto_refresh: '自動更新',
+        type_router: 'ルーター',
+        type_switch: 'スイッチ',
+        type_ap: '無線 AP',
+        type_firewall: 'ファイアウォール',
+        type_server: 'サーバー',
+        type_codec: 'コーデック',
+        type_ipcam: 'IP カメラ',
+        type_other: 'その他',
+        lldp: '自動リンク (LLDP)',
+        manual: '手動リンク',
+        online_s: 'オンライン',
+        offline_s: 'オフライン',
+        no_events: 'イベントはありません',
+        tooltip_type: '種類',
+        badge: '監視モード',
+        title_suffix: '監視モード',
+        role_admin: '管理者',
+        role_editor: '編集者',
+        role_viewer: '閲覧者',
+        cam_no_license: 'カメラモジュールは未ライセンスです'
+    },
+    'ko-KR': {
+        refresh: '새로고침',
+        fullscreen: '전체화면',
+        exit: '모니터 종료',
+        total: '총 장비 수',
+        online: '온라인 장비 수',
+        offline: '오프라인 장비 수',
+        warning: '경고',
+        live_log: '실시간 이벤트 Log',
+        loading: '로딩 중...',
+        auto_refresh: '자동 새로고침',
+        type_router: '라우터',
+        type_switch: '스위치',
+        type_ap: '무선 AP',
+        type_firewall: '방화벽',
+        type_server: '서버',
+        type_codec: '코덱',
+        type_ipcam: 'IP 카메라',
+        type_other: '기타',
+        lldp: '자동 링크 (LLDP)',
+        manual: '수동 링크',
+        online_s: '온라인',
+        offline_s: '오프라인',
+        no_events: '이벤트가 없습니다',
+        tooltip_type: '유형',
+        badge: '모니터 모드',
+        title_suffix: '모니터 모드',
+        role_admin: '관리자',
+        role_editor: '편집자',
+        role_viewer: '조회자',
+        cam_no_license: '카메라 모듈이 라이선스되지 않았습니다'
+    }
+};
+*/
+const CLEAN_DEMO_STRINGS = {
+    'zh-TW': {
+        refresh: '\u91cd\u65b0\u6574\u7406',
+        fullscreen: '\u5168\u87a2\u5e55',
+        exit: '\u96e2\u958b\u76e3\u63a7',
+        total: '\u7e3d\u8a2d\u5099\u6578\u91cf',
+        online: '\u8a2d\u5099\u4e0a\u7dda\u6578\u91cf',
+        offline: '\u8a2d\u5099\u96e2\u7dda\u6578\u91cf',
+        warning: '\u8b66\u544a',
+        live_log: '\u5373\u6642\u4e8b\u4ef6 Log',
+        loading: '\u8f09\u5165\u4e2d...',
+        auto_refresh: '\u81ea\u52d5\u5237\u65b0',
+        type_router: '\u8def\u7531\u5668',
+        type_switch: '\u4ea4\u63db\u5668',
+        type_ap: '\u7121\u7dda AP',
+        type_firewall: '\u9632\u706b\u7246',
+        type_server: '\u4f3a\u670d\u5668',
+        type_codec: '\u7de8\u89e3\u78bc\u5668',
+        type_ipcam: '\u651d\u5f71\u6a5f',
+        type_other: '\u5176\u4ed6',
+        lldp: '\u81ea\u52d5\u9023\u7dda (LLDP)',
+        manual: '\u624b\u52d5\u9023\u7dda',
+        online_s: '\u5728\u7dda',
+        offline_s: '\u96e2\u7dda',
+        no_events: '\u76ee\u524d\u6c92\u6709\u4e8b\u4ef6',
+        tooltip_type: '\u985e\u578b',
+        badge: '\u76e3\u63a7\u6a21\u5f0f',
+        title_suffix: '\u76e3\u63a7\u6a21\u5f0f',
+        role_admin: '\u7ba1\u7406\u8005',
+        role_editor: '\u7de8\u8f2f\u8005',
+        role_viewer: '\u6aa2\u8996\u8005',
+        cam_no_license: '\u651d\u5f71\u6a5f\u6a21\u7d44\u672a\u6388\u6b0a'
+    },
+    'zh-CN': {
+        refresh: '\u5237\u65b0',
+        fullscreen: '\u5168\u5c4f',
+        exit: '\u9000\u51fa\u76d1\u63a7',
+        total: '\u603b\u8bbe\u5907\u6570\u91cf',
+        online: '\u8bbe\u5907\u5728\u7ebf\u6570\u91cf',
+        offline: '\u8bbe\u5907\u79bb\u7ebf\u6570\u91cf',
+        warning: '\u8b66\u544a',
+        live_log: '\u5b9e\u65f6\u4e8b\u4ef6 Log',
+        loading: '\u52a0\u8f7d\u4e2d...',
+        auto_refresh: '\u81ea\u52a8\u5237\u65b0',
+        type_router: '\u8def\u7531\u5668',
+        type_switch: '\u4ea4\u6362\u673a',
+        type_ap: '\u65e0\u7ebf AP',
+        type_firewall: '\u9632\u706b\u5899',
+        type_server: '\u670d\u52a1\u5668',
+        type_codec: '\u7f16\u89e3\u7801\u5668',
+        type_ipcam: '\u6444\u50cf\u673a',
+        type_other: '\u5176\u4ed6',
+        lldp: '\u81ea\u52a8\u94fe\u8def (LLDP)',
+        manual: '\u624b\u52a8\u94fe\u8def',
+        online_s: '\u5728\u7ebf',
+        offline_s: '\u79bb\u7ebf',
+        no_events: '\u6682\u65e0\u4e8b\u4ef6',
+        tooltip_type: '\u7c7b\u578b',
+        badge: '\u76d1\u63a7\u6a21\u5f0f',
+        title_suffix: '\u76d1\u63a7\u6a21\u5f0f',
+        role_admin: '\u7ba1\u7406\u5458',
+        role_editor: '\u7f16\u8f91\u8005',
+        role_viewer: '\u67e5\u770b\u8005',
+        cam_no_license: '\u6444\u50cf\u673a\u6a21\u5757\u672a\u6388\u6743'
+    },
+    'en-US': {
+        refresh: 'Refresh',
+        fullscreen: 'Fullscreen',
+        exit: 'Exit Monitor',
+        total: 'Total Devices',
+        online: 'Online Devices',
+        offline: 'Offline Devices',
+        warning: 'Warnings',
+        live_log: 'Live Event Log',
+        loading: 'Loading...',
+        auto_refresh: 'Auto Refresh',
+        type_router: 'Router',
+        type_switch: 'Switch',
+        type_ap: 'Wireless AP',
+        type_firewall: 'Firewall',
+        type_server: 'Server',
+        type_codec: 'Codec',
+        type_ipcam: 'IP Camera',
+        type_other: 'Other',
+        lldp: 'Auto Link (LLDP)',
+        manual: 'Manual Link',
+        online_s: 'Online',
+        offline_s: 'Offline',
+        no_events: 'No events',
+        tooltip_type: 'Type',
+        badge: 'Monitor Mode',
+        title_suffix: 'Monitor Mode',
+        role_admin: 'Admin',
+        role_editor: 'Editor',
+        role_viewer: 'Viewer',
+        cam_no_license: 'Camera module not licensed'
+    },
+    'ja-JP': {
+        refresh: '\u66f4\u65b0',
+        fullscreen: '\u5168\u753b\u9762',
+        exit: '\u76e3\u8996\u7d42\u4e86',
+        total: '\u7dcf\u8a2d\u5099\u6570',
+        online: '\u30aa\u30f3\u30e9\u30a4\u30f3\u8a2d\u5099\u6570',
+        offline: '\u30aa\u30d5\u30e9\u30a4\u30f3\u8a2d\u5099\u6570',
+        warning: '\u8b66\u544a',
+        live_log: '\u30ea\u30a2\u30eb\u30bf\u30a4\u30e0\u30a4\u30d9\u30f3\u30c8 Log',
+        loading: '\u8aad\u307f\u8fbc\u307f\u4e2d...',
+        auto_refresh: '\u81ea\u52d5\u66f4\u65b0',
+        type_router: '\u30eb\u30fc\u30bf\u30fc',
+        type_switch: '\u30b9\u30a4\u30c3\u30c1',
+        type_ap: '\u7121\u7dda AP',
+        type_firewall: '\u30d5\u30a1\u30a4\u30a2\u30a6\u30a9\u30fc\u30eb',
+        type_server: '\u30b5\u30fc\u30d0\u30fc',
+        type_codec: '\u30b3\u30fc\u30c7\u30c3\u30af',
+        type_ipcam: 'IP \u30ab\u30e1\u30e9',
+        type_other: '\u305d\u306e\u4ed6',
+        lldp: '\u81ea\u52d5\u30ea\u30f3\u30af (LLDP)',
+        manual: '\u624b\u52d5\u30ea\u30f3\u30af',
+        online_s: '\u30aa\u30f3\u30e9\u30a4\u30f3',
+        offline_s: '\u30aa\u30d5\u30e9\u30a4\u30f3',
+        no_events: '\u30a4\u30d9\u30f3\u30c8\u306f\u3042\u308a\u307e\u305b\u3093',
+        tooltip_type: '\u7a2e\u985e',
+        badge: '\u76e3\u8996\u30e2\u30fc\u30c9',
+        title_suffix: '\u76e3\u8996\u30e2\u30fc\u30c9',
+        role_admin: '\u7ba1\u7406\u8005',
+        role_editor: '\u7de8\u96c6\u8005',
+        role_viewer: '\u95b2\u89a7\u8005',
+        cam_no_license: '\u30ab\u30e1\u30e9\u30e2\u30b8\u30e5\u30fc\u30eb\u306f\u672a\u30e9\u30a4\u30bb\u30f3\u30b9\u3067\u3059'
+    },
+    'ko-KR': {
+        refresh: '\uc0c8\ub85c\uace0\uce68',
+        fullscreen: '\uc804\uccb4\ud654\uba74',
+        exit: '\ubaa8\ub2c8\ud130 \uc885\ub8cc',
+        total: '\ucd1d \uc7a5\ube44 \uc218',
+        online: '\uc628\ub77c\uc778 \uc7a5\ube44 \uc218',
+        offline: '\uc624\ud504\ub77c\uc778 \uc7a5\ube44 \uc218',
+        warning: '\uacbd\uace0',
+        live_log: '\uc2e4\uc2dc\uac04 \uc774\ubca4\ud2b8 Log',
+        loading: '\ub85c\ub529 \uc911...',
+        auto_refresh: '\uc790\ub3d9 \uc0c8\ub85c\uace0\uce68',
+        type_router: '\ub77c\uc6b0\ud130',
+        type_switch: '\uc2a4\uc704\uce58',
+        type_ap: '\ubb34\uc120 AP',
+        type_firewall: '\ubc29\ud654\ubcbd',
+        type_server: '\uc11c\ubc84',
+        type_codec: '\ucf54\ub371',
+        type_ipcam: 'IP \uce74\uba54\ub77c',
+        type_other: '\uae30\ud0c0',
+        lldp: '\uc790\ub3d9 \ub9c1\ud06c (LLDP)',
+        manual: '\uc218\ub3d9 \ub9c1\ud06c',
+        online_s: '\uc628\ub77c\uc778',
+        offline_s: '\uc624\ud504\ub77c\uc778',
+        no_events: '\uc774\ubca4\ud2b8\uac00 \uc5c6\uc2b5\ub2c8\ub2e4',
+        tooltip_type: '\uc720\ud615',
+        badge: '\ubaa8\ub2c8\ud130 \ubaa8\ub4dc',
+        title_suffix: '\ubaa8\ub2c8\ud130 \ubaa8\ub4dc',
+        role_admin: '\uad00\ub9ac\uc790',
+        role_editor: '\ud3b8\uc9d1\uc790',
+        role_viewer: '\uc870\ud68c\uc790',
+        cam_no_license: '\uce74\uba54\ub77c \ubaa8\ub4c8\uc774 \ub77c\uc774\uc120\uc2a4\ub418\uc9c0 \uc54a\uc558\uc2b5\ub2c8\ub2e4'
+    }
+};
+Object.keys(CLEAN_DEMO_STRINGS).forEach(lang => {
+    DEMO_STRINGS[lang] = { ...(DEMO_STRINGS[lang] || {}), ...CLEAN_DEMO_STRINGS[lang] };
+});
+
+let currentLang = localStorage.getItem('nms_lang') || 'zh-TW';
+if (!DEMO_STRINGS[currentLang]) currentLang = 'zh-TW';
+
+function di(key) {
+    return (DEMO_STRINGS[currentLang] || DEMO_STRINGS['zh-TW'])[key] || key;
+}
+
+function getRoleLabel(role) {
+    const map = { admin:'role_admin', editor:'role_editor', viewer:'role_viewer' };
+    return di(map[role] || 'role_viewer');
+}
+
+function renderUserBadge() {
+    try {
+        const userStr = sessionStorage.getItem('nms_user');
+        if (!userStr) return;
+        const user = JSON.parse(userStr);
+        const name = user.username || user.name || '';
+        const role = user.role || 'viewer';
+        if (!name) return;
+        const badge = document.getElementById('demo-user-badge');
+        const nameEl = document.getElementById('demo-user-name');
+        const roleEl = document.getElementById('demo-user-role');
+        if (badge && nameEl && roleEl) {
+            nameEl.textContent = name;
+            roleEl.textContent = getRoleLabel(role);
+            badge.style.display = 'flex';
+        }
+    } catch(e) {}
+}
+
+function applyDemoI18n() {
+    document.querySelectorAll('[data-di]').forEach(el => {
+        el.textContent = di(el.dataset.di);
+    });
+    const badge = document.querySelector('.demo-badge');
+    if (badge) badge.textContent = di('badge');
+    const sel = document.getElementById('demo-lang-select');
+    if (sel) sel.value = currentLang;
+    document.documentElement.lang = currentLang;
+    const sysNameEl = document.getElementById('demo-sys-name');
+    if (sysNameEl && sysNameEl.dataset.sysName) {
+        sysNameEl.textContent = sysNameEl.dataset.sysName + ' ' + di('title_suffix');
+    }
+    renderUserBadge();
+}
+
+function changeDemoLang(lang) {
+    currentLang = lang;
+    localStorage.setItem('nms_lang', lang);
+    applyDemoI18n();
+    loadLogs();
+}
+
+// ===== THEME =====
+function applyDemoTheme(theme) {
+    document.body.classList.toggle('dark-theme', theme === 'dark');
+    localStorage.setItem('nms-theme', theme);
+}
+function toggleDemoTheme() {
+    applyDemoTheme(document.body.classList.contains('dark-theme') ? 'light' : 'dark');
+}
+
+// ===== CLOCK =====
+function updateClock() {
+    const now = new Date();
+    document.getElementById('demo-clock').textContent =
+        now.toLocaleDateString('zh-TW') + '  ' +
+        now.toLocaleTimeString('zh-TW', { hour12: false });
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ===== FULLSCREEN =====
+function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+    } else {
+        document.exitFullscreen().catch(() => {});
+    }
+}
+
+function exitMonitor() {
+    window.location.replace('/mode-selection.html');
+}
+
+// ===== LEGEND =====
+function toggleDemoLegend() {
+    const el = document.getElementById('demo-legend');
+    el.classList.toggle('collapsed');
+    try { localStorage.setItem('demo_legend_collapsed', el.classList.contains('collapsed')); } catch(e) {}
+}
+
+// ===== TOPOLOGY =====
+let demoSvg = null, demoG = null, demoZoomBeh = null, demoSim = null;
+let demoCurrentTransform = null;
+
+function fmtTraffic(bps) {
+    if (!bps) return '0';
+    if (bps >= 1e12) return (bps/1e12).toFixed(0)+'T';
+    if (bps >= 1e9)  return (bps/1e9).toFixed(0)+'G';
+    if (bps >= 1e6)  return (bps/1e6).toFixed(0)+'M';
+    if (bps >= 1e3)  return (bps/1e3).toFixed(0)+'K';
+    return String(bps);
+}
+
+const NODE_COLORS = {
+    router:'#6366f1', switch:'#10b981', firewall:'#ef4444',
+    server:'#3b82f6', ipcam:'#f59e0b', video_wall:'#8b5cf6',
+    access_point:'#8b5cf6', codec:'#ec4899', other:'#6b7280'
+};
+function getColor(t) { return NODE_COLORS[t] || NODE_COLORS.other; }
+
+function renderTopoDemo(nodes, links) {
+    const wrap = document.getElementById('demo-topology-wrap');
+    const container = document.getElementById('demo-topo-svg');
+    container.innerHTML = '';
+
+    const width  = wrap.clientWidth;
+    const height = wrap.clientHeight;
+
+    demoSvg = d3.select('#demo-topo-svg').append('svg')
+        .attr('width','100%').attr('height','100%');
+
+    demoSvg.append('defs').append('marker')
+        .attr('id','demo-arrow').attr('viewBox','-0 -5 10 10')
+        .attr('refX',40).attr('refY',0).attr('orient','auto')
+        .attr('markerWidth',6).attr('markerHeight',6)
+        .append('path').attr('d','M 0,-5 L 10,0 L 0,5')
+        .attr('fill','#64748b');
+
+    demoG = demoSvg.append('g');
+
+    demoZoomBeh = d3.zoom().scaleExtent([0.1, 5])
+        .on('zoom', (e) => {
+            demoCurrentTransform = e.transform;
+            demoG.attr('transform', e.transform);
+        });
+    demoSvg.call(demoZoomBeh);
+    if (demoCurrentTransform) {
+        demoSvg.call(demoZoomBeh.transform, demoCurrentTransform);
+    }
+
+    if (!nodes || nodes.length === 0) {
+        demoG.append('text').attr('x', width/2).attr('y', height/2)
+            .attr('text-anchor','middle').attr('fill','#94a3b8')
+            .text(di('no_events'));
+        return;
+    }
+
+    const d3Nodes = nodes.map(n => ({
+        ...n,
+        x: n.x || (width/2  + (Math.random()-0.5)*200),
+        y: n.y || (height/2 + (Math.random()-0.5)*200),
+        fx: (n.x && n.x !== 0) ? n.x : null,
+        fy: (n.y && n.y !== 0) ? n.y : null,
+    }));
+
+    const nodeMap = new Map(d3Nodes.map(n => [n.id, n]));
+    const d3Links = (links || [])
+        .filter(l => nodeMap.has(l.source) && nodeMap.has(l.target))
+        .map(l => ({ ...l, source: nodeMap.get(l.source), target: nodeMap.get(l.target) }));
+
+    demoSim = d3.forceSimulation(d3Nodes)
+        .force('link',      d3.forceLink(d3Links).id(d=>d.id).distance(180))
+        .force('charge',    d3.forceManyBody().strength(-700))
+        .force('center',    d3.forceCenter(width/2, height/2))
+        .force('collision', d3.forceCollide().radius(70));
+
+    const linkSel = demoG.append('g').selectAll('line')
+        .data(d3Links).join('line')
+        .attr('class', d => {
+            const isSnmp = (d.source.snmp_version > 0 && d.target.snmp_version > 0);
+            const flowCls = isSnmp ? 'snmp-flow' : 'ping-flow';
+            return 'topology-link ' + (d.link_type || 'unknown') + ' ' + flowCls;
+        })
+        .attr('stroke-width', 2)
+        .attr('marker-end', 'url(#demo-arrow)');
+
+    const trafficLinks = d3Links.filter(l =>
+        l.source_if_id || l.target_if_id ||
+        (l.bandwidth_in||0)+(l.bandwidth_out||0) > 0
+    );
+
+    const linkLabelSel = demoG.append('g').selectAll('text')
+        .data(trafficLinks).join('text')
+        .attr('class','link-label')
+        .text(l => {
+            const bwIn  = (l.bandwidth_in  || 0) * 8;
+            const bwOut = (l.bandwidth_out || 0) * 8;
+            if (bwIn > 0 || bwOut > 0) return `\u2193 ${fmtTraffic(bwIn)} \u2191 ${fmtTraffic(bwOut)}`;
+            if (l.link_speed > 0) return fmtTraffic(l.link_speed);
+            return '';
+        });
+
+    const nodeSel = demoG.append('g').selectAll('g')
+        .data(d3Nodes).join('g')
+        .attr('class', d => 'topology-node' + (d.is_online ? '' : ' offline'))
+        .call(d3.drag()
+            .on('start', (e,d) => { if (!e.active) demoSim.alphaTarget(0.3).restart(); d.fx=d.x; d.fy=d.y; })
+            .on('drag',  (e,d) => { d.fx=e.x; d.fy=e.y; })
+            .on('end',   (e,d) => { if (!e.active) demoSim.alphaTarget(0); d.fx=d.x; d.fy=d.y; })
+        )
+        .on('mouseover', showDemoTooltip)
+        .on('mousemove', moveDemoTooltip)
+        .on('mouseout',  hideDemoTooltip);
+
+    nodeSel.append('circle').attr('r',28)
+        .attr('fill', d=>getColor(d.device_type)).attr('fill-opacity',0.2)
+        .attr('stroke',d=>getColor(d.device_type)).attr('stroke-width',2);
+
+    nodeSel.append('circle').attr('r',20)
+        .attr('fill',d=>getColor(d.device_type)).attr('fill-opacity',0.85);
+
+    const ICONS = { router:'R', switch:'S', firewall:'F', server:'SV', ipcam:'C', video_wall:'VW', access_point:'AP', codec:'CD', other:'?' };
+    nodeSel.append('text').attr('text-anchor','middle').attr('dy','0.35em')
+        .attr('font-size','14px').attr('fill','#fff').attr('pointer-events','none')
+        .text(d => ICONS[d.device_type] || ICONS.other);
+
+    nodeSel.append('text').attr('text-anchor','middle').attr('dy','2.8em')
+        .attr('font-size','11px').attr('fill','var(--text-muted)').attr('pointer-events','none')
+        .text(d => getNodeDisplayName(d));
+
+    nodeSel.filter(d => !d.is_online).append('circle')
+        .attr('class','offline-dot').attr('r',7).attr('cx',18).attr('cy',-18)
+        .attr('fill','#ef4444').attr('stroke','#0f172a').attr('stroke-width',2);
+
+    demoSim.on('tick', () => {
+        linkSel.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y)
+               .attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
+        linkLabelSel
+            .attr('x',d=>(d.source.x+d.target.x)/2)
+            .attr('y',d=>(d.source.y+d.target.y)/2-6);
+        nodeSel.attr('transform',d=>`translate(${d.x},${d.y})`);
+    });
+}
+
+function demoZoom(f) {
+    if (demoSvg && demoZoomBeh) demoZoomBeh.scaleBy(demoSvg.transition().duration(200), f);
+}
+function demoResetView() {
+    demoCurrentTransform = null;
+    if (demoSvg && demoZoomBeh) demoSvg.transition().duration(300).call(demoZoomBeh.transform, d3.zoomIdentity);
+}
+
+// ===== TOOLTIP =====
+function getNodeDisplayName(d) {
+    if (d.is_name_custom && d.name) return d.name;
+    if (d.sys_name) return d.sys_name;
+    if (d.name) return d.name;
+    return d.ip_address || '';
+}
+
+function escapeHtml(s) {
+    return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function showDemoTooltip(event, d) {
+    const tt = document.getElementById('demo-tooltip');
+    tt.innerHTML = `<h4>${escapeHtml(getNodeDisplayName(d))}</h4>
+        <div>IP: ${d.ip_address||'-'}</div>
+        <div>${di('tooltip_type')}: ${d.device_type||'-'}</div>
+        <div class="${d.is_online?'st-online':'st-offline'}">${d.is_online ? '● ' + di('online_s') : '● ' + di('offline_s')}</div>`;
+    tt.classList.add('visible');
+    moveDemoTooltip(event);
+}
+function moveDemoTooltip(event) {
+    const tt   = document.getElementById('demo-tooltip');
+    const wrap = document.getElementById('demo-topology-wrap');
+    const rect = wrap.getBoundingClientRect();
+    let x = event.clientX - rect.left + 14;
+    let y = event.clientY - rect.top  - 10;
+    if (x + 210 > rect.width)  x = event.clientX - rect.left - 220;
+    if (y + 110 > rect.height) y = event.clientY - rect.top  - 120;
+    tt.style.left = x+'px'; tt.style.top = y+'px';
+}
+function hideDemoTooltip() {
+    document.getElementById('demo-tooltip').classList.remove('visible');
+}
+
+function showDemoTooltip(event, d) {
+    const tt = document.getElementById('demo-tooltip');
+    const statusColor = d.is_online ? '#22c55e' : '#ef4444';
+    tt.innerHTML = `<h4>${escapeHtml(getNodeDisplayName(d))}</h4>
+        <div>IP: ${d.ip_address||'-'}</div>
+        <div>${di('tooltip_type')}: ${d.device_type||'-'}</div>
+        <div class="${d.is_online?'st-online':'st-offline'}"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;background:${statusColor};box-shadow:0 0 6px ${statusColor};vertical-align:middle;"></span>${d.is_online ? di('online_s') : di('offline_s')}</div>`;
+    tt.classList.add('visible');
+    moveDemoTooltip(event);
+}
+window.showDemoTooltip = showDemoTooltip;
+
+let _lastNodeIds = '';
+let _lastLinkIds = '';
+
+// ===== 閬?璅∪? (force | tree)嚗? localStorage 霈?? index.html 銝?渡??末 =====
+let monCurrentView = (function() {
+    try { return localStorage.getItem('topology_default_view') || 'force'; } catch(e) { return 'force'; }
+})();
+
+let monTreeCollapsedNodes = (function() {
+    try {
+        const saved = localStorage.getItem('monitor_tree_collapsed_nodes');
+        const parsed = saved ? JSON.parse(saved) : [];
+        const normalized = new Set();
+        (parsed || []).forEach(v => {
+            normalized.add(v);
+            normalized.add(String(v));
+            const n = Number(v);
+            if (!Number.isNaN(n)) normalized.add(n);
+        });
+        return normalized;
+    } catch (e) {
+        return new Set();
+    }
+})();
+
+function monSaveTreeCollapsedNodes() {
+    try {
+        const keys = [...monTreeCollapsedNodes].map(v => String(v));
+        localStorage.setItem('monitor_tree_collapsed_nodes', JSON.stringify([...new Set(keys)]));
+    } catch (e) {}
+}
+
+function monToggleTreeNodeCollapse(nodeId) {
+    const numericId = Number(nodeId);
+    const hasNode = monTreeCollapsedNodes.has(nodeId)
+        || monTreeCollapsedNodes.has(String(nodeId))
+        || (!Number.isNaN(numericId) && monTreeCollapsedNodes.has(numericId));
+    if (hasNode) {
+        monTreeCollapsedNodes.delete(nodeId);
+        monTreeCollapsedNodes.delete(String(nodeId));
+        if (!Number.isNaN(numericId)) monTreeCollapsedNodes.delete(numericId);
+    } else {
+        monTreeCollapsedNodes.add(nodeId);
+        monTreeCollapsedNodes.add(String(nodeId));
+        if (!Number.isNaN(numericId)) monTreeCollapsedNodes.add(numericId);
+    }
+    monSaveTreeCollapsedNodes();
+    if ((_cachedTopoNodes || []).length) {
+        renderTreeTopoDemo(_cachedTopoNodes || [], _cachedTopoLinks || []);
+    }
+}
+
+function monSwitchView(view) {
+    monCurrentView = view;
+    try { localStorage.setItem('topology_default_view', view); } catch (e) {}
+    document.querySelectorAll('.mon-view-btn').forEach(b => b.classList.remove('active'));
+    const btn = document.getElementById(`mon-btn-${view}`);
+    if (btn) btn.classList.add('active');
+    // ?皜脫?
+    if (_lastNodeIds) {
+        const nodes = _cachedTopoNodes || [];
+        const links = _cachedTopoLinks || [];
+        if (view === 'tree') renderTreeTopoDemo(nodes, links);
+        else renderTopoDemo(nodes, links);
+    }
+}
+
+let _cachedTopoNodes = [];
+let _cachedTopoLinks = [];
+
+async function refreshTopoStatus() {
+    if (!demoSvg) return;
+    try {
+        const res = await demoApi('/topology');
+        if (!res.success) return;
+
+        const newNodes = res.data.nodes || [];
+        const newLinks = res.data.links || [];
+        _cachedTopoNodes = newNodes;
+        _cachedTopoLinks = newLinks;
+
+        const newNodeIds = newNodes.map(n=>n.id).sort().join(',');
+        const newLinkIds = newLinks.map(l=>l.id).sort().join(',');
+        if (newNodeIds !== _lastNodeIds || newLinkIds !== _lastLinkIds) {
+            _lastNodeIds = newNodeIds;
+            _lastLinkIds = newLinkIds;
+            if (monCurrentView === 'tree') renderTreeTopoDemo(newNodes, newLinks);
+            else renderTopoDemo(newNodes, newLinks);
+            return;
+        }
+
+        if (monCurrentView === 'tree') {
+            renderTreeTopoDemo(newNodes, newLinks);
+        } else {
+            const statusMap = new Map(newNodes.map(n=>[n.id, n.is_online]));
+            demoSvg.selectAll('.topology-node').each(function(d) {
+                const online = statusMap.get(d.id);
+                if (online === undefined) return;
+                d.is_online = online;
+                const el = d3.select(this);
+                el.classed('offline', !online);
+                el.select('.offline-dot').remove();
+                if (!online) {
+                    el.append('circle').attr('class','offline-dot')
+                        .attr('r',7).attr('cx',18).attr('cy',-18)
+                        .attr('fill','#ef4444').attr('stroke','#0f172a').attr('stroke-width',2);
+                }
+            });
+
+            const linkMap = new Map(newLinks.map(l=>[l.id, l]));
+            demoSvg.selectAll('.link-label').each(function(d) {
+                if (!d || !d.id) return;
+                const link = linkMap.get(d.id);
+                if (!link) return;
+                d.bandwidth_in  = link.bandwidth_in;
+                d.bandwidth_out = link.bandwidth_out;
+                const bpsIn  = (link.bandwidth_in  || 0) * 8;
+                const bpsOut = (link.bandwidth_out || 0) * 8;
+                d3.select(this).text(`\u2193 ${fmtTraffic(bpsIn)} \u2191 ${fmtTraffic(bpsOut)}`);
+            });
+        }
+    } catch(e) { console.warn('[Demo] refreshTopoStatus error', e); }
+}
+
+async function loadTopoDemo() {
+    const overlay = document.getElementById('topo-loading');
+    try {
+        const res = await demoApi('/topology');
+        overlay.style.display = 'none';
+        if (res.success) {
+            const nodes = res.data.nodes || [];
+            const links = res.data.links || [];
+            _cachedTopoNodes = nodes;
+            _cachedTopoLinks = links;
+            _lastNodeIds = nodes.map(n=>n.id).sort().join(',');
+            _lastLinkIds = links.map(l=>l.id).sort().join(',');
+            // ?郊?????
+            document.querySelectorAll('.mon-view-btn').forEach(b => b.classList.remove('active'));
+            const activeBtn = document.getElementById(`mon-btn-${monCurrentView}`);
+            if (activeBtn) activeBtn.classList.add('active');
+            // 皜脫?
+            if (monCurrentView === 'tree') renderTreeTopoDemo(nodes, links);
+            else renderTopoDemo(nodes, links);
+        }
+    } catch(e) {
+        overlay.innerHTML = '<span style="color:#ef4444">\u62d3\u6a38\u8f09\u5165\u5931\u6557</span>';
+        console.warn('[Demo] topology error', e);
+    }
+}
+
+// ===== 璅寧??邪 (monitor.html) =====
+function renderTreeTopoDemo(nodes, links) {
+    const container = document.getElementById('demo-topo-svg');
+    container.innerHTML = '';
+    const wrap = document.getElementById('demo-topology-wrap');
+    const width = wrap.clientWidth || 800;
+    const height = wrap.clientHeight || 600;
+
+    demoSvg = d3.select('#demo-topo-svg').append('svg').attr('width', '100%').attr('height', '100%');
+    demoG = demoSvg.append('g');
+    demoZoomBeh = d3.zoom().scaleExtent([0.1, 5])
+        .on('zoom', (e) => {
+            demoCurrentTransform = e.transform;
+            demoG.attr('transform', e.transform);
+        });
+    demoSvg.call(demoZoomBeh);
+    if (demoCurrentTransform) demoSvg.call(demoZoomBeh.transform, demoCurrentTransform);
+
+    if (!nodes || nodes.length === 0) {
+        demoG.append('text')
+            .attr('x', width / 2)
+            .attr('y', height / 2)
+            .attr('text-anchor', 'middle')
+            .attr('fill', '#94a3b8')
+            .text(di('no_events'));
+        return;
+    }
+
+    let rootNode = nodes.find(n => n.device_type === 'router') || nodes.find(n => n.device_type === 'firewall');
+    if (!rootNode) {
+        const inDeg = {};
+        nodes.forEach(n => { inDeg[n.id] = 0; });
+        links.forEach(l => {
+            const targetId = typeof l.target === 'object' ? l.target.id : l.target;
+            if (inDeg[targetId] !== undefined) inDeg[targetId]++;
+        });
+        rootNode = nodes.reduce((a, b) => (inDeg[a.id] <= inDeg[b.id] ? a : b));
+    }
+
+    const nodeMap = new Map(nodes.map(n => [n.id, { ...n, children: [] }]));
+    const visited = new Set([rootNode.id]);
+    const queue = [rootNode.id];
+    const adj = new Map();
+    nodes.forEach(n => adj.set(n.id, []));
+    links.forEach(l => {
+        const s = typeof l.source === 'object' ? l.source.id : l.source;
+        const t = typeof l.target === 'object' ? l.target.id : l.target;
+        if (adj.has(s)) adj.get(s).push(t);
+        if (adj.has(t)) adj.get(t).push(s);
+    });
+    while (queue.length) {
+        const cur = queue.shift();
+        (adj.get(cur) || []).forEach(nid => {
+            if (!visited.has(nid) && nodeMap.has(nid)) {
+                visited.add(nid);
+                nodeMap.get(cur).children.push(nodeMap.get(nid));
+                queue.push(nid);
+            }
+        });
+    }
+    nodes.forEach(n => {
+        if (!visited.has(n.id)) nodeMap.get(rootNode.id).children.push(nodeMap.get(n.id));
+    });
+
+    const linkDataMap = new Map();
+    links.forEach(l => {
+        const s = typeof l.source === 'object' ? l.source.id : l.source;
+        const t = typeof l.target === 'object' ? l.target.id : l.target;
+        linkDataMap.set(`${s}-${t}`, l);
+        linkDataMap.set(`${t}-${s}`, l);
+    });
+    function getLd(d) {
+        return linkDataMap.get(`${d.source.data.id}-${d.target.data.id}`) ||
+            linkDataMap.get(`${d.target.data.id}-${d.source.data.id}`) || null;
+    }
+    function countHiddenOffline(node) {
+        if (!monTreeCollapsedNodes.has(node.id)) return 0;
+        let count = 0;
+        const walk = (children) => {
+            (children || []).forEach(child => {
+                if (!child.is_online) count++;
+                walk(child.children);
+            });
+        };
+        walk(node.children);
+        return count;
+    }
+
+    const root = d3.hierarchy(nodeMap.get(rootNode.id), d => {
+        if (monTreeCollapsedNodes.has(d.id)) return null;
+        return d.children;
+    });
+    d3.tree().size([width - 120, height - 120])(root);
+
+    const lgp = demoG.append('g').selectAll('g.mon-tree-link-grp')
+        .data(root.links()).join('g').attr('class', 'mon-tree-link-grp');
+
+    lgp.append('path')
+        .attr('fill', 'none')
+        .attr('class', d => {
+            const ld = getLd(d);
+            const isSnmp = ld && (d.source.data.snmp_version > 0 && d.target.data.snmp_version > 0);
+            return 'topology-link auto ' + (isSnmp ? 'snmp-flow' : 'ping-flow');
+        })
+        .attr('stroke-width', 1.5)
+        .attr('d', d3.linkVertical().x(d => d.x + 60).y(d => d.y + 60));
+
+    lgp.append('text')
+        .attr('class', 'tree-link-label link-label')
+        .attr('text-anchor', 'middle').attr('font-size', '10px').attr('dy', -4)
+        .attr('transform', d => `translate(${((d.source.x + d.target.x) / 2) + 60},${((d.source.y + d.target.y) / 2) + 60})`)
+        .attr('fill', d => {
+            const ld = getLd(d);
+            if (!ld) return '#94a3b8';
+            return ((ld.bandwidth_in || 0) + (ld.bandwidth_out || 0) > 0 || ld.source_if_id || ld.target_if_id) ? '#10b981' : '#94a3b8';
+        })
+        .text(d => {
+            const ld = getLd(d);
+            if (!ld) return '';
+            const bwIn = (ld.bandwidth_in || 0) * 8;
+            const bwOut = (ld.bandwidth_out || 0) * 8;
+            if (bwIn > 0 || bwOut > 0 || ld.source_if_id || ld.target_if_id) return `\u2193 ${fmtTraffic(bwIn)} \u2191 ${fmtTraffic(bwOut)}`;
+            if (ld.link_speed > 0) return fmtTraffic(ld.link_speed);
+            return '';
+        });
+
+    const descendants = root.descendants().map(d => {
+        d.hiddenOfflineCount = countHiddenOffline(d.data);
+        return d;
+    });
+
+    const nodeEl = demoG.append('g').selectAll('g')
+        .data(descendants).join('g')
+        .attr('class', d => {
+            const cls = ['topology-node'];
+            if (!d.data.is_online) cls.push('offline');
+            if (monTreeCollapsedNodes.has(d.data.id)) cls.push('collapsed');
+            if (d.hiddenOfflineCount > 0) cls.push('has-hidden-alert');
+            return cls.join(' ');
+        })
+        .attr('transform', d => `translate(${d.x + 60},${d.y + 60})`)
+        .on('click', (e, d) => {
+            const hasChildren = Array.isArray(d.data.children) && d.data.children.length > 0;
+            if (hasChildren || monTreeCollapsedNodes.has(d.data.id)) {
+                e.stopPropagation();
+                monToggleTreeNodeCollapse(d.data.id);
+            }
+        })
+        .on('mouseover', (e, d) => showDemoTooltip(e, d.data))
+        .on('mousemove', moveDemoTooltip)
+        .on('mouseout', hideDemoTooltip);
+
+    nodeEl.append('circle').attr('r', 28).attr('fill', d => getColor(d.data.device_type)).attr('fill-opacity', 0.2)
+        .attr('stroke', d => getColor(d.data.device_type)).attr('stroke-width', 2);
+    nodeEl.append('circle').attr('r', 20).attr('fill', d => getColor(d.data.device_type)).attr('fill-opacity', 0.85);
+
+    const ICONS = { router: 'R', switch: 'S', firewall: 'F', server: 'SV', ipcam: 'C', video_wall: 'VW', access_point: 'AP', codec: 'CD', other: 'N' };
+    nodeEl.append('text').attr('text-anchor', 'middle').attr('dy', '0.35em').attr('font-size', '14px').attr('fill', '#fff').attr('pointer-events', 'none')
+        .text(d => ICONS[d.data.device_type] || ICONS.other);
+    nodeEl.append('text').attr('text-anchor', 'middle').attr('dy', '2.8em').attr('font-size', '11px').attr('fill', 'var(--text-muted)').attr('pointer-events', 'none')
+        .text(d => getNodeDisplayName(d.data));
+
+    nodeEl.filter(d => !d.data.is_online).append('circle')
+        .attr('class', 'offline-dot').attr('r', 7).attr('cx', 18).attr('cy', -18)
+        .attr('fill', '#ef4444').attr('stroke', '#0f172a').attr('stroke-width', 2);
+
+    const collapsedNodeEl = nodeEl.filter(d => monTreeCollapsedNodes.has(d.data.id));
+    collapsedNodeEl.append('circle')
+        .attr('class', 'tree-collapse-badge')
+        .attr('r', 10).attr('cx', 20).attr('cy', 20)
+        .attr('fill', 'var(--accent)').attr('stroke', '#fff').attr('stroke-width', 1.2);
+    collapsedNodeEl.append('text')
+        .attr('x', 20).attr('y', 23.5)
+        .attr('text-anchor', 'middle')
+        .attr('fill', '#fff').attr('font-size', '12px').attr('font-weight', 'bold')
+        .text('+');
+    collapsedNodeEl.filter(d => d.hiddenOfflineCount > 0).append('circle')
+        .attr('class', 'tree-collapse-ring')
+        .attr('r', 34);
+    collapsedNodeEl.filter(d => d.hiddenOfflineCount > 0).append('circle')
+        .attr('class', 'tree-collapse-dot')
+        .attr('r', 5).attr('cx', 24).attr('cy', -24);
+
+    demoSim = null;
+}
+
+// ===== STATS =====
+async function loadStats() {
+    try {
+        const res = await demoApi('/dashboard');
+        if (!res.success) return;
+        const d = res.data;
+        document.getElementById('stat-total').textContent   = d.total_devices ?? '-';
+        document.getElementById('stat-online').textContent  = d.online_count  ?? '-';
+        document.getElementById('stat-offline').textContent = d.offline_count ?? '-';
+        if (d.system_name) {
+            const el = document.getElementById('demo-sys-name');
+            if (el) {
+                el.dataset.sysName = d.system_name;
+                el.textContent = d.system_name + ' ' + di('title_suffix');
+            }
+        }
+    } catch(e) { console.warn('[Demo] stats error', e); }
+}
+
+// ===== LOGS =====
+function sevClass(s) {
+    if (!s) return 'info';
+    const sl = s.toLowerCase();
+    if (['critical','emergency','alert'].includes(sl)) return 'critical';
+    if (sl==='error')   return 'error';
+    if (sl==='warning') return 'warning';
+    if (['info','notice'].includes(sl)) return 'info';
+    return 'debug';
+}
+
+async function loadLogs() {
+    try {
+        const res = await demoApi('/events?limit=50');
+        const list = document.getElementById('demo-log-list');
+        if (!res.success || !res.data || res.data.length === 0) {
+            list.innerHTML = `<div class="log-empty">${di('no_events')}</div>`;
+            return;
+        }
+        list.innerHTML = res.data.map(e => {
+            const sc = sevClass(e.severity);
+            const ts = e.created_at ? new Date(e.created_at).toLocaleTimeString('zh-TW',{hour12:false}) : '';
+            return `<div class="log-entry">
+                <span class="log-severity ${sc}">${(e.severity||'INFO').toUpperCase()}</span>
+                <span class="log-msg">${escapeHtml(e.message||e.event_type||'-')}</span>
+                <span class="log-time">${ts}</span>
+            </div>`;
+        }).join('');
+    } catch(e) { console.warn('[Demo] events error', e); }
+}
+
+// ===== AUTO REFRESH =====
+let refreshTimer = null;
+let refreshCountdown = 5;
+const REFRESH_INTERVAL = 5;
+
+function startAutoRefresh() {
+    clearInterval(refreshTimer);
+    refreshCountdown = REFRESH_INTERVAL;
+    refreshTimer = setInterval(() => {
+        refreshCountdown--;
+        const hint = document.getElementById('demo-refresh-hint');
+        if (hint) hint.textContent = `${di('auto_refresh')}: ${refreshCountdown}s`;
+        if (refreshCountdown <= 0) {
+            refreshCountdown = REFRESH_INTERVAL;
+            loadStats();
+            loadLogs();
+            refreshTopoStatus();
+        }
+    }, 1000);
+}
+
+async function manualRefresh() {
+    refreshCountdown = REFRESH_INTERVAL;
+    const hint = document.getElementById('demo-refresh-hint');
+    if (hint) hint.textContent = `${di('auto_refresh')}: ${refreshCountdown}s`;
+    await Promise.all([loadStats(), loadLogs(), refreshTopoStatus()]);
+}
+
+// ===== CAMERA MONITOR =====
+let monCameras = [];
+let monLayout = 4;
+let monFullscreenCellId = null;
+
+function monEnsureBackdrop() {
+    let backdrop = document.getElementById('monitor-cam-backdrop');
+    if (backdrop) return backdrop;
+    backdrop = document.createElement('div');
+    backdrop.id = 'monitor-cam-backdrop';
+    backdrop.className = 'monitor-cam-backdrop';
+    backdrop.hidden = true;
+    backdrop.addEventListener('click', () => monExitFullscreen());
+    document.body.appendChild(backdrop);
+    return backdrop;
+}
+
+function monExitFullscreen() {
+    if (monFullscreenCellId) {
+        const cell = document.getElementById(monFullscreenCellId);
+        if (cell) cell.classList.remove('monitor-inline-fullscreen');
+    }
+    const backdrop = document.getElementById('monitor-cam-backdrop');
+    if (backdrop) backdrop.hidden = true;
+    monFullscreenCellId = null;
+}
+
+window.monToggleFullscreen = function(idx) {
+    const cell = document.getElementById('mon-cell-' + idx);
+    if (!cell || cell.classList.contains('empty')) return;
+    if (monFullscreenCellId === cell.id) {
+        monExitFullscreen();
+        return;
+    }
+    monExitFullscreen();
+    monFullscreenCellId = cell.id;
+    monEnsureBackdrop().hidden = false;
+    cell.classList.add('monitor-inline-fullscreen');
+};
+async function monInitCameras() {
+    const grid = document.getElementById('demo-cam-grid');
+    try {
+        const statusRes = await demoApi('/cameras/status');
+        if (!statusRes || !statusRes.success || !statusRes.data || !statusRes.data.licensed) {
+            // Show no-license placeholder
+            if (grid) grid.innerHTML =
+                '<div class="cam-no-license" style="grid-column:1/-1;grid-row:1/-1;">' +
+                '<div class="cam-no-icon">?</div>' +
+                '<div class="cam-no-text">' + di('cam_no_license') + '</div></div>';
+            return;
+        }
+
+        const monitorRes = await demoApi('/cameras/monitor');
+        const monitorList = monitorRes && monitorRes.success && Array.isArray(monitorRes.data)
+            ? monitorRes.data
+            : [];
+
+        if (monitorList.length > 0) {
+            monCameras = monitorList.filter(c => c.status === 'online' || c.monitor_display === 1);
+        } else {
+            const camRes = await demoApi('/cameras');
+            if (!camRes || !camRes.success || !camRes.data) return;
+            monCameras = (camRes.data.cameras || camRes.data || []).filter(c => c.status === 'online' || c.is_enabled);
+        }
+
+        if (monCameras.length === 0) {
+            if (grid) grid.innerHTML =
+                '<div class="cam-no-license" style="grid-column:1/-1;grid-row:1/-1;">' +
+                '<div class="cam-no-icon">?</div>' +
+                '<div class="cam-no-text">?∪?冽?敶望?</div></div>';
+            return;
+        }
+
+        // Determine default layout
+        if (monCameras.length <= 4)      monLayout = 4;
+        else if (monCameras.length <= 9) monLayout = 9;
+        else                             monLayout = 16;
+
+        [4, 9, 16].forEach(n => {
+            const btn = document.getElementById('cam-btn-' + n);
+            if (btn) btn.classList.toggle('active', n === monLayout);
+        });
+
+        monRenderGrid();
+    } catch(e) {
+        console.warn('[Monitor] camera init failed:', e);
+    }
+}
+
+function monSetLayout(n) {
+    monLayout = n;
+    [4, 9, 16].forEach(x => {
+        const btn = document.getElementById('cam-btn-' + x);
+        if (btn) btn.classList.toggle('active', x === n);
+    });
+    monRenderGrid();
+}
+
+function monRenderGrid() {
+    const grid = document.getElementById('demo-cam-grid');
+    if (!grid) return;
+
+    monExitFullscreen();
+    // Stop existing MJPEG streams before replace
+    grid.querySelectorAll('img[data-mjpeg]').forEach(img => { img.src = ''; });
+
+    const token = getToken() || '';
+    grid.className = 'demo-cam-grid grid-' + monLayout;
+
+    const slots = monCameras.slice(0, monLayout);
+    let html = '';
+
+    for (let i = 0; i < monLayout; i++) {
+        const cam = slots[i];
+        if (cam) {
+            const online   = cam.status === 'online';
+            const dotCls   = online ? 'online' : '';
+            const mjpegUrl = '/api/v1/cameras/' + cam.id + '/stream/mjpeg?token=' + encodeURIComponent(token);
+            const snapBase = '/api/v1/cameras/' + cam.id + '/snapshot?token=' + encodeURIComponent(token);
+            html += '<div class="demo-cam-cell" id="mon-cell-' + i + '" ondblclick="monToggleFullscreen(' + i + ')">' +
+                '<div class="demo-cam-dot ' + dotCls + '"></div>' +
+                '<button type="button" class="demo-cam-fs-btn" onclick="event.stopPropagation(); monToggleFullscreen(' + i + ')" title="Fullscreen">FS</button>' +
+                '<img data-mjpeg="1" id="mon-img-' + i + '"' +
+                ' src="' + mjpegUrl + '"' +
+                ' onerror="monImgFallback(this,\'' + snapBase + '\',' + cam.id + ')"' +
+                ' style="width:100%;height:100%;object-fit:cover;">' +
+                '<div class="demo-cam-cell-label">' + escapeHtml(cam.name || '') + '</div>' +
+                '</div>';
+        } else {
+            html += '<div class="demo-cam-cell empty">-</div>';
+        }
+    }
+
+    grid.innerHTML = html;
+    grid.querySelectorAll('.demo-cam-cell.empty').forEach(cell => {
+        cell.textContent = '-';
+    });
+    grid.querySelectorAll('.demo-cam-cell:not(.empty)').forEach((cell, idx) => {
+        cell.ondblclick = () => monToggleFullscreen(idx);
+        let btn = cell.querySelector('.demo-cam-fs-btn');
+        if (!btn) {
+            btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'demo-cam-fs-btn';
+            cell.appendChild(btn);
+        }
+        btn.title = 'Fullscreen';
+        btn.textContent = 'FS';
+        btn.onclick = function(event) {
+            event.stopPropagation();
+            monToggleFullscreen(idx);
+        };
+    });
+}
+
+window.monImgFallback = function(img, baseSnap, camId) {
+    if (img.dataset.fallback) return;
+    img.dataset.fallback = '1';
+    img.removeAttribute('data-mjpeg');
+    img.src = baseSnap + '&t=' + Date.now();
+    img.onerror = null;
+    const cellId = img.closest('.demo-cam-cell') ? img.closest('.demo-cam-cell').id : null;
+    const timer = setInterval(() => {
+        if (!document.getElementById(cellId)) { clearInterval(timer); return; }
+        img.src = baseSnap + '&t=' + Date.now();
+    }, 5000);
+};
+
+function monRefreshCams() { monRenderGrid(); }
+
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape' && monFullscreenCellId) monExitFullscreen();
+});
+
+// ===== INIT =====
+document.addEventListener('DOMContentLoaded', async () => {
+    if (!getToken()) {
+        window.location.href = window.location.pathname.startsWith('/static/') ? '/static/login.html' : '/login';
+        return;
+    }
+
+    // Restore theme
+    applyDemoTheme(localStorage.getItem('nms-theme') || 'dark');
+
+    // Restore lang
+    currentLang = localStorage.getItem('nms_lang') || 'zh-TW';
+    if (!DEMO_STRINGS[currentLang]) currentLang = 'zh-TW';
+    applyDemoI18n();
+
+    renderUserBadge();
+
+    // Legend default collapsed
+    try {
+        const collapsed = localStorage.getItem('demo_legend_collapsed');
+        const legendEl = document.getElementById('demo-legend');
+        if (collapsed === 'false') {
+            legendEl.classList.remove('collapsed');
+        }
+    } catch(e) {}
+
+    await Promise.all([loadStats(), loadLogs(), loadTopoDemo()]);
+    monInitCameras();
+    startAutoRefresh();
+    initNotifications();
+});
+</script>
+<script src="/static/js/config.js"></script>
+<script>
+writeConfiguredScripts([
+    '/static/js/notifications.js'
+]);
+</script>
+</body>
+</html>
