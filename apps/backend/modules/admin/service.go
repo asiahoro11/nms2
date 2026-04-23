@@ -295,11 +295,13 @@ func (s *Service) UpdateSystemConfig(key string, input UpdateSystemConfigInput) 
 	return result, nil
 }
 
-func (s *Service) GetSystemInfo(version, name string, startTime time.Time) SystemInfo {
+func (s *Service) GetSystemInfo(version, name string, startTime time.Time, licenseLocked bool, lockReason string) SystemInfo {
 	return SystemInfo{
-		Version:   strings.TrimSpace(version),
-		Name:      strings.TrimSpace(name),
-		StartTime: startTime.Format(time.RFC3339),
+		Version:           strings.TrimSpace(version),
+		Name:              strings.TrimSpace(name),
+		StartTime:         startTime.Format(time.RFC3339),
+		LicenseLocked:     licenseLocked,
+		LicenseLockReason: strings.TrimSpace(lockReason),
 	}
 }
 

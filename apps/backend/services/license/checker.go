@@ -10,6 +10,8 @@ import (
 	"strings"
 )
 
+const ActiveLicenseWindowSQL = "(valid_until IS NULL OR valid_until = '' OR CASE WHEN length(valid_until) <= 10 THEN datetime(valid_until || ' 23:59:59') ELSE datetime(valid_until) END >= datetime('now'))"
+
 // GetMaxDevices calculates the total allowed devices based on licenses
 func GetMaxDevices(db *sql.DB, cfg *config.Config) int {
 	// 1. Get default limit
@@ -25,7 +27,7 @@ func GetMaxDevices(db *sql.DB, cfg *config.Config) int {
 	var licensedDevices int
 	db.QueryRow(`
 		SELECT COALESCE(SUM(device_count), 0) FROM licenses 
-		WHERE is_active = 1 AND (valid_until IS NULL OR valid_until = '' OR CASE WHEN length(valid_until) <= 10 THEN datetime(valid_until || ' 23:59:59') ELSE datetime(valid_until) END >= datetime('now'))
+		WHERE is_active = 1 AND ` + ActiveLicenseWindowSQL + `
 	`).Scan(&licensedDevices)
 
 	return defaultLimit + licensedDevices
@@ -68,7 +70,7 @@ func IsFeatureEnabled(db *sql.DB, cfg *config.Config, feature string) bool {
 	// Check active licenses
 	rows, err := db.Query(`
 		SELECT enabled_features FROM licenses 
-		WHERE is_active = 1 AND (valid_until IS NULL OR valid_until = '' OR CASE WHEN length(valid_until) <= 10 THEN datetime(valid_until || ' 23:59:59') ELSE datetime(valid_until) END >= datetime('now'))
+		WHERE is_active = 1 AND ` + ActiveLicenseWindowSQL + `
 	`)
 	if err != nil {
 		log.Printf("[License] Failed to query licenses: %v", err)
@@ -93,6 +95,66 @@ func IsFeatureEnabled(db *sql.DB, cfg *config.Config, feature string) bool {
 	}
 
 	return false
+}
+
+func HasActiveLicense(db *sql.DB) bool {
+	if db == nil {
+		return false
+	}
+
+	var count int
+	if err := db.QueryRow(`
+		SELECT COUNT(*) FROM licenses
+		WHERE is_active = 1 AND ` + ActiveLicenseWindowSQL + `
+	`).Scan(&count); err != nil {
+		return false
+	}
+
+	return count > 0
+}
+
+func HasLicenseRecords(db *sql.DB) bool {
+	if db == nil {
+		return false
+	}
+
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM licenses`).Scan(&count); err != nil {
+		return false
+	}
+
+	return count > 0
+}
+
+func IsPoCDistribution(db *sql.DB, version string) bool {
+	if strings.Contains(strings.ToLower(strings.TrimSpace(version)), "poc") {
+		return true
+	}
+
+	if db == nil {
+		return false
+	}
+
+	var edition string
+	if err := db.QueryRow("SELECT config_value FROM system_config WHERE config_key = 'nms_edition'").Scan(&edition); err == nil {
+		return strings.Contains(strings.ToLower(strings.TrimSpace(edition)), "poc")
+	}
+
+	return false
+}
+
+func ShouldRuntimeLockdown(db *sql.DB, version string) bool {
+	return IsPoCDistribution(db, version) && !HasActiveLicense(db)
+}
+
+func RuntimeLockReason(db *sql.DB, version string) string {
+	if !IsPoCDistribution(db, version) || HasActiveLicense(db) {
+		return ""
+	}
+	if HasLicenseRecords(db) {
+		return "license_expired"
+	}
+	return "license_required"
 }
 
 func parseIntFromString(s string) (int, error) {

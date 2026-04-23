@@ -56,6 +56,10 @@ func (s *Service) HasActiveStandardLicense() bool {
 	return count > 0
 }
 
+func (s *Service) HasActiveLicense() bool {
+	return licensesvc.HasActiveLicense(s.db)
+}
+
 func (s *Service) distributionIsPoC() bool {
 	if strings.Contains(strings.ToLower(strings.TrimSpace(s.config.System.Version)), "poc") {
 		return true
@@ -67,6 +71,14 @@ func (s *Service) distributionIsPoC() bool {
 	}
 
 	return false
+}
+
+func (s *Service) ShouldLockSession() bool {
+	return licensesvc.ShouldRuntimeLockdown(s.db, s.config.System.Version)
+}
+
+func (s *Service) LockReason() string {
+	return licensesvc.RuntimeLockReason(s.db, s.config.System.Version)
 }
 
 func (s *Service) IsPoCEdition() bool {

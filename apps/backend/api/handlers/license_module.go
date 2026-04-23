@@ -68,6 +68,7 @@ func (h *Handler) ActivateLicense(c *gin.Context) {
 			"features":     result.Payload.Features,
 			"valid_until":  result.Payload.ValidUntil,
 		})
+		h.ensureLicenseRuntimeFresh(0)
 		c.JSON(http.StatusOK, Response{Success: true, Message: result.Message})
 		return
 	}
@@ -112,6 +113,7 @@ func (h *Handler) ActivateLicense(c *gin.Context) {
 		"is_permanent":       licensesvc.IsPermanentValidity(result.Payload.IssuedAt, result.Payload.ValidUntil),
 		"reactivated":        result.Reactivated,
 	})
+	h.ensureLicenseRuntimeFresh(0)
 	c.JSON(http.StatusOK, Response{
 		Success: true,
 		Message: result.Message,

@@ -1426,6 +1426,10 @@ func (h *Handler) BulkScanCameras(c *gin.Context) {
 
 // NVRStartAll starts all enabled recording sessions on boot.
 func (h *Handler) NVRStartAll() {
+	if h.shouldLockSession() {
+		log.Printf("[Camera] skip auto-start while PoC session is locked")
+		return
+	}
 	h.camera.StartAllRecordings()
 }
 
@@ -1435,6 +1439,9 @@ func (h *Handler) StartCameraHealthLoop() {
 		ticker := time.NewTicker(90 * time.Second)
 		defer ticker.Stop()
 		for range ticker.C {
+			if h.shouldLockSession() {
+				continue
+			}
 			results, err := h.camera.RecoverOfflineCameras(3 * time.Second)
 			if err != nil {
 				log.Printf("[Camera] health loop failed: %v", err)

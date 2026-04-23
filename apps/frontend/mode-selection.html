@@ -428,6 +428,39 @@ function getUser()  {
     try { return JSON.parse(sessionStorage.getItem('nms_user')); } catch { return null; }
 }
 
+function msSetLicenseLockState(locked, reason = '') {
+    if (locked) {
+        sessionStorage.setItem('nms_license_locked', 'true');
+        if (reason) {
+            sessionStorage.setItem('nms_license_lock_reason', reason);
+        } else {
+            sessionStorage.removeItem('nms_license_lock_reason');
+        }
+        return;
+    }
+
+    sessionStorage.removeItem('nms_license_locked');
+    sessionStorage.removeItem('nms_license_lock_reason');
+}
+
+function msApplySessionContext(user) {
+    document.getElementById('ms-username').textContent = user.username || 'User';
+
+    const roleMap = { admin: ms('role_admin'), editor: ms('role_editor'), viewer: ms('role_viewer') };
+    document.getElementById('ms-role-tag').textContent = roleMap[user.role] || user.role;
+
+    fetch('/api/v1/branding').then(r => r.json()).then(b => {
+        if (b.success && b.data) {
+            const icon = document.getElementById('ms-logo-icon');
+            const name = document.getElementById('ms-company-name');
+            if (b.data.logo_path) { icon.style.display = 'none'; }
+            if (b.data.company_name) name.textContent = b.data.company_name;
+        }
+    }).catch(() => {});
+
+    msApplyI18n();
+}
+
 // ===== RENDER CARDS =====
 function msRenderCards() {
     const user = getUser();
@@ -490,6 +523,7 @@ function msLogout() {
     sessionStorage.removeItem('nms_expires');
     sessionStorage.removeItem('nms_session_active');
     sessionStorage.removeItem('nms_active_page');
+    msSetLicenseLockState(false, '');
     const loginRoute = window.location.pathname.startsWith('/static/') ? '/static/login.html' : '/login';
     window.location.replace(loginRoute);
 }
@@ -523,6 +557,27 @@ document.addEventListener('DOMContentLoaded', () => {
         sessionStorage.setItem('nms_user', JSON.stringify(data.data));
 
         const user = data.data;
+        fetch('/api/v1/system/info', {
+            cache: 'no-store',
+            headers: { 'Authorization': 'Bearer ' + token, 'Pragma': 'no-cache', 'Cache-Control': 'no-cache' }
+        }).then(res => {
+            if (!res.ok) return null;
+            return res.json();
+        }).then(systemInfo => {
+            const info = systemInfo && systemInfo.success ? systemInfo.data : null;
+            if (info && info.license_locked) {
+                msSetLicenseLockState(true, info.license_lock_reason || 'license_required');
+                msEnterAdmin();
+                return;
+            }
+
+            msSetLicenseLockState(false, '');
+            msApplySessionContext(user);
+        }).catch(() => {
+            msSetLicenseLockState(false, '');
+            msApplySessionContext(user);
+        });
+        return;
         document.getElementById('ms-username').textContent = user.username || '—';
 
         const roleMap = { admin: ms('role_admin'), editor: ms('role_editor'), viewer: ms('role_viewer') };

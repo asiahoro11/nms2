@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
@@ -170,7 +171,9 @@ func (h *Handler) CreateLicense(c *gin.Context) {
 
 // GetSystemInfo returns runtime metadata without changing its route.
 func (h *Handler) GetSystemInfo(c *gin.Context) {
-	info := h.admin.GetSystemInfo(h.license.DisplayVersion(), h.config.System.Name, h.startTime)
+	h.ensureLicenseRuntimeFresh(30 * time.Second)
+	locked := h.license.ShouldLockSession()
+	info := h.admin.GetSystemInfo(h.license.DisplayVersion(), h.config.System.Name, h.startTime, locked, h.license.LockReason())
 	c.JSON(http.StatusOK, Response{
 		Success: true,
 		Data:    info,

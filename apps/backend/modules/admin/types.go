@@ -67,7 +67,9 @@ type SystemConfigUpdateResult struct {
 }
 
 type SystemInfo struct {
-	Version   string `json:"version"`
-	Name      string `json:"name"`
-	StartTime string `json:"start_time"`
+	Version           string `json:"version"`
+	Name              string `json:"name"`
+	StartTime         string `json:"start_time"`
+	LicenseLocked     bool   `json:"license_locked"`
+	LicenseLockReason string `json:"license_lock_reason,omitempty"`
 }

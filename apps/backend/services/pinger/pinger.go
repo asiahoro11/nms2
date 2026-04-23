@@ -82,6 +82,10 @@ func (p *Pinger) Stop() {
 }
 
 func (p *Pinger) pingAll() {
+	if license.ShouldRuntimeLockdown(p.db, p.config.System.Version) {
+		return
+	}
+
 	// 1. Fetch authorized devices only
 	maxDevices := license.GetMaxDevices(p.db, p.config)
 

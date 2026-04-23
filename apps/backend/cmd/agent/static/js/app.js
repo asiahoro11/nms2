@@ -23,7 +23,9 @@ const state = {
         format: 'csv'
     },
     idleTimeout: 5 * 60 * 1000, // 5 minutes (300,000 ms)
-    lastActivity: Date.now()
+    lastActivity: Date.now(),
+    licenseLocked: false,
+    licenseLockReason: ''
 };
 
 // 初始化應用程式
@@ -65,25 +67,32 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (!initAuth()) return; // Check auth first
 
+    const systemInfo = await fetchSystemInfoSnapshot();
+    const licenseLocked = systemInfo ? applySystemInfoSnapshot(systemInfo) : isLicenseLockActive();
+    if (licenseLocked) {
+        enterLicenseLockMode(getLicenseLockReason());
+    }
+
     initTheme();
     initSidebarState();
     initNavigation();
-    // initModals(); // Removed: handled by utils.js
     initAdminTabs();
     initFilters();
-    initVersionCheck(); // Start version/uptime polling
     initIdleTimer();    // Start idle monitoring
-    initNotifications(); // Start in-app notification polling
-    // initVisibilityCheck(); // DISABLED - causes modal to close during password change
-    await updateModuleVisibility(); // Check which modules are enabled
+    if (!licenseLocked) {
+        initVersionCheck(); // Start version/uptime polling
+        initNotifications(); // Start in-app notification polling
+        await updateModuleVisibility(); // Check which modules are enabled
+    }
 
     // 載入初始頁面
     // 載入初始頁面 (恢復上次瀏覽的分頁)
-    const lastPage = sessionStorage.getItem('nms_active_page') || 'dashboard';
+    const lastPage = licenseLocked ? 'admin' : (sessionStorage.getItem('nms_active_page') || 'dashboard');
     loadPage(lastPage);
 
     // 自動重新整理 (每 15 秒)
-    setInterval(() => {
+    if (!licenseLocked) {
+        setInterval(() => {
         if (state.currentPage === 'dashboard') {
             autoRefreshDashboard(); // 只更新數據，不重新載入頁面
         } else if (state.currentPage === 'devices') {
@@ -92,15 +101,158 @@ document.addEventListener('DOMContentLoaded', async () => {
                 loadDevices(true);
             }
         }
-    }, 15000); // 15 seconds
+        }, 15000); // 15 seconds
+    }
 
     // 監聽語系切換事件，重新載入當前頁面
     window.addEventListener('languageChanged', async () => {
         console.log('[app.js] Language changed, reloading current page:', state.currentPage);
-        await updateModuleVisibility();
-        loadPage(state.currentPage);
+        if (!isLicenseLockActive()) {
+            await updateModuleVisibility();
+            loadPage(state.currentPage);
+            return;
+        }
+
+        loadPage('admin');
     });
 });
+
+const LICENSE_LOCK_STORAGE_KEY = 'nms_license_locked';
+const LICENSE_LOCK_REASON_STORAGE_KEY = 'nms_license_lock_reason';
+
+function isLicenseLockActive() {
+    return state.licenseLocked || sessionStorage.getItem(LICENSE_LOCK_STORAGE_KEY) === 'true';
+}
+
+function getLicenseLockReason() {
+    return state.licenseLockReason || sessionStorage.getItem(LICENSE_LOCK_REASON_STORAGE_KEY) || '';
+}
+
+function setLicenseLockState(locked, reason = '') {
+    state.licenseLocked = Boolean(locked);
+    state.licenseLockReason = (reason || '').trim();
+
+    if (state.licenseLocked) {
+        sessionStorage.setItem(LICENSE_LOCK_STORAGE_KEY, 'true');
+        if (state.licenseLockReason) {
+            sessionStorage.setItem(LICENSE_LOCK_REASON_STORAGE_KEY, state.licenseLockReason);
+        } else {
+            sessionStorage.removeItem(LICENSE_LOCK_REASON_STORAGE_KEY);
+        }
+        return;
+    }
+
+    sessionStorage.removeItem(LICENSE_LOCK_STORAGE_KEY);
+    sessionStorage.removeItem(LICENSE_LOCK_REASON_STORAGE_KEY);
+}
+
+function clearLicenseLockState() {
+    setLicenseLockState(false, '');
+}
+
+function getPreferredLockedAdminTab() {
+    return (typeof isAdmin === 'function' && isAdmin()) ? 'users' : 'licenses';
+}
+
+function isAllowedLockedAdminTab(tabName) {
+    if (tabName === 'licenses') {
+        return true;
+    }
+    if (tabName === 'users') {
+        return typeof isAdmin === 'function' && isAdmin();
+    }
+    return false;
+}
+
+function activateAdminTab(tabName) {
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tab === tabName);
+    });
+
+    document.querySelectorAll('.admin-tab-content').forEach(content => {
+        const currentTab = content.id.replace(/-tab$/, '');
+        content.classList.toggle('active', currentTab === tabName);
+    });
+}
+
+function applyLicenseLockUI() {
+    const activeTab = getPreferredLockedAdminTab();
+
+    document.querySelectorAll('.sidebar .nav-item, .bottom-nav-item').forEach(item => {
+        item.style.display = item.dataset.page === 'admin' ? '' : 'none';
+    });
+
+    document.querySelectorAll('.admin-tabs .tab-btn').forEach(btn => {
+        btn.style.display = isAllowedLockedAdminTab(btn.dataset.tab) ? '' : 'none';
+    });
+
+    document.querySelectorAll('.admin-tab-content').forEach(content => {
+        const tabName = content.id.replace(/-tab$/, '');
+        content.style.display = isAllowedLockedAdminTab(tabName) ? '' : 'none';
+    });
+
+    activateAdminTab(activeTab);
+}
+
+function enterLicenseLockMode(reason = '') {
+    setLicenseLockState(true, reason || getLicenseLockReason());
+    applyLicenseLockUI();
+}
+
+async function fetchSystemInfoSnapshot() {
+    try {
+        const token = sessionStorage.getItem('nms_token');
+        const headers = { 'Pragma': 'no-cache', 'Cache-Control': 'no-cache' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
+        const response = await fetch(`/api/v1/system/info?_ts=${Date.now()}`, {
+            cache: 'no-store',
+            headers
+        });
+        if (!response.ok) {
+            return null;
+        }
+
+        const payload = await response.json();
+        if (!payload.success || !payload.data) {
+            return null;
+        }
+
+        return payload.data;
+    } catch (error) {
+        console.warn('[app.js] Failed to fetch system info:', error);
+        return null;
+    }
+}
+
+function applySystemInfoSnapshot(info) {
+    if (!info) {
+        return false;
+    }
+
+    const verSpan = document.getElementById('system-version');
+    if (verSpan && info.version) {
+        verSpan.textContent = info.version;
+    }
+    if (info.start_time) {
+        currentSystemStartTime = info.start_time;
+    }
+
+    if (info.license_locked) {
+        enterLicenseLockMode(info.license_lock_reason || 'license_required');
+        return true;
+    }
+
+    clearLicenseLockState();
+    return false;
+}
+
+window.handleLicenseLocked = function(reason) {
+    enterLicenseLockMode(reason || getLicenseLockReason());
+    loadPage('admin');
+};
+
+window.clearLicenseLockState = clearLicenseLockState;
 
 // Version Check State
 let currentSystemStartTime = null;
@@ -311,7 +463,11 @@ function loadPage(page) {
     }
 
     // Viewer 不得進入 admin 頁面，強制導回 dashboard
-    if (page === 'admin' && typeof isAdmin === 'function' && !isAdmin()) {
+    if (isLicenseLockActive() && page !== 'admin') {
+        page = 'admin';
+    }
+
+    if (page === 'admin' && typeof isAdmin === 'function' && !isAdmin() && !isLicenseLockActive()) {
         page = 'dashboard';
     }
     // Editor 以下不得進入 logs/reports，強制導回 dashboard
@@ -356,6 +512,17 @@ function loadPage(page) {
             loadLogs();
             break;
         case 'admin':
+            if (isLicenseLockActive()) {
+                enterLicenseLockMode(getLicenseLockReason());
+                if (typeof loadLicenses === 'function') {
+                    loadLicenses();
+                }
+                if (typeof isAdmin === 'function' && isAdmin() && typeof loadUsers === 'function') {
+                    loadUsers();
+                }
+                activateAdminTab(getPreferredLockedAdminTab());
+                break;
+            }
             loadHostStatus();
             loadUsers();
             loadAlertSettings();
@@ -399,6 +566,11 @@ function initAdminTabs() {
                 return;
             }
             const tab = btn.dataset.tab;
+
+            if (isLicenseLockActive() && !isAllowedLockedAdminTab(tab)) {
+                activateAdminTab(getPreferredLockedAdminTab());
+                return;
+            }
 
             // 更新按鈕狀態
             tabBtns.forEach(b => b.classList.remove('active'));

@@ -1,31 +1,44 @@
-// API 基礎設定
 const API_BASE = '/api/v1';
 
 function apiResolveLoginRoute() {
     return window.location.pathname.startsWith('/static/') ? '/static/login.html' : '/login';
 }
 
-// Get auth token
+function apiResolveIndexRoute() {
+    return window.location.pathname.startsWith('/static/') ? '/static/index.html' : '/index.html';
+}
+
+function apiSetLicenseLockState(reason) {
+    sessionStorage.setItem('nms_license_locked', 'true');
+    if (reason) {
+        sessionStorage.setItem('nms_license_lock_reason', reason);
+    } else {
+        sessionStorage.removeItem('nms_license_lock_reason');
+    }
+}
+
+function apiClearLicenseLockState() {
+    sessionStorage.removeItem('nms_license_locked');
+    sessionStorage.removeItem('nms_license_lock_reason');
+}
+
 function getAuthToken() {
     return sessionStorage.getItem('nms_token');
 }
 
-// API 呼叫函數
 async function api(endpoint, options = {}) {
     const url = `${API_BASE}${endpoint}`;
-
     const token = getAuthToken();
 
     const defaultOptions = {
-        cache: 'no-store', // Aggressively disable caching
+        cache: 'no-store',
         headers: {
             'Content-Type': 'application/json',
             'Pragma': 'no-cache',
             'Cache-Control': 'no-cache'
-        },
+        }
     };
 
-    // Add Authorization header if token exists
     if (token) {
         defaultOptions.headers['Authorization'] = `Bearer ${token}`;
     }
@@ -35,14 +48,13 @@ async function api(endpoint, options = {}) {
         ...options,
         headers: {
             ...defaultOptions.headers,
-            ...options.headers,
-        },
+            ...options.headers
+        }
     };
 
     try {
         const response = await fetch(url, mergedOptions);
 
-        // Handle 401 Unauthorized - redirect to login
         if (response.status === 401) {
             if (options.skipRedirectOn401) {
                 const text = await response.text();
@@ -54,21 +66,41 @@ async function api(endpoint, options = {}) {
                 }
                 throw new Error(data.error || 'Unauthorized');
             }
+
             sessionStorage.removeItem('nms_token');
             sessionStorage.removeItem('nms_user');
             sessionStorage.removeItem('nms_expires');
+            apiClearLicenseLockState();
             window.location.href = apiResolveLoginRoute();
-            throw new Error('未授權，請重新登入');
+            throw new Error('Unauthorized');
         }
 
-        // Handle 403 Forbidden
+        if (response.status === 423) {
+            const text = await response.text();
+            let data = null;
+            try {
+                data = text ? JSON.parse(text) : null;
+            } catch (e) {
+                data = null;
+            }
+
+            const reason = data?.data?.reason || 'license_required';
+            apiSetLicenseLockState(reason);
+
+            if (typeof window.handleLicenseLocked === 'function') {
+                window.handleLicenseLocked(reason, endpoint);
+            } else {
+                window.location.replace(`${apiResolveIndexRoute()}?_cb=${Date.now()}`);
+            }
+
+            throw new Error(data?.error || 'license_locked');
+        }
+
         if (response.status === 403) {
-            throw new Error('權限不足');
+            throw new Error('Forbidden');
         }
 
         const text = await response.text();
-
-        // Handle empty response (e.g. 204 No Content)
         if (!text) {
             return { success: response.ok };
         }
@@ -79,7 +111,7 @@ async function api(endpoint, options = {}) {
         } catch (e) {
             console.error('JSON Parse Error:', e);
             console.error('Raw Response:', text);
-            throw new Error(`伺服器回應格式錯誤: ${e.message}. Raw: ${text.substring(0, 100)}`);
+            throw new Error(`Invalid JSON response: ${e.message}. Raw: ${text.substring(0, 100)}`);
         }
 
         if (!response.ok) {
@@ -93,32 +125,28 @@ async function api(endpoint, options = {}) {
     }
 }
 
-// GET 請求
 async function apiGet(endpoint, options = {}) {
     const separator = endpoint.includes('?') ? '&' : '?';
     const timestamp = new Date().getTime();
     return api(`${endpoint}${separator}_ts=${timestamp}`, { ...options, method: 'GET' });
 }
 
-// POST 請求
 async function apiPost(endpoint, body, options = {}) {
     return api(endpoint, {
         ...options,
         method: 'POST',
-        body: JSON.stringify(body),
+        body: JSON.stringify(body)
     });
 }
 
-// PUT 請求
 async function apiPut(endpoint, body, options = {}) {
     return api(endpoint, {
         ...options,
         method: 'PUT',
-        body: JSON.stringify(body),
+        body: JSON.stringify(body)
     });
 }
 
-// DELETE 請求（body 可選，用於批次刪除等）
 async function apiDelete(endpoint, body) {
     console.log('[API] DELETE Request:', endpoint);
     const opts = { method: 'DELETE' };
@@ -128,7 +156,6 @@ async function apiDelete(endpoint, body) {
     return api(endpoint, opts);
 }
 
-// 上傳檔案
 async function apiUpload(endpoint, formData) {
     const url = `${API_BASE}${endpoint}`;
     const token = getAuthToken();
@@ -142,15 +169,16 @@ async function apiUpload(endpoint, formData) {
         const response = await fetch(url, {
             method: 'POST',
             headers,
-            body: formData,
+            body: formData
         });
 
-        // Handle 401 Unauthorized
         if (response.status === 401) {
             sessionStorage.removeItem('nms_token');
             sessionStorage.removeItem('nms_user');
+            sessionStorage.removeItem('nms_expires');
+            apiClearLicenseLockState();
             window.location.href = apiResolveLoginRoute();
-            throw new Error('未授權，請重新登入');
+            throw new Error('Unauthorized');
         }
 
         const data = await response.json();
@@ -166,24 +194,19 @@ async function apiUpload(endpoint, formData) {
     }
 }
 
-// 下載檔案
 function apiDownload(endpoint) {
     const token = getAuthToken();
     const url = `${API_BASE}${endpoint}`;
 
-    // Construct final URL
     let finalUrl = url;
     if (token) {
         const separator = url.includes('?') ? '&' : '?';
         finalUrl = `${url}${separator}token=${encodeURIComponent(token)}`;
     }
 
-    // Use location.href for downloads to avoid popup blockers
-    // The browser will handle the Content-Disposition: attachment without navigating away
     window.location.href = finalUrl;
 }
 
-// 設備控制
 async function rebootDevice(id, body = {}) {
     return apiPost(`/devices/${id}/reboot`, body);
 }

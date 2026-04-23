@@ -370,6 +370,7 @@ async function activateLicense(event) {
     const form = event.target;
     const formData = new FormData(form);
     const licenseKey = formData.get('license_key').trim();
+    const wasLocked = typeof isLicenseLockActive === 'function' && isLicenseLockActive();
 
     if (!licenseKey) {
         showToast(t('admin.licenses.enter_key'), 'error');
@@ -390,6 +391,17 @@ async function activateLicense(event) {
             }
 
             hideModal();
+
+            if (wasLocked) {
+                if (typeof clearLicenseLockState === 'function') {
+                    clearLicenseLockState();
+                } else {
+                    sessionStorage.removeItem('nms_license_locked');
+                    sessionStorage.removeItem('nms_license_lock_reason');
+                }
+                setTimeout(() => window.location.reload(), 300);
+                return;
+            }
 
             // Critical Refresh: Refresh both license list AND module availability
             if (typeof loadLicenses === 'function') loadLicenses();
@@ -1304,6 +1316,14 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.addEventListener('click', () => {
             const tabName = btn.dataset.tab;
 
+            if (typeof isLicenseLockActive === 'function' && isLicenseLockActive() &&
+                typeof isAllowedLockedAdminTab === 'function' && !isAllowedLockedAdminTab(tabName)) {
+                if (typeof activateAdminTab === 'function' && typeof getPreferredLockedAdminTab === 'function') {
+                    activateAdminTab(getPreferredLockedAdminTab());
+                }
+                return;
+            }
+
             // Update active button
             document.querySelectorAll('.admin-tabs .tab-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
@@ -1344,7 +1364,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Default load: Active tab
-    const activeTabBtn = document.querySelector('.admin-tabs .tab-btn.active');
+    const preferredLockedBtn = (typeof isLicenseLockActive === 'function' && isLicenseLockActive() &&
+        typeof getPreferredLockedAdminTab === 'function')
+        ? document.querySelector(`.admin-tabs .tab-btn[data-tab="${getPreferredLockedAdminTab()}"]`)
+        : null;
+    const activeTabBtn = preferredLockedBtn || document.querySelector('.admin-tabs .tab-btn.active');
     if (activeTabBtn) {
         // Trigger click to load initial data and set view
         activeTabBtn.click();

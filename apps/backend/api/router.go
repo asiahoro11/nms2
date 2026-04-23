@@ -143,6 +143,7 @@ func SetupRouter(cfg *config.Config, db *sql.DB, collector *snmp.Collector, asse
 
 		auth := v1.Group("")
 		auth.Use(middleware.AuthRequired([]byte(cfg.Security.JWTSecret)))
+		auth.Use(h.EnforceLicenseLock())
 		{
 			auth.POST("/auth/logout", h.Logout)
 			auth.GET("/auth/me", h.GetCurrentUser)
@@ -180,6 +181,7 @@ func SetupRouter(cfg *config.Config, db *sql.DB, collector *snmp.Collector, asse
 
 		deviceMgmtRead := v1.Group("")
 		deviceMgmtRead.Use(middleware.AuthRequired([]byte(cfg.Security.JWTSecret)))
+		deviceMgmtRead.Use(h.EnforceLicenseLock())
 		deviceMgmtRead.Use(h.RequireDeviceManagement())
 		{
 			deviceMgmtRead.GET("/devices", h.GetDevices)
@@ -193,6 +195,7 @@ func SetupRouter(cfg *config.Config, db *sql.DB, collector *snmp.Collector, asse
 
 		editor := v1.Group("")
 		editor.Use(middleware.AuthRequired([]byte(cfg.Security.JWTSecret)))
+		editor.Use(h.EnforceLicenseLock())
 		editor.Use(middleware.RequireEditor())
 		editor.Use(h.RequireDeviceManagement())
 		{
@@ -229,6 +232,7 @@ func SetupRouter(cfg *config.Config, db *sql.DB, collector *snmp.Collector, asse
 
 		admin := v1.Group("")
 		admin.Use(middleware.AuthRequired([]byte(cfg.Security.JWTSecret)))
+		admin.Use(h.EnforceLicenseLock())
 		admin.Use(middleware.RequireAdmin())
 		{
 			admin.GET("/users", h.GetUsers)
@@ -284,6 +288,7 @@ func SetupRouter(cfg *config.Config, db *sql.DB, collector *snmp.Collector, asse
 		// Camera read routes (editor+)
 		camEditor := v1.Group("")
 		camEditor.Use(middleware.AuthRequired([]byte(cfg.Security.JWTSecret)))
+		camEditor.Use(h.EnforceLicenseLock())
 		camEditor.Use(middleware.RequireEditor())
 		{
 			camEditor.GET("/cameras", h.GetCameras)
@@ -309,6 +314,7 @@ func SetupRouter(cfg *config.Config, db *sql.DB, collector *snmp.Collector, asse
 		// Camera status (any authenticated user) + snapshot/stream with token support
 		camAuth := v1.Group("")
 		camAuth.Use(middleware.AuthRequired([]byte(cfg.Security.JWTSecret)))
+		camAuth.Use(h.EnforceLicenseLock())
 		{
 			camAuth.GET("/cameras/status", h.GetCameraModuleStatus)
 			camAuth.GET("/cameras/:id/snapshot", h.GetCameraSnapshot)
@@ -318,6 +324,7 @@ func SetupRouter(cfg *config.Config, db *sql.DB, collector *snmp.Collector, asse
 		// Access Control module ??status readable by any authenticated user
 		acAuth := v1.Group("")
 		acAuth.Use(middleware.AuthRequired([]byte(cfg.Security.JWTSecret)))
+		acAuth.Use(h.EnforceLicenseLock())
 		{
 			acAuth.GET("/access-control/status", h.GetACModuleStatus)
 			acAuth.GET("/access-control/events", h.GetACEvents)
@@ -326,6 +333,7 @@ func SetupRouter(cfg *config.Config, db *sql.DB, collector *snmp.Collector, asse
 		// Access Control ??read (editor+)
 		acEditor := v1.Group("")
 		acEditor.Use(middleware.AuthRequired([]byte(cfg.Security.JWTSecret)))
+		acEditor.Use(h.EnforceLicenseLock())
 		acEditor.Use(middleware.RequireEditor())
 		{
 			acEditor.GET("/access-control/doors", h.GetDoors)
@@ -336,6 +344,7 @@ func SetupRouter(cfg *config.Config, db *sql.DB, collector *snmp.Collector, asse
 		// Access Control ??write (admin only)
 		acAdmin := v1.Group("")
 		acAdmin.Use(middleware.AuthRequired([]byte(cfg.Security.JWTSecret)))
+		acAdmin.Use(h.EnforceLicenseLock())
 		acAdmin.Use(middleware.RequireAdmin())
 		{
 			acAdmin.POST("/access-control/doors", h.CreateDoor)
@@ -358,6 +367,7 @@ func SetupRouter(cfg *config.Config, db *sql.DB, collector *snmp.Collector, asse
 		// PDU/UPS module ??status readable by any authenticated user
 		pduAuth := v1.Group("")
 		pduAuth.Use(middleware.AuthRequired([]byte(cfg.Security.JWTSecret)))
+		pduAuth.Use(h.EnforceLicenseLock())
 		{
 			pduAuth.GET("/pdu/status", h.GetPDUModuleStatus)
 		}
@@ -365,6 +375,7 @@ func SetupRouter(cfg *config.Config, db *sql.DB, collector *snmp.Collector, asse
 		// PDU/UPS ??read (editor+)
 		pduEditor := v1.Group("")
 		pduEditor.Use(middleware.AuthRequired([]byte(cfg.Security.JWTSecret)))
+		pduEditor.Use(h.EnforceLicenseLock())
 		pduEditor.Use(middleware.RequireEditor())
 		{
 			pduEditor.GET("/pdu/devices", h.GetPDUDevices)
@@ -375,6 +386,7 @@ func SetupRouter(cfg *config.Config, db *sql.DB, collector *snmp.Collector, asse
 		// PDU/UPS ??write (admin only)
 		pduAdmin := v1.Group("")
 		pduAdmin.Use(middleware.AuthRequired([]byte(cfg.Security.JWTSecret)))
+		pduAdmin.Use(h.EnforceLicenseLock())
 		pduAdmin.Use(middleware.RequireAdmin())
 		{
 			pduAdmin.POST("/pdu/devices", h.CreatePDUDevice)
@@ -387,6 +399,7 @@ func SetupRouter(cfg *config.Config, db *sql.DB, collector *snmp.Collector, asse
 	{
 		wsTerm := v1.Group("")
 		wsTerm.Use(middleware.AuthRequired([]byte(cfg.Security.JWTSecret)))
+		wsTerm.Use(h.EnforceLicenseLock())
 		wsTerm.GET("/devices/:id/terminal", h.WebSSHTerminal)
 	}
 

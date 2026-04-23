@@ -56,6 +56,8 @@ function logout() {
     sessionStorage.removeItem('nms_token');
     sessionStorage.removeItem('nms_user');
     sessionStorage.removeItem('nms_expires');
+    sessionStorage.removeItem('nms_license_locked');
+    sessionStorage.removeItem('nms_license_lock_reason');
     navigateToFrontendRoute('/login');
 }
 
