@@ -53,3 +53,6 @@ windows_release/
 linux_release/
 darwin_release/
 backend_sp999_backup/
+
+# Playwright MCP local scratch output
+.playwright-mcp/
