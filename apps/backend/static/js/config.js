@@ -1,7 +1,7 @@
 (function (global) {
     const config = {
-        appVersion: 'v1.2.4-PoC',
-        assetVersion: 'v1.2.4',
+        appVersion: 'v1.2.4.8',
+        assetVersion: 'v1.2.4.8',
         productName: 'Management System'
     };
 
@@ -31,6 +31,26 @@
         config.appVersion = normalized;
         if (typeof document !== 'undefined') {
             applyVersionTargets(document);
+        }
+    }
+
+    function refreshStaticCaches() {
+        const currentCache = `sync-${config.assetVersion}`;
+
+        if (typeof navigator !== 'undefined' && navigator.serviceWorker) {
+            navigator.serviceWorker.getRegistrations()
+                .then((registrations) => Promise.all(registrations.map((registration) => registration.update().catch(() => undefined))))
+                .catch(() => undefined);
+        }
+
+        if (typeof caches !== 'undefined' && caches.keys) {
+            caches.keys()
+                .then((keys) => Promise.all(
+                    keys
+                        .filter((key) => key.startsWith('sync-') && key !== currentCache)
+                        .map((key) => caches.delete(key))
+                ))
+                .catch(() => undefined);
         }
     }
 
@@ -82,6 +102,7 @@
     global.getConfiguredServiceWorkerUrl = function getConfiguredServiceWorkerUrl(path = '/sw.js') {
         return getVersionedAssetUrl(path);
     };
+    global.refreshConfiguredCaches = refreshStaticCaches;
     global.writeConfiguredStyles = function writeConfiguredStyles(paths) {
         document.write(renderStyleTags(paths));
     };
@@ -119,5 +140,6 @@
             applyVersionTargets(document);
         }
         global.refreshConfiguredVersion();
+        refreshStaticCaches();
     }
 })(window);

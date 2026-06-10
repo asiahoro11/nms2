@@ -14,8 +14,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jung-kurt/gofpdf"
 )
 
 // sqliteTimeToRFC3339 normalises SQLite DATETIME strings to RFC3339.
@@ -139,11 +141,23 @@ type logCenterFilters struct {
 	End      string `json:"end"`
 }
 
+func cleanLogExportText(s string) string {
+	return strings.Map(func(r rune) rune {
+		if r > unicode.MaxASCII {
+			return -1
+		}
+		if !unicode.IsPrint(r) {
+			return -1
+		}
+		return r
+	}, s)
+}
+
 func marshalLogContext(context map[string]interface{}) string {
 	if len(context) == 0 {
 		return ""
 	}
-	b, err := json.Marshal(context)
+	b, err := json.Marshal(redactAuditDetails(context))
 	if err != nil {
 		return ""
 	}
@@ -553,7 +567,7 @@ func (h *Handler) AckDeviceLog(c *gin.Context) {
 }
 
 func (h *Handler) ExportLogCenter(c *gin.Context) {
-	format := c.DefaultQuery("format", "csv")
+	format := strings.ToLower(strings.TrimSpace(c.DefaultQuery("format", "csv")))
 	logType := c.DefaultQuery("type", "system_logs")
 	filters := collectLogCenterFilters(c)
 
@@ -564,7 +578,7 @@ func (h *Handler) ExportLogCenter(c *gin.Context) {
 	}
 
 	if format == "csv" {
-		c.Header("Content-Type", "text/csv")
+		c.Header("Content-Type", "text/csv; charset=utf-8")
 		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s_%s.csv", filename, time.Now().Format("20060102_150405")))
 
 		writer := csv.NewWriter(c.Writer)
@@ -576,6 +590,18 @@ func (h *Handler) ExportLogCenter(c *gin.Context) {
 				return
 			}
 		}
+		return
+	}
+
+	if format == "pdf" {
+		c.Header("Content-Type", "application/pdf")
+		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s_%s.pdf", filename, time.Now().Format("20060102_150405")))
+		content, err := buildLogExportPDF(filename, headers, records)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, Response{Success: false, Error: err.Error()})
+			return
+		}
+		c.Data(http.StatusOK, "application/pdf", content)
 		return
 	}
 
@@ -604,11 +630,7 @@ func (h *Handler) ExportLogCenter(c *gin.Context) {
 		return
 	}
 
-	var list []map[string]interface{}
-	for _, record := range records {
-		list = append(list, map[string]interface{}{"type": logType, "row": record})
-	}
-	c.JSON(http.StatusOK, Response{Success: true, Data: list})
+	c.JSON(http.StatusBadRequest, Response{Success: false, Error: "unsupported export format"})
 }
 
 func collectLogCenterFilters(c *gin.Context) logsmodule.LogCenterFilters {
@@ -636,8 +658,136 @@ func writeBundleFile(zipWriter *zip.Writer, filename string, content []byte) (st
 	return hex.EncodeToString(sum[:]), nil
 }
 
+func buildLogExportCSV(headers []string, records [][]string) ([]byte, error) {
+	var out bytes.Buffer
+	writer := csv.NewWriter(&out)
+	if err := writer.Write(headers); err != nil {
+		return nil, err
+	}
+	for _, record := range records {
+		if err := writer.Write(record); err != nil {
+			return nil, err
+		}
+	}
+	writer.Flush()
+	if err := writer.Error(); err != nil {
+		return nil, err
+	}
+	return out.Bytes(), nil
+}
+
+func buildLogExportPDF(title string, headers []string, records [][]string) ([]byte, error) {
+	pdf := gofpdf.New("L", "mm", "A4", "")
+	pdf.SetAutoPageBreak(true, 12)
+	pdf.AddPage()
+	pdf.SetFont("Arial", "B", 15)
+	pdf.Cell(40, 9, cleanLogExportText(title))
+	pdf.Ln(11)
+
+	widths := []float64{16, 38, 32, 38, 112, 42}
+	pdf.SetFont("Arial", "B", 8)
+	pdf.SetFillColor(240, 240, 240)
+	for i, header := range headers {
+		width := widths[min(i, len(widths)-1)]
+		pdf.CellFormat(width, 7, cleanLogExportText(header), "1", 0, "", true, 0, "")
+	}
+	pdf.Ln(-1)
+
+	pdf.SetFont("Arial", "", 7)
+	pdf.SetFillColor(255, 255, 255)
+	for _, record := range records {
+		for i, value := range record {
+			width := widths[min(i, len(widths)-1)]
+			text := []rune(cleanLogExportText(value))
+			if len(text) > 80 {
+				text = append(text[:77], '.', '.', '.')
+			}
+			pdf.CellFormat(width, 6, string(text), "1", 0, "", false, 0, "")
+		}
+		pdf.Ln(-1)
+	}
+
+	var out bytes.Buffer
+	if err := pdf.Output(&out); err != nil {
+		return nil, err
+	}
+	return out.Bytes(), nil
+}
+
+func (h *Handler) fetchLogBundlePayload(bundleType string, filters logsmodule.LogCenterFilters) (interface{}, error) {
+	switch bundleType {
+	case "system_logs":
+		return h.logs.FetchSystemLogsForBundle(filters)
+	case "device_logs":
+		return h.logs.FetchDeviceLogsForBundle(filters)
+	case "audit_logs":
+		return h.logs.FetchAuditLogsForBundle(filters)
+	case "config_change_logs":
+		return h.logs.FetchConfigChangeLogsForBundle(filters)
+	default:
+		return nil, fmt.Errorf("unsupported evidence bundle type")
+	}
+}
+
+func logBundleRowCount(payload interface{}, records [][]string) int {
+	switch list := payload.(type) {
+	case []logsmodule.SystemLogEntry:
+		return len(list)
+	case []logsmodule.DeviceLogEntry:
+		return len(list)
+	case []logsmodule.AuditEntry:
+		return len(list)
+	case []logsmodule.ConfigChangeLogEntry:
+		return len(list)
+	default:
+		return len(records)
+	}
+}
+
+func (h *Handler) buildLogBundleFile(bundleType, format string, filters logsmodule.LogCenterFilters) (string, []byte, int, error) {
+	filename := bundleType + "." + format
+	if format == "json" {
+		payload, err := h.fetchLogBundlePayload(bundleType, filters)
+		if err != nil {
+			return "", nil, 0, err
+		}
+		content, err := json.MarshalIndent(payload, "", "  ")
+		if err != nil {
+			return "", nil, 0, err
+		}
+		return filename, content, logBundleRowCount(payload, nil), nil
+	}
+
+	headers, records, _, err := h.logs.ExportRows(bundleType, filters)
+	if err != nil {
+		return "", nil, 0, err
+	}
+
+	switch format {
+	case "csv":
+		content, err := buildLogExportCSV(headers, records)
+		return filename, content, len(records), err
+	case "pdf":
+		content, err := buildLogExportPDF(bundleType, headers, records)
+		return filename, content, len(records), err
+	default:
+		return "", nil, 0, fmt.Errorf("unsupported evidence bundle format")
+	}
+}
+
 func (h *Handler) ExportLogEvidenceBundle(c *gin.Context) {
 	logType := strings.TrimSpace(c.DefaultQuery("type", "all"))
+	bundleFormat := strings.ToLower(strings.TrimSpace(c.DefaultQuery("format", "json")))
+	if bundleFormat == "" {
+		bundleFormat = "json"
+	}
+	switch bundleFormat {
+	case "json", "csv", "pdf":
+	default:
+		c.JSON(http.StatusBadRequest, Response{Success: false, Error: "unsupported evidence bundle format"})
+		return
+	}
+
 	filters := collectLogCenterFilters(c)
 	generatedAt := time.Now().UTC().Format(time.RFC3339)
 	generatedBy := h.auditUsername(c)
@@ -660,27 +810,7 @@ func (h *Handler) ExportLogEvidenceBundle(c *gin.Context) {
 	files := []map[string]interface{}{}
 
 	for _, bundleType := range targetTypes {
-		var payload interface{}
-		var err error
-		filename := bundleType + ".json"
-
-		switch bundleType {
-		case "system_logs":
-			payload, err = h.logs.FetchSystemLogsForBundle(filters)
-		case "device_logs":
-			payload, err = h.logs.FetchDeviceLogsForBundle(filters)
-		case "audit_logs":
-			payload, err = h.logs.FetchAuditLogsForBundle(filters)
-		case "config_change_logs":
-			payload, err = h.logs.FetchConfigChangeLogsForBundle(filters)
-		}
-		if err != nil {
-			_ = zipWriter.Close()
-			c.JSON(http.StatusInternalServerError, Response{Success: false, Error: err.Error()})
-			return
-		}
-
-		content, err := json.MarshalIndent(payload, "", "  ")
+		filename, content, rowCount, err := h.buildLogBundleFile(bundleType, bundleFormat, filters)
 		if err != nil {
 			_ = zipWriter.Close()
 			c.JSON(http.StatusInternalServerError, Response{Success: false, Error: err.Error()})
@@ -694,21 +824,10 @@ func (h *Handler) ExportLogEvidenceBundle(c *gin.Context) {
 			return
 		}
 
-		rowCount := 0
-		switch list := payload.(type) {
-		case []logsmodule.SystemLogEntry:
-			rowCount = len(list)
-		case []logsmodule.DeviceLogEntry:
-			rowCount = len(list)
-		case []logsmodule.AuditEntry:
-			rowCount = len(list)
-		case []logsmodule.ConfigChangeLogEntry:
-			rowCount = len(list)
-		}
-
 		files = append(files, map[string]interface{}{
 			"name":      filename,
 			"type":      bundleType,
+			"format":    bundleFormat,
 			"row_count": rowCount,
 			"sha256":    checksum,
 		})
@@ -719,6 +838,7 @@ func (h *Handler) ExportLogEvidenceBundle(c *gin.Context) {
 		"generated_at":   generatedAt,
 		"generated_by":   generatedBy,
 		"requested_type": logType,
+		"format":         bundleFormat,
 		"filters":        filters,
 		"files":          files,
 	}
@@ -746,6 +866,7 @@ func (h *Handler) ExportLogEvidenceBundle(c *gin.Context) {
 		"resource_id":   logType,
 		"resource_name": "log_evidence_bundle",
 		"bundle_type":   "log_evidence_bundle",
+		"format":        bundleFormat,
 		"filters":       filters,
 		"file_count":    len(files),
 		"change_source": "manual",
@@ -753,6 +874,6 @@ func (h *Handler) ExportLogEvidenceBundle(c *gin.Context) {
 	})
 
 	c.Header("Content-Type", "application/zip")
-	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=log_evidence_bundle_%s_%s.zip", logType, time.Now().Format("20060102_150405")))
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=log_evidence_bundle_%s_%s_%s.zip", logType, bundleFormat, time.Now().Format("20060102_150405")))
 	c.Data(http.StatusOK, "application/zip", bundle.Bytes())
 }

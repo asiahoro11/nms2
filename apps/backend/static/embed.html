@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NMS Embed</title>
+    <script src="/static/js/config.js"></script>
+    <script>
+        writeConfiguredStyles([
+            '/static/css/main.css',
+            '/static/css/components.css',
+            '/static/css/responsive.css'
+        ]);
+    </script>
+    <style>
+        body { margin: 0; background: var(--bg-primary); color: var(--text-primary); }
+        .embed-shell { padding: 16px; min-height: 100vh; box-sizing: border-box; }
+        .embed-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+        .embed-header > div { min-width: 0; }
+        .embed-title { font-size: 18px; font-weight: 700; }
+        .embed-subtitle { overflow-wrap: anywhere; }
+        .embed-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+        .embed-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; padding: 14px; min-width: 0; }
+        .embed-value { font-size: 24px; font-weight: 700; margin-top: 6px; }
+        .embed-muted { color: var(--text-muted); font-size: 12px; }
+        .embed-table-wrap { max-width: 100%; overflow-x: auto; }
+    </style>
+</head>
+<body class="dark-theme">
+    <main class="embed-shell">
+        <div class="embed-header">
+            <div>
+                <div class="embed-title" id="embed-title">NMS Embed</div>
+                <div class="embed-muted embed-subtitle" id="embed-subtitle">Loading...</div>
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="embedLoad()">Refresh</button>
+        </div>
+        <div class="embed-security-note" id="embed-security-note">
+            <strong>Security</strong> This view uses a scoped embed token  keep the URL private and rotate the token if it is shared outside the allowlist
+        </div>
+        <div id="embed-content"></div>
+    </main>
+    <script src="/static/js/embed.js"></script>
+</body>
+</html>

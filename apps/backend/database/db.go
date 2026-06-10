@@ -544,6 +544,11 @@ func createTables(db *sql.DB) error {
 			username TEXT,
 			password_encrypted TEXT,
 			rtsp_url TEXT,
+			preview_rtsp_url TEXT DEFAULT '',
+			recording_rtsp_url TEXT DEFAULT '',
+			rtsp_transport TEXT DEFAULT 'tcp',
+			rtsp_udp_min_port INTEGER DEFAULT 0,
+			rtsp_udp_max_port INTEGER DEFAULT 0,
 			onvif_url TEXT,
 			manufacturer TEXT,
 			model TEXT,
@@ -764,6 +769,15 @@ func upgradeSchema(db *sql.DB, version string) error {
 
 		// v1.2.2 — IPCAM recording bitrate (kbps, 0 = copy/unlimited)
 		"ALTER TABLE cameras ADD COLUMN recording_bitrate_kbps INTEGER DEFAULT 0",
+		"ALTER TABLE cameras ADD COLUMN preview_rtsp_url TEXT DEFAULT ''",
+		"ALTER TABLE cameras ADD COLUMN recording_rtsp_url TEXT DEFAULT ''",
+		"ALTER TABLE cameras ADD COLUMN rtsp_transport TEXT DEFAULT 'tcp'",
+		"ALTER TABLE cameras ADD COLUMN rtsp_udp_min_port INTEGER DEFAULT 0",
+		"ALTER TABLE cameras ADD COLUMN rtsp_udp_max_port INTEGER DEFAULT 0",
+		`UPDATE cameras
+			SET preview_rtsp_url = COALESCE(NULLIF(preview_rtsp_url, ''), rtsp_url, '')
+			WHERE COALESCE(preview_rtsp_url, '') = ''
+			  AND COALESCE(rtsp_url, '') <> ''`,
 
 		// v1.2.2 — In-app notifications table
 		`CREATE TABLE IF NOT EXISTS notifications (
@@ -947,7 +961,7 @@ func upgradeSchema(db *sql.DB, version string) error {
 	}
 
 	isPoC := strings.Contains(strings.ToLower(trimmedVersion), "poc")
-	defaultDeviceLimit := "10"
+	defaultDeviceLimit := "0"
 	deviceManagementEnabled := "1"
 	nmsEdition := "standard-" + baseVersion
 	if isPoC {
@@ -963,7 +977,6 @@ func upgradeSchema(db *sql.DB, version string) error {
 	if isPoC {
 		_, _ = db.Exec(`UPDATE system_config SET config_value = ? WHERE config_key = 'nms_edition' AND (TRIM(config_value) = '' OR LOWER(config_value) LIKE 'standard-%')`, nmsEdition)
 	} else {
-		_, _ = db.Exec(`UPDATE system_config SET config_value = ? WHERE config_key = 'default_device_limit' AND TRIM(config_value) = '0'`, defaultDeviceLimit)
 		_, _ = db.Exec(`UPDATE system_config SET config_value = ? WHERE config_key = 'device_management_enabled' AND TRIM(config_value) = '0'`, deviceManagementEnabled)
 		_, _ = db.Exec(`UPDATE system_config SET config_value = ? WHERE config_key = 'nms_edition' AND (TRIM(config_value) = '' OR LOWER(config_value) LIKE 'poc-%')`, nmsEdition)
 	}

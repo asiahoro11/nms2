@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>&#30435;&#25511;&#27169;&#24335;</title>
+    <title>&#38651;&#35222;&#29254;&#27169;&#24335;</title>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -22,7 +22,7 @@
             --yellow:    #f59e0b;
             --purple:    #8b5cf6;
             --header-h:  48px;
-            --topbar-h:  72px;
+            --topbar-h:  64px;
             --shadow:    0 4px 12px rgba(0,0,0,0.08);
         }
 
@@ -169,7 +169,7 @@
         /* ===== TOP STATS BAR ===== */
         /* ===== TOP STATS BAR =====
          * Layout (position: fixed, below header):
-         *   [?餉挽憭 [?函瑪] [蝳餌瑪] [霅血?+Log scrollable]
+         *   [Total] [Online] [Offline]
          *   4 columns, fixed height (--topbar-h defined in :root above)
          */
         .demo-topbar {
@@ -178,7 +178,7 @@
             left: 0; right: 0;
             height: var(--topbar-h);
             display: grid;
-            grid-template-columns: repeat(3, minmax(0, 0.55fr)) 1fr;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
             border-bottom: 1px solid var(--border);
             background: var(--bg-panel);
             z-index: 90;
@@ -189,7 +189,7 @@
             display: flex;
             align-items: center;
             gap: 8px;
-            padding: 8px 12px;
+            padding: 10px 18px;
             border-right: 1px solid var(--border);
             min-width: 0;
         }
@@ -263,8 +263,12 @@
             top: calc(var(--header-h) + var(--topbar-h));
             left: 0; right: 0; bottom: 0;
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            transition: top 0.25s;
+            grid-template-columns: minmax(320px, var(--topology-panel-width, 50vw)) minmax(0, 1fr);
+            --topology-panel-width: 50vw;
+            transition: top 0.25s, grid-template-columns 0.22s ease;
+        }
+        .demo-main.topology-collapsed {
+            grid-template-columns: 0 minmax(0, 1fr);
         }
 
         /* ===== LEFT: TOPOLOGY ===== */
@@ -273,10 +277,77 @@
             background: var(--bg);
             border-right: 1px solid var(--border);
             overflow: hidden;
-            transition: background 0.25s;
+            min-width: 0;
+            transition: background 0.25s, opacity 0.18s, border-color 0.18s;
+        }
+        .demo-main.topology-collapsed .demo-topology {
+            opacity: 0;
+            pointer-events: none;
+            border-right-color: transparent;
         }
 
         #demo-topo-svg { width: 100%; height: 100%; }
+
+        .demo-topology-toggle {
+            width: 26px;
+            height: 26px;
+            flex: 0 0 26px;
+            border-radius: 7px;
+            border: 1px solid var(--border);
+            background: rgba(59,130,246,0.08);
+            color: #bfdbfe;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            font-weight: 700;
+            line-height: 1;
+            transition: background 0.15s, border-color 0.15s, color 0.15s;
+        }
+        .demo-topology-toggle:hover {
+            background: rgba(37,99,235,0.28);
+            border-color: rgba(96,165,250,0.62);
+            color: #fff;
+        }
+        .demo-topology-resizer {
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            width: 9px;
+            z-index: 60;
+            cursor: col-resize;
+            background: transparent;
+        }
+        .demo-topology-resizer::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            right: 3px;
+            width: 3px;
+            height: 54px;
+            border-radius: 999px;
+            background: rgba(148,163,184,0.42);
+            transform: translateY(-50%);
+            opacity: 0;
+            transition: opacity 0.15s, background 0.15s;
+        }
+        .demo-topology-resizer:hover::after,
+        body.topology-resizing .demo-topology-resizer::after {
+            opacity: 1;
+            background: rgba(59,130,246,0.82);
+        }
+        body.topology-resizing {
+            cursor: col-resize;
+            user-select: none;
+        }
+        body.topology-resizing * {
+            user-select: none !important;
+        }
+        .demo-main.topology-collapsed .demo-topology-resizer {
+            display: none;
+        }
 
         .demo-topo-controls {
             position: absolute;
@@ -301,6 +372,8 @@
         }
         .demo-topo-controls button:hover { background: rgba(99,102,241,0.15); }
         .mon-view-btn.active { background: rgba(99,102,241,0.3) !important; border-color: #6366f1 !important; }
+        .topo-mode-icon { width: 17px; height: 17px; display: block; fill: currentColor; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
+        .topo-mode-icon.tree { fill: none; stroke-linecap: round; }
         .link-label { font-size: 10px; fill: #10b981; pointer-events: none; }
 
         /* Topology nodes/links */
@@ -410,10 +483,11 @@
         }
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        /* ===== RIGHT: CAMERA PANEL ===== */
+        /* ===== RIGHT: SIDE PANEL ===== */
         .demo-cam-panel {
-            display: flex; flex-direction: column;
-            background: #0a0a0a;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-panel);
             overflow: hidden;
         }
 
@@ -424,12 +498,85 @@
             border-bottom: 1px solid var(--border);
             flex-shrink: 0;
         }
-        .demo-cam-panel-title {
-            font-size: 11px; font-weight: 700;
-            letter-spacing: 0.06em; text-transform: uppercase;
-            color: var(--text-muted);
+        .demo-cam-panel-title { display: none; }
+        .demo-cam-panel-tabs {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            min-width: 0;
         }
-        .demo-cam-panel-controls { display: flex; align-items: center; gap: 5px; }
+        .demo-cam-panel-controls {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .demo-cam-panel-controls[hidden],
+        .demo-side-tab[hidden],
+        .cam-layout-btn[hidden] {
+            display: none !important;
+        }
+        .demo-side-tab {
+            appearance: none;
+            background: transparent;
+            border: 1px solid transparent;
+            color: var(--text-muted);
+            padding: 5px 10px;
+            border-radius: 999px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            transition: all 0.15s;
+        }
+        .demo-side-tab:hover {
+            border-color: rgba(59,130,246,0.35);
+            color: var(--text);
+            background: rgba(59,130,246,0.08);
+        }
+        .demo-side-tab.active {
+            background: rgba(59,130,246,0.16);
+            border-color: rgba(59,130,246,0.42);
+            color: #93c5fd;
+        }
+        .demo-side-view {
+            display: none;
+            flex: 1;
+            min-height: 0;
+        }
+        .demo-side-view.active {
+            display: flex;
+            flex-direction: column;
+        }
+        .demo-side-log-wrap {
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+            padding: 6px;
+        }
+        .demo-side-log-list {
+            height: 100%;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: rgba(15, 23, 42, 0.42);
+        }
+        .demo-side-log-list::-webkit-scrollbar { width: 6px; }
+        .demo-side-log-list::-webkit-scrollbar-track { background: transparent; }
+        .demo-side-log-list::-webkit-scrollbar-thumb { background: rgba(148,163,184,0.28); border-radius: 999px; }
+        .demo-side-log-list .log-entry {
+            padding: 9px 12px;
+            align-items: flex-start;
+        }
+        .demo-side-log-list .log-msg {
+            white-space: normal;
+            overflow: visible;
+            text-overflow: clip;
+            line-height: 1.45;
+        }
+        .demo-side-log-list .log-time {
+            margin-top: 2px;
+        }
 
         .cam-layout-btn {
             background: transparent;
@@ -477,10 +624,12 @@
             align-items: center;
             justify-content: center;
         }
-        .demo-cam-cell img {
-            width: 100%; height: 100%; object-fit: cover; display: block;
+        .demo-cam-cell img,
+        .demo-cam-cell video {
+            width: 100%; height: 100%; object-fit: contain; display: block; background: #000;
         }
-        .demo-cam-cell.monitor-inline-fullscreen img {
+        .demo-cam-cell.monitor-inline-fullscreen img,
+        .demo-cam-cell.monitor-inline-fullscreen video {
             object-fit: contain !important;
             background: #000;
         }
@@ -622,6 +771,269 @@
             color: #ef4444; font-size: 11px; padding: 3px 10px; border-radius: 4px; cursor: pointer; transition: background 0.15s;
         }
         .notif-toast-ack:hover { background: rgba(239,68,68,0.22); }
+
+        @media (max-width: 900px) {
+            .demo-main {
+                display: block;
+                --topology-panel-width: min(88vw, 460px);
+            }
+            .demo-topology {
+                position: absolute;
+                top: 0;
+                left: 0;
+                bottom: 0;
+                width: var(--topology-panel-width);
+                z-index: 55;
+                box-shadow: 18px 0 34px rgba(15,23,42,0.28);
+                transform: translateX(0);
+                transition: transform 0.22s ease, opacity 0.18s;
+            }
+            .demo-main.topology-collapsed .demo-topology {
+                transform: translateX(calc(-100% - 18px));
+            }
+            .demo-cam-panel {
+                height: 100%;
+            }
+        }
+
+        @media (max-width: 760px) {
+            :root {
+                --header-h: 56px;
+                --topbar-h: 58px;
+            }
+
+            html,
+            body {
+                width: 100%;
+                max-width: 100%;
+                overflow: hidden;
+            }
+
+            .demo-header {
+                align-items: stretch;
+                gap: 8px;
+                padding: 6px 8px;
+                min-width: 0;
+            }
+
+            .demo-header-left,
+            .demo-header-right {
+                min-width: 0;
+            }
+
+            .demo-header-left {
+                flex: 1 1 auto;
+                overflow: hidden;
+            }
+
+            .demo-badge {
+                display: none;
+            }
+
+            .demo-title {
+                flex: 1 1 auto;
+                min-width: 0;
+                max-width: 42vw;
+            }
+
+            .demo-clock,
+            #demo-refresh-hint,
+            .demo-user-badge {
+                display: none !important;
+            }
+
+            .demo-header-right {
+                flex: 0 0 auto;
+                gap: 4px;
+            }
+
+            .demo-btn {
+                min-width: 36px;
+                height: 36px;
+                padding: 0 8px;
+                justify-content: center;
+                white-space: nowrap;
+            }
+
+            #btn-refresh span,
+            #btn-fullscreen span,
+            #btn-exit span {
+                display: none;
+            }
+
+            .demo-lang-select {
+                max-width: 66px;
+                height: 36px;
+            }
+
+            .notif-panel {
+                position: fixed;
+                top: calc(var(--header-h) + 6px);
+                left: 8px;
+                right: 8px;
+                width: auto;
+                max-height: calc(100dvh - var(--header-h) - 18px);
+            }
+
+            .demo-topbar {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+
+            .topbar-stat {
+                padding: 8px 6px;
+                justify-content: center;
+                text-align: center;
+            }
+
+            .topbar-stat-info {
+                align-items: center;
+                width: 100%;
+            }
+
+            .topbar-stat-label {
+                max-width: 100%;
+                font-size: 8px;
+            }
+
+            .topbar-stat-value {
+                font-size: 18px;
+            }
+
+            .demo-main {
+                --topology-panel-width: min(90vw, 380px);
+            }
+
+            .demo-topology {
+                width: var(--topology-panel-width);
+            }
+
+            .demo-topology-resizer {
+                display: none;
+            }
+
+            .demo-topo-controls {
+                top: 10px;
+                right: 10px;
+                flex-wrap: wrap;
+                max-width: calc(100% - 20px);
+            }
+
+            .demo-legend {
+                left: 10px;
+                right: 10px;
+                max-width: none;
+            }
+
+            .demo-cam-panel-header {
+                gap: 6px;
+                padding: 7px 8px;
+                min-height: 48px;
+            }
+
+            .demo-cam-panel-tabs {
+                flex: 1 1 auto;
+                overflow-x: auto;
+                scrollbar-width: none;
+            }
+
+            .demo-cam-panel-tabs::-webkit-scrollbar {
+                display: none;
+            }
+
+            .demo-side-tab,
+            .cam-layout-btn {
+                min-height: 34px;
+                white-space: nowrap;
+            }
+
+            .demo-cam-panel-controls {
+                overflow-x: auto;
+                scrollbar-width: none;
+                max-width: 42vw;
+            }
+
+            .demo-cam-panel-controls::-webkit-scrollbar {
+                display: none;
+            }
+
+            .demo-side-log-wrap,
+            .demo-cam-grid-wrap {
+                padding: 4px;
+            }
+
+            .demo-cam-grid {
+                gap: 2px;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .demo-cam-grid.grid-4,
+            .demo-cam-grid.grid-9,
+            .demo-cam-grid.grid-16 {
+                grid-template-columns: 1fr;
+                grid-template-rows: none;
+                grid-auto-rows: minmax(165px, 1fr);
+            }
+
+            .demo-cam-cell {
+                min-height: 165px;
+                aspect-ratio: 16 / 9;
+            }
+
+            .demo-cam-cell.monitor-inline-fullscreen {
+                inset: 8px;
+                border-radius: 10px;
+            }
+
+            #notif-toast-container {
+                left: 10px;
+                right: 10px;
+                bottom: 10px;
+                max-width: none;
+            }
+        }
+
+        @media (max-width: 760px) and (orientation: landscape) {
+            :root {
+                --header-h: 44px;
+                --topbar-h: 0px;
+            }
+
+            .demo-header {
+                height: var(--header-h);
+                padding-top: 4px;
+                padding-bottom: 4px;
+            }
+
+            .demo-topbar {
+                display: none;
+            }
+
+            .demo-btn,
+            .demo-lang-select {
+                height: 32px;
+            }
+
+            .demo-side-tab,
+            .cam-layout-btn {
+                min-height: 30px;
+            }
+
+            .demo-cam-panel-header {
+                min-height: 40px;
+                padding-top: 4px;
+                padding-bottom: 4px;
+            }
+
+            .demo-cam-grid.grid-4 {
+                grid-template-columns: repeat(2, 1fr);
+                grid-auto-rows: minmax(130px, 1fr);
+            }
+
+            .demo-cam-cell {
+                min-height: 130px;
+            }
+        }
     </style>
 </head>
 <body class="dark-theme">
@@ -629,13 +1041,13 @@
 <!-- HEADER -->
 <header class="demo-header">
     <div class="demo-header-left">
-        <span class="demo-badge" data-di="badge">監控模式</span>
+        <span class="demo-badge" data-di="badge">電視牆模式</span>
         <span class="demo-title" id="demo-sys-name"></span>
         <span class="demo-clock" id="demo-clock"></span>
     </div>
     <div class="demo-header-right">
         <div class="demo-user-badge" id="demo-user-badge" style="display:none">
-            <span>👤</span>
+            <span>&#128100;</span>
             <span id="demo-user-name"></span>
             <span class="user-role" id="demo-user-role"></span>
         </div>
@@ -649,33 +1061,33 @@
         </select>
         <!-- Notifications -->
         <div class="notif-bell-wrapper" id="notif-bell-wrapper">
-            <button class="notif-bell-btn" id="notif-bell-btn" onclick="toggleNotifPanel()" title="Notifications">
+            <button class="notif-bell-btn" id="notif-bell-btn" onclick="toggleNotifPanel()" title="Notifications" data-title-di="notifications">
                 &#128276;
                 <span class="notif-badge" id="notif-badge" style="display:none;">0</span>
             </button>
             <div class="notif-panel" id="notif-panel" style="display:none;">
                 <div class="notif-panel-header">
-                    <span class="notif-panel-title">&#36890;&#30693;&#20013;&#24515;</span>
+                    <span class="notif-panel-title" data-di="notification_center">&#36890;&#30693;&#20013;&#24515;</span>
                     <div class="notif-panel-actions">
-                        <button class="notif-action-link" onclick="markAllNotifsRead()">&#20840;&#37096;&#24050;&#35712;</button>
-                        <button class="notif-action-link notif-clear-all" onclick="clearAllNotifs()">&#28165;&#38500;&#20840;&#37096;</button>
+                        <button class="notif-action-link" onclick="markAllNotifsRead()" data-di="mark_all_read">&#20840;&#37096;&#24050;&#35712;</button>
+                        <button class="notif-action-link notif-clear-all" onclick="clearAllNotifs()" data-di="clear_all">&#28165;&#38500;&#20840;&#37096;</button>
                     </div>
                 </div>
                 <div class="notif-list" id="notif-list">
-                    <div class="notif-empty">&#30446;&#21069;&#27794;&#26377;&#36890;&#30693;</div>
+                    <div class="notif-empty" data-di="no_notifications">&#30446;&#21069;&#27794;&#26377;&#36890;&#30693;</div>
                 </div>
             </div>
         </div>
-        <button class="demo-btn icon-btn" onclick="toggleDemoTheme()" title="切換主題">🌙</button>
-        <button class="demo-btn" id="btn-refresh" onclick="manualRefresh()">&#8635; <span data-di="refresh">重新整理</span></button>
-        <button class="demo-btn" id="btn-fullscreen" onclick="toggleFullscreen()">&#9645; <span data-di="fullscreen">全螢幕</span></button>
-        <button class="demo-btn danger" id="btn-exit" onclick="exitMonitor()">⎋ <span data-di="exit">離開監控</span></button>
+        <button class="demo-btn icon-btn" onclick="toggleDemoTheme()" title="切換主題" data-title-di="toggle_theme">&#9790;</button>
+        <button class="demo-btn" id="btn-refresh" onclick="manualRefresh()" title="重新整理" data-title-di="refresh">&#8635; <span data-di="refresh">重新整理</span></button>
+        <button class="demo-btn" id="btn-fullscreen" onclick="toggleFullscreen()" title="全螢幕" data-title-di="fullscreen">&#9645; <span data-di="fullscreen">全螢幕</span></button>
+        <button class="demo-btn" id="btn-exit" onclick="exitMonitor()" title="主控台" data-title-di="exit">&#9638; <span data-di="exit">主控台</span></button>
     </div>
 </header>
 
 <!-- TOP STATS BAR -->
 <div class="demo-topbar">
-    <!-- 蝮質身??-->
+    <!-- total devices -->
     <div class="topbar-stat">
         <div class="topbar-stat-icon"></div>
         <div class="topbar-stat-info">
@@ -683,7 +1095,7 @@
             <div class="topbar-stat-value total" id="stat-total">-</div>
         </div>
     </div>
-    <!-- ?函? -->
+    <!-- online devices -->
     <div class="topbar-stat">
         <div class="topbar-stat-icon"></div>
         <div class="topbar-stat-info">
@@ -691,22 +1103,12 @@
             <div class="topbar-stat-value online" id="stat-online">-</div>
         </div>
     </div>
-    <!-- ?Ｙ? -->
+    <!-- offline devices -->
     <div class="topbar-stat">
         <div class="topbar-stat-icon"></div>
         <div class="topbar-stat-info">
             <div class="topbar-stat-label" data-di="offline">設備離線數量</div>
             <div class="topbar-stat-value offline" id="stat-offline">-</div>
-        </div>
-    </div>
-    <!-- ?單? Log (霅血???+ scrollable log) -->
-    <div class="topbar-stat topbar-log">
-        <div class="topbar-log-header">
-            <span class="topbar-log-title" data-di="live_log">即時事件 Log</span>
-            <span class="topbar-log-live"><span class="demo-live-dot"></span> LIVE</span>
-        </div>
-        <div class="topbar-log-list" id="demo-log-list">
-            <div class="log-empty" data-di="loading">載入中...</div>
         </div>
     </div>
 </div>
@@ -717,6 +1119,7 @@
     <!-- LEFT: TOPOLOGY -->
     <div class="demo-topology" id="demo-topology-wrap">
         <div id="demo-topo-svg"></div>
+        <div class="demo-topology-resizer" id="mon-topology-resizer" title="調整拓樸寬度" data-title-di="resize_topology"></div>
 
         <!-- Legend -->
         <div class="demo-legend collapsed" id="demo-legend">
@@ -740,8 +1143,8 @@
             <button onclick="demoZoom(1.25)">+</button>
             <button onclick="demoZoom(0.8)">-</button>
             <button onclick="demoResetView()">&#8635;</button>
-            <button id="mon-btn-force" class="mon-view-btn active" onclick="monSwitchView('force')" title="Force Layout">◎</button>
-            <button id="mon-btn-tree"  class="mon-view-btn"        onclick="monSwitchView('tree')"  title="Tree Layout">🌲</button>
+            <button id="mon-btn-force" class="mon-view-btn active" onclick="monSwitchView('force')" title="Force Layout" data-title-di="force_layout" aria-label="Force Layout"><svg class="topo-mode-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.3l-5.8 3.1 1.1-6.5-4.7-4.6 6.5-.9L12 2.5z"/></svg></button>
+            <button id="mon-btn-tree" class="mon-view-btn" onclick="monSwitchView('tree')" title="Tree Layout" data-title-di="tree_layout" aria-label="Tree Layout"><svg class="topo-mode-icon tree" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M6 8h6m0 0 4-4m-4 4 4 4M5 15h7m0 0 5-5m-5 5 5 5"/></svg></button>
         </div>
 
         <!-- Tooltip -->
@@ -756,18 +1159,32 @@
     <!-- RIGHT: CAMERA PANEL -->
     <div class="demo-cam-panel" id="demo-cam-panel">
         <div class="demo-cam-panel-header">
-            <span class="demo-cam-panel-title">監控攝影機</span>
-            <div class="demo-cam-panel-controls">
+            <button type="button" class="demo-topology-toggle" id="mon-topology-toggle" onclick="monToggleTopologyPane()" title="隱藏拓樸" data-title-di="hide_topology" aria-label="隱藏拓樸">&#8249;</button>
+            <div class="demo-cam-panel-tabs">
+                <button type="button" class="demo-side-tab active" id="mon-tab-logs" onclick="monShowPanel('logs')" data-di="system_logs">&#x7cfb;&#x7d71;&#x65e5;&#x8a8c;</button>
+                <button type="button" class="demo-side-tab" id="mon-tab-cameras" onclick="monShowPanel('cameras')" data-di="camera_monitor" hidden>&#x651d;&#x5f71;&#x6a5f;&#x76e3;&#x63a7;</button>
+            </div>
+            <span class="demo-cam-panel-title">攝影機監控</span>
+            <div class="demo-cam-panel-controls" id="demo-cam-controls" hidden>
                 <button class="cam-layout-btn active" id="cam-btn-4"  onclick="monSetLayout(4)"  title="2x2">2x2</button>
                 <button class="cam-layout-btn"        id="cam-btn-9"  onclick="monSetLayout(9)"  title="3x3">3x3</button>
                 <button class="cam-layout-btn"        id="cam-btn-16" onclick="monSetLayout(16)" title="4x4">4x4</button>
-                <button class="cam-layout-btn" onclick="monRefreshCams()" title="重新整理">↻</button>
+                <button class="cam-layout-btn" onclick="monRefreshCams()" title="重新整理" data-title-di="refresh">&#8635;</button>
             </div>
         </div>
+        <div class="demo-side-view active" id="demo-logs-view">
+            <div class="demo-side-log-wrap">
+                <div class="demo-side-log-list" id="demo-side-log-list">
+                    <div class="log-empty" data-di="loading">載入中...</div>
+                </div>
+            </div>
+        </div>
+        <div class="demo-side-view" id="demo-cameras-view">
         <div class="demo-cam-grid-wrap">
             <div class="demo-cam-grid grid-4" id="demo-cam-grid">
                 <!-- placeholder until init -->
             </div>
+        </div>
         </div>
     </div>
 
@@ -823,341 +1240,13 @@ function escapeHtmlNotif(text) {
 }
 
 // ===== i18n =====
-/*
-const DEMO_STRINGS = {
-    'zh-TW': {
-        refresh: '重新整理',
-        fullscreen: '全螢幕',
-        exit: '離開監控',
-        total: '總設備數量',
-        online: '設備上線數量',
-        offline: '設備離線數量',
-        warning: '警告',
-        live_log: '即時事件 Log',
-        loading: '載入中...',
-        auto_refresh: '自動刷新',
-        type_router: '路由器',
-        type_switch: '交換器',
-        type_ap: '無線 AP',
-        type_firewall: '防火牆',
-        type_server: '伺服器',
-        type_codec: '編解碼器',
-        type_ipcam: '攝影機',
-        type_other: '其他',
-        lldp: '自動連線 (LLDP)',
-        manual: '手動連線',
-        online_s: '在線',
-        offline_s: '離線',
-        no_events: '目前沒有事件',
-        tooltip_type: '類型',
-        badge: '監控模式',
-        title_suffix: '監控模式',
-        role_admin: '管理者',
-        role_editor: '編輯者',
-        role_viewer: '檢視者',
-        cam_no_license: '攝影機模組需加購 License'
-    },
-    'zh-CN': {
-        refresh: '刷新',
-        fullscreen: '全屏',
-        exit: '退出监控',
-        total: '设备总数',
-        online: '设备上线数量',
-        offline: '设备离线数量',
-        warning: '告警',
-        live_log: '实时事件日志',
-        loading: '加载中...',
-        auto_refresh: '自动刷新',
-        type_router: '路由器',
-        type_switch: '交换机',
-        type_ap: '无线 AP',
-        type_firewall: '防火墙',
-        type_server: '服务器',
-        type_codec: '编解码器',
-        type_ipcam: '摄像机',
-        type_other: '其他',
-        lldp: '自动连接 (LLDP)',
-        manual: '手动连接',
-        online_s: '在线',
-        offline_s: '离线',
-        no_events: '暂无事件',
-        tooltip_type: '类型',
-        badge: '监控模式',
-        title_suffix: '监控模式',
-        role_admin: '管理员',
-        role_editor: '编辑者',
-        role_viewer: '查看者',
-        cam_no_license: '摄像机模块需要加购 License'
-    },
-    'en-US': {
-        refresh: 'Refresh',
-        fullscreen: 'Fullscreen',
-        exit: 'Exit Monitor',
-        total: 'Total Devices',
-        online: 'Online Devices',
-        offline: 'Offline Devices',
-        warning: 'Warnings',
-        live_log: 'Live Event Log',
-        loading: 'Loading...',
-        auto_refresh: 'Auto Refresh',
-        type_router: 'Router',
-        type_switch: 'Switch',
-        type_ap: 'Wireless AP',
-        type_firewall: 'Firewall',
-        type_server: 'Server',
-        type_codec: 'Codec',
-        type_ipcam: 'IP Camera',
-        type_other: 'Other',
-        lldp: 'Auto Link (LLDP)',
-        manual: 'Manual Link',
-        online_s: 'Online',
-        offline_s: 'Offline',
-        no_events: 'No events',
-        tooltip_type: 'Type',
-        badge: 'Monitor Mode',
-        title_suffix: 'Monitor Mode',
-        role_admin: 'Admin',
-        role_editor: 'Editor',
-        role_viewer: 'Viewer',
-        cam_no_license: 'Camera module not licensed'
-    },
-    'ja-JP': {
-        refresh: '更新',
-        fullscreen: '全画面',
-        exit: '監視終了',
-        total: '総設備数',
-        online: 'オンライン機器数',
-        offline: 'オフライン機器数',
-        warning: '警告',
-        live_log: 'ライブイベントログ',
-        loading: '読み込み中...',
-        auto_refresh: '自動更新',
-        type_router: 'ルーター',
-        type_switch: 'スイッチ',
-        type_ap: '無線 AP',
-        type_firewall: 'ファイアウォール',
-        type_server: 'サーバー',
-        type_codec: 'コーデック',
-        type_ipcam: 'カメラ',
-        type_other: 'その他',
-        lldp: '自動接続 (LLDP)',
-        manual: '手動接続',
-        online_s: 'オンライン',
-        offline_s: 'オフライン',
-        no_events: 'イベントはありません',
-        tooltip_type: '種類',
-        badge: '監視モード',
-        title_suffix: '監視モード',
-        role_admin: '管理者',
-        role_editor: '編集者',
-        role_viewer: '閲覧者',
-        cam_no_license: 'カメラモジュールの License が必要です'
-    },
-    'ko-KR': {
-        refresh: '새로고침',
-        fullscreen: '전체화면',
-        exit: '모니터 종료',
-        total: '총 장비 수',
-        online: '온라인 장비 수',
-        offline: '오프라인 장비 수',
-        warning: '경고',
-        live_log: '실시간 이벤트 로그',
-        loading: '불러오는 중...',
-        auto_refresh: '자동 새로고침',
-        type_router: '라우터',
-        type_switch: '스위치',
-        type_ap: '무선 AP',
-        type_firewall: '방화벽',
-        type_server: '서버',
-        type_codec: '코덱',
-        type_ipcam: '카메라',
-        type_other: '기타',
-        lldp: '자동 연결 (LLDP)',
-        manual: '수동 연결',
-        online_s: '온라인',
-        offline_s: '오프라인',
-        no_events: '이벤트가 없습니다',
-        tooltip_type: '유형',
-        badge: '모니터 모드',
-        title_suffix: '모니터 모드',
-        role_admin: '관리자',
-        role_editor: '편집자',
-        role_viewer: '뷰어',
-        cam_no_license: '카메라 모듈은 License가 필요합니다'
-    }
-};
-*/
-
 const DEMO_STRINGS = {};
-/*
-const CLEAN_DEMO_STRINGS = {
-    'zh-TW': {
-        refresh: '重新整理',
-        fullscreen: '全螢幕',
-        exit: '離開監控',
-        total: '總設備數量',
-        online: '設備上線數量',
-        offline: '設備離線數量',
-        warning: '警告',
-        live_log: '即時事件 Log',
-        loading: '載入中...',
-        auto_refresh: '自動刷新',
-        type_router: '路由器',
-        type_switch: '交換器',
-        type_ap: '無線 AP',
-        type_firewall: '防火牆',
-        type_server: '伺服器',
-        type_codec: '編解碼器',
-        type_ipcam: '攝影機',
-        type_other: '其他',
-        lldp: '自動連線 (LLDP)',
-        manual: '手動連線',
-        online_s: '在線',
-        offline_s: '離線',
-        no_events: '目前沒有事件',
-        tooltip_type: '類型',
-        badge: '監控模式',
-        title_suffix: '監控模式',
-        role_admin: '管理者',
-        role_editor: '編輯者',
-        role_viewer: '檢視者',
-        cam_no_license: '攝影機模組未授權'
-    },
-    'zh-CN': {
-        refresh: '刷新',
-        fullscreen: '全屏',
-        exit: '退出监控',
-        total: '总设备数量',
-        online: '设备在线数量',
-        offline: '设备离线数量',
-        warning: '警告',
-        live_log: '实时事件 Log',
-        loading: '加载中...',
-        auto_refresh: '自动刷新',
-        type_router: '路由器',
-        type_switch: '交换机',
-        type_ap: '无线 AP',
-        type_firewall: '防火墙',
-        type_server: '服务器',
-        type_codec: '编解码器',
-        type_ipcam: '摄像机',
-        type_other: '其他',
-        lldp: '自动链路 (LLDP)',
-        manual: '手动链路',
-        online_s: '在线',
-        offline_s: '离线',
-        no_events: '暂无事件',
-        tooltip_type: '类型',
-        badge: '监控模式',
-        title_suffix: '监控模式',
-        role_admin: '管理员',
-        role_editor: '编辑者',
-        role_viewer: '查看者',
-        cam_no_license: '摄像机模块未授权'
-    },
-    'en-US': {
-        refresh: 'Refresh',
-        fullscreen: 'Fullscreen',
-        exit: 'Exit Monitor',
-        total: 'Total Devices',
-        online: 'Online Devices',
-        offline: 'Offline Devices',
-        warning: 'Warnings',
-        live_log: 'Live Event Log',
-        loading: 'Loading...',
-        auto_refresh: 'Auto Refresh',
-        type_router: 'Router',
-        type_switch: 'Switch',
-        type_ap: 'Wireless AP',
-        type_firewall: 'Firewall',
-        type_server: 'Server',
-        type_codec: 'Codec',
-        type_ipcam: 'IP Camera',
-        type_other: 'Other',
-        lldp: 'Auto Link (LLDP)',
-        manual: 'Manual Link',
-        online_s: 'Online',
-        offline_s: 'Offline',
-        no_events: 'No events',
-        tooltip_type: 'Type',
-        badge: 'Monitor Mode',
-        title_suffix: 'Monitor Mode',
-        role_admin: 'Admin',
-        role_editor: 'Editor',
-        role_viewer: 'Viewer',
-        cam_no_license: 'Camera module not licensed'
-    },
-    'ja-JP': {
-        refresh: '更新',
-        fullscreen: '全画面',
-        exit: '監視終了',
-        total: '総設備数',
-        online: 'オンライン設備数',
-        offline: 'オフライン設備数',
-        warning: '警告',
-        live_log: 'リアルタイムイベント Log',
-        loading: '読み込み中...',
-        auto_refresh: '自動更新',
-        type_router: 'ルーター',
-        type_switch: 'スイッチ',
-        type_ap: '無線 AP',
-        type_firewall: 'ファイアウォール',
-        type_server: 'サーバー',
-        type_codec: 'コーデック',
-        type_ipcam: 'IP カメラ',
-        type_other: 'その他',
-        lldp: '自動リンク (LLDP)',
-        manual: '手動リンク',
-        online_s: 'オンライン',
-        offline_s: 'オフライン',
-        no_events: 'イベントはありません',
-        tooltip_type: '種類',
-        badge: '監視モード',
-        title_suffix: '監視モード',
-        role_admin: '管理者',
-        role_editor: '編集者',
-        role_viewer: '閲覧者',
-        cam_no_license: 'カメラモジュールは未ライセンスです'
-    },
-    'ko-KR': {
-        refresh: '새로고침',
-        fullscreen: '전체화면',
-        exit: '모니터 종료',
-        total: '총 장비 수',
-        online: '온라인 장비 수',
-        offline: '오프라인 장비 수',
-        warning: '경고',
-        live_log: '실시간 이벤트 Log',
-        loading: '로딩 중...',
-        auto_refresh: '자동 새로고침',
-        type_router: '라우터',
-        type_switch: '스위치',
-        type_ap: '무선 AP',
-        type_firewall: '방화벽',
-        type_server: '서버',
-        type_codec: '코덱',
-        type_ipcam: 'IP 카메라',
-        type_other: '기타',
-        lldp: '자동 링크 (LLDP)',
-        manual: '수동 링크',
-        online_s: '온라인',
-        offline_s: '오프라인',
-        no_events: '이벤트가 없습니다',
-        tooltip_type: '유형',
-        badge: '모니터 모드',
-        title_suffix: '모니터 모드',
-        role_admin: '관리자',
-        role_editor: '편집자',
-        role_viewer: '조회자',
-        cam_no_license: '카메라 모듈이 라이선스되지 않았습니다'
-    }
-};
-*/
+
 const CLEAN_DEMO_STRINGS = {
     'zh-TW': {
         refresh: '\u91cd\u65b0\u6574\u7406',
         fullscreen: '\u5168\u87a2\u5e55',
-        exit: '\u96e2\u958b\u76e3\u63a7',
+        exit: '\u4e3b\u63a7\u53f0',
         total: '\u7e3d\u8a2d\u5099\u6578\u91cf',
         online: '\u8a2d\u5099\u4e0a\u7dda\u6578\u91cf',
         offline: '\u8a2d\u5099\u96e2\u7dda\u6578\u91cf',
@@ -1180,16 +1269,31 @@ const CLEAN_DEMO_STRINGS = {
         no_events: '\u76ee\u524d\u6c92\u6709\u4e8b\u4ef6',
         tooltip_type: '\u985e\u578b',
         badge: '\u76e3\u63a7\u6a21\u5f0f',
-        title_suffix: '\u76e3\u63a7\u6a21\u5f0f',
+        title_suffix: '\u96fb\u8996\u7246\u6a21\u5f0f',
         role_admin: '\u7ba1\u7406\u8005',
         role_editor: '\u7de8\u8f2f\u8005',
         role_viewer: '\u6aa2\u8996\u8005',
-        cam_no_license: '\u651d\u5f71\u6a5f\u6a21\u7d44\u672a\u6388\u6b0a'
+        system_logs: '\u7cfb\u7d71\u65e5\u8a8c',
+        camera_monitor: '\u651d\u5f71\u6a5f\u76e3\u63a7',
+        no_camera_feeds: '\u76ee\u524d\u6c92\u6709\u53ef\u986f\u793a\u7684\u651d\u5f71\u6a5f',
+        topology_empty: '\u76ee\u524d\u6c92\u6709\u62d3\u6a38\u8a2d\u5099',
+        topology_load_failed: '\u62d3\u6a38\u8f09\u5165\u5931\u6557',
+        force_layout: '\u661f\u72c0\u62d3\u6a38',
+        tree_layout: '\u6a39\u72c0\u62d3\u6a38',
+        toggle_theme: '\u5207\u63db\u4e3b\u984c',
+        notifications: '\u901a\u77e5',
+        notification_center: '\u901a\u77e5\u4e2d\u5fc3',
+        mark_all_read: '\u5168\u90e8\u5df2\u8b80',
+        clear_all: '\u6e05\u9664\u5168\u90e8',
+        no_notifications: '\u76ee\u524d\u6c92\u6709\u901a\u77e5',
+        hide_topology: '\u96b1\u85cf\u62d3\u6a38',
+        show_topology: '\u958b\u555f\u62d3\u6a38',
+        resize_topology: '\u8abf\u6574\u62d3\u6a38\u5bec\u5ea6'
     },
     'zh-CN': {
         refresh: '\u5237\u65b0',
         fullscreen: '\u5168\u5c4f',
-        exit: '\u9000\u51fa\u76d1\u63a7',
+        exit: '\u4e3b\u63a7\u53f0',
         total: '\u603b\u8bbe\u5907\u6570\u91cf',
         online: '\u8bbe\u5907\u5728\u7ebf\u6570\u91cf',
         offline: '\u8bbe\u5907\u79bb\u7ebf\u6570\u91cf',
@@ -1216,12 +1320,27 @@ const CLEAN_DEMO_STRINGS = {
         role_admin: '\u7ba1\u7406\u5458',
         role_editor: '\u7f16\u8f91\u8005',
         role_viewer: '\u67e5\u770b\u8005',
-        cam_no_license: '\u6444\u50cf\u673a\u6a21\u5757\u672a\u6388\u6743'
+        system_logs: '\u7cfb\u7edf\u65e5\u5fd7',
+        camera_monitor: '\u6444\u50cf\u673a\u76d1\u63a7',
+        no_camera_feeds: '\u5f53\u524d\u6ca1\u6709\u53ef\u663e\u793a\u7684\u6444\u50cf\u673a',
+        topology_empty: '\u5f53\u524d\u6ca1\u6709\u62d3\u6251\u8bbe\u5907',
+        topology_load_failed: '\u62d3\u6251\u52a0\u8f7d\u5931\u8d25',
+        force_layout: '\u661f\u72b6\u62d3\u6251',
+        tree_layout: '\u6811\u72b6\u62d3\u6251',
+        toggle_theme: '\u5207\u6362\u4e3b\u9898',
+        notifications: '\u901a\u77e5',
+        notification_center: '\u901a\u77e5\u4e2d\u5fc3',
+        mark_all_read: '\u5168\u90e8\u5df2\u8bfb',
+        clear_all: '\u6e05\u9664\u5168\u90e8',
+        no_notifications: '\u5f53\u524d\u6ca1\u6709\u901a\u77e5',
+        hide_topology: '\u9690\u85cf\u62d3\u6251',
+        show_topology: '\u6253\u5f00\u62d3\u6251',
+        resize_topology: '\u8c03\u6574\u62d3\u6251\u5bbd\u5ea6'
     },
     'en-US': {
         refresh: 'Refresh',
         fullscreen: 'Fullscreen',
-        exit: 'Exit Monitor',
+        exit: 'Console',
         total: 'Total Devices',
         online: 'Online Devices',
         offline: 'Offline Devices',
@@ -1248,12 +1367,27 @@ const CLEAN_DEMO_STRINGS = {
         role_admin: 'Admin',
         role_editor: 'Editor',
         role_viewer: 'Viewer',
-        cam_no_license: 'Camera module not licensed'
+        system_logs: 'System Logs',
+        camera_monitor: 'Camera Monitor',
+        no_camera_feeds: 'No cameras available for monitor view',
+        topology_empty: 'No topology devices',
+        topology_load_failed: 'Topology load failed',
+        force_layout: 'Star Topology',
+        tree_layout: 'Tree Topology',
+        toggle_theme: 'Toggle theme',
+        notifications: 'Notifications',
+        notification_center: 'Notification Center',
+        mark_all_read: 'Mark all read',
+        clear_all: 'Clear all',
+        no_notifications: 'No notifications',
+        hide_topology: 'Hide topology',
+        show_topology: 'Show topology',
+        resize_topology: 'Resize topology'
     },
     'ja-JP': {
         refresh: '\u66f4\u65b0',
         fullscreen: '\u5168\u753b\u9762',
-        exit: '\u76e3\u8996\u7d42\u4e86',
+        exit: '\u30b3\u30f3\u30bd\u30fc\u30eb',
         total: '\u7dcf\u8a2d\u5099\u6570',
         online: '\u30aa\u30f3\u30e9\u30a4\u30f3\u8a2d\u5099\u6570',
         offline: '\u30aa\u30d5\u30e9\u30a4\u30f3\u8a2d\u5099\u6570',
@@ -1280,12 +1414,27 @@ const CLEAN_DEMO_STRINGS = {
         role_admin: '\u7ba1\u7406\u8005',
         role_editor: '\u7de8\u96c6\u8005',
         role_viewer: '\u95b2\u89a7\u8005',
-        cam_no_license: '\u30ab\u30e1\u30e9\u30e2\u30b8\u30e5\u30fc\u30eb\u306f\u672a\u30e9\u30a4\u30bb\u30f3\u30b9\u3067\u3059'
+        system_logs: '\u30b7\u30b9\u30c6\u30e0\u30ed\u30b0',
+        camera_monitor: '\u30ab\u30e1\u30e9\u76e3\u8996',
+        no_camera_feeds: '\u8868\u793a\u3067\u304d\u308b\u30ab\u30e1\u30e9\u304c\u3042\u308a\u307e\u305b\u3093',
+        topology_empty: '\u8868\u793a\u3067\u304d\u308b\u30c8\u30dd\u30ed\u30b8\u6a5f\u5668\u304c\u3042\u308a\u307e\u305b\u3093',
+        topology_load_failed: '\u30c8\u30dd\u30ed\u30b8\u306e\u8aad\u307f\u8fbc\u307f\u306b\u5931\u6557\u3057\u307e\u3057\u305f',
+        force_layout: '\u30b9\u30bf\u30fc\u578b\u30c8\u30dd\u30ed\u30b8',
+        tree_layout: '\u30c4\u30ea\u30fc\u578b\u30c8\u30dd\u30ed\u30b8',
+        toggle_theme: '\u30c6\u30fc\u30de\u5207\u66ff',
+        notifications: '\u901a\u77e5',
+        notification_center: '\u901a\u77e5\u30bb\u30f3\u30bf\u30fc',
+        mark_all_read: '\u3059\u3079\u3066\u65e2\u8aad',
+        clear_all: '\u3059\u3079\u3066\u30af\u30ea\u30a2',
+        no_notifications: '\u901a\u77e5\u306f\u3042\u308a\u307e\u305b\u3093',
+        hide_topology: '\u30c8\u30dd\u30ed\u30b8\u3092\u96a0\u3059',
+        show_topology: '\u30c8\u30dd\u30ed\u30b8\u3092\u958b\u304f',
+        resize_topology: '\u30c8\u30dd\u30ed\u30b8\u5e45\u3092\u8abf\u6574'
     },
     'ko-KR': {
         refresh: '\uc0c8\ub85c\uace0\uce68',
         fullscreen: '\uc804\uccb4\ud654\uba74',
-        exit: '\ubaa8\ub2c8\ud130 \uc885\ub8cc',
+        exit: '\ucf58\uc194',
         total: '\ucd1d \uc7a5\ube44 \uc218',
         online: '\uc628\ub77c\uc778 \uc7a5\ube44 \uc218',
         offline: '\uc624\ud504\ub77c\uc778 \uc7a5\ube44 \uc218',
@@ -1312,7 +1461,22 @@ const CLEAN_DEMO_STRINGS = {
         role_admin: '\uad00\ub9ac\uc790',
         role_editor: '\ud3b8\uc9d1\uc790',
         role_viewer: '\uc870\ud68c\uc790',
-        cam_no_license: '\uce74\uba54\ub77c \ubaa8\ub4c8\uc774 \ub77c\uc774\uc120\uc2a4\ub418\uc9c0 \uc54a\uc558\uc2b5\ub2c8\ub2e4'
+        system_logs: '\uc2dc\uc2a4\ud15c \ub85c\uadf8',
+        camera_monitor: '\uce74\uba54\ub77c \ubaa8\ub2c8\ud130',
+        no_camera_feeds: '\ud45c\uc2dc\ud560 \uc218 \uc788\ub294 \uce74\uba54\ub77c\uac00 \uc5c6\uc2b5\ub2c8\ub2e4',
+        topology_empty: '\ud45c\uc2dc\ud560 \uc218 \uc788\ub294 \ud1a0\ud3f4\ub85c\uc9c0 \uc7a5\ube44\uac00 \uc5c6\uc2b5\ub2c8\ub2e4',
+        topology_load_failed: '\ud1a0\ud3f4\ub85c\uc9c0 \ub85c\ub4dc \uc2e4\ud328',
+        force_layout: '\uc2a4\ud0c0 \ud1a0\ud3f4\ub85c\uc9c0',
+        tree_layout: '\ud2b8\ub9ac \ud1a0\ud3f4\ub85c\uc9c0',
+        toggle_theme: '\ud14c\ub9c8 \uc804\ud658',
+        notifications: '\uc54c\ub9bc',
+        notification_center: '\uc54c\ub9bc \uc13c\ud130',
+        mark_all_read: '\ubaa8\ub450 \uc77d\uc74c',
+        clear_all: '\ubaa8\ub450 \uc9c0\uc6b0\uae30',
+        no_notifications: '\ud604\uc7ac \uc54c\ub9bc\uc774 \uc5c6\uc2b5\ub2c8\ub2e4',
+        hide_topology: '\ud1a0\ud3f4\ub85c\uc9c0 \uc228\uae30\uae30',
+        show_topology: '\ud1a0\ud3f4\ub85c\uc9c0 \uc5f4\uae30',
+        resize_topology: '\ud1a0\ud3f4\ub85c\uc9c0 \ub108\ube44 \uc870\uc815'
     }
 };
 Object.keys(CLEAN_DEMO_STRINGS).forEach(lang => {
@@ -1354,6 +1518,12 @@ function applyDemoI18n() {
     document.querySelectorAll('[data-di]').forEach(el => {
         el.textContent = di(el.dataset.di);
     });
+    document.querySelectorAll('[data-title-di]').forEach(el => {
+        el.setAttribute('title', di(el.dataset.titleDi));
+        el.setAttribute('aria-label', di(el.dataset.titleDi));
+    });
+    monSyncTopologyToggleLabel();
+    document.title = di('title_suffix');
     const badge = document.querySelector('.demo-badge');
     if (badge) badge.textContent = di('badge');
     const sel = document.getElementById('demo-lang-select');
@@ -1364,6 +1534,11 @@ function applyDemoI18n() {
         sysNameEl.textContent = sysNameEl.dataset.sysName + ' ' + di('title_suffix');
     }
     renderUserBadge();
+    monUpdateSidePanel();
+    if (monCameraLicensed && monActivePanel === 'cameras' && monCameras.length === 0) {
+        monRenderCameraPlaceholder(monGetCameraEmptyMessage());
+    }
+    updateClock();
 }
 
 function changeDemoLang(lang) {
@@ -1386,8 +1561,8 @@ function toggleDemoTheme() {
 function updateClock() {
     const now = new Date();
     document.getElementById('demo-clock').textContent =
-        now.toLocaleDateString('zh-TW') + '  ' +
-        now.toLocaleTimeString('zh-TW', { hour12: false });
+        now.toLocaleDateString(currentLang || 'zh-TW') + '  ' +
+        now.toLocaleTimeString(currentLang || 'zh-TW', { hour12: false });
 }
 setInterval(updateClock, 1000);
 updateClock();
@@ -1415,6 +1590,119 @@ function toggleDemoLegend() {
 // ===== TOPOLOGY =====
 let demoSvg = null, demoG = null, demoZoomBeh = null, demoSim = null;
 let demoCurrentTransform = null;
+const MON_TOPOLOGY_WIDTH_KEY = 'monitor_topology_panel_width';
+const MON_TOPOLOGY_COLLAPSED_KEY = 'monitor_topology_panel_collapsed';
+let monTopologyCollapsed = false;
+let monTopologyRerenderTimer = null;
+
+function monStopTopologySimulation() {
+    if (demoSim && typeof demoSim.stop === 'function') demoSim.stop();
+    demoSim = null;
+}
+
+function monClampTopologyWidth(value) {
+    const main = document.querySelector('.demo-main');
+    const total = (main && main.clientWidth) || window.innerWidth || 1200;
+    const raw = Number(value) || total * 0.5;
+    if (total <= 900) {
+        const mobileMax = Math.max(260, Math.min(460, total - 24));
+        const mobileMin = Math.min(280, mobileMax);
+        return Math.round(Math.max(mobileMin, Math.min(raw, mobileMax)));
+    }
+    const min = 320;
+    const max = Math.max(min, Math.min(1120, total * 0.76, total - 360));
+    return Math.round(Math.max(min, Math.min(raw, max)));
+}
+
+function monSetTopologyPanelWidth(width, persist) {
+    const main = document.querySelector('.demo-main');
+    if (!main) return;
+    const nextWidth = monClampTopologyWidth(width);
+    main.style.setProperty('--topology-panel-width', nextWidth + 'px');
+    if (persist) {
+        try { localStorage.setItem(MON_TOPOLOGY_WIDTH_KEY, String(nextWidth)); } catch(e) {}
+    }
+}
+
+function monRenderTopologyFromCache() {
+    if (monTopologyCollapsed) return;
+    if (monCurrentView === 'tree') renderTreeTopoDemo(_cachedTopoNodes || [], _cachedTopoLinks || []);
+    else renderTopoDemo(_cachedTopoNodes || [], _cachedTopoLinks || []);
+}
+
+function monScheduleTopologyRerender(delay) {
+    if (monTopologyCollapsed) return;
+    clearTimeout(monTopologyRerenderTimer);
+    monTopologyRerenderTimer = setTimeout(monRenderTopologyFromCache, delay == null ? 160 : delay);
+}
+
+function monSyncTopologyToggleLabel() {
+    const btn = document.getElementById('mon-topology-toggle');
+    if (!btn) return;
+    const key = monTopologyCollapsed ? 'show_topology' : 'hide_topology';
+    btn.dataset.titleDi = key;
+    btn.setAttribute('title', di(key));
+    btn.setAttribute('aria-label', di(key));
+    btn.innerHTML = monTopologyCollapsed ? '&#8250;' : '&#8249;';
+}
+
+function monApplyTopologyPaneState() {
+    const main = document.querySelector('.demo-main');
+    if (!main) return;
+    main.classList.toggle('topology-collapsed', monTopologyCollapsed);
+    monSyncTopologyToggleLabel();
+    if (monTopologyCollapsed) {
+        monStopTopologySimulation();
+        hideDemoTooltip();
+    } else {
+        monScheduleTopologyRerender(260);
+    }
+}
+
+function monToggleTopologyPane() {
+    monTopologyCollapsed = !monTopologyCollapsed;
+    try { localStorage.setItem(MON_TOPOLOGY_COLLAPSED_KEY, monTopologyCollapsed ? '1' : '0'); } catch(e) {}
+    monApplyTopologyPaneState();
+}
+window.monToggleTopologyPane = monToggleTopologyPane;
+
+function monInitTopologyPane() {
+    const main = document.querySelector('.demo-main');
+    const resizer = document.getElementById('mon-topology-resizer');
+    if (!main) return;
+    let savedWidth = null;
+    try { savedWidth = parseInt(localStorage.getItem(MON_TOPOLOGY_WIDTH_KEY), 10); } catch(e) {}
+    monSetTopologyPanelWidth(savedWidth || ((window.innerWidth || 1200) * 0.5), false);
+    try { monTopologyCollapsed = localStorage.getItem(MON_TOPOLOGY_COLLAPSED_KEY) === '1'; } catch(e) {}
+    monApplyTopologyPaneState();
+
+    if (resizer) {
+        resizer.addEventListener('pointerdown', (event) => {
+            if (monTopologyCollapsed) return;
+            event.preventDefault();
+            document.body.classList.add('topology-resizing');
+            const mainRect = main.getBoundingClientRect();
+            const onMove = (moveEvent) => {
+                monSetTopologyPanelWidth(moveEvent.clientX - mainRect.left, true);
+                monScheduleTopologyRerender(180);
+            };
+            const onUp = () => {
+                document.body.classList.remove('topology-resizing');
+                window.removeEventListener('pointermove', onMove);
+                monScheduleTopologyRerender(20);
+            };
+            window.addEventListener('pointermove', onMove);
+            window.addEventListener('pointerup', onUp, { once: true });
+        });
+    }
+
+    window.addEventListener('resize', () => {
+        let current = null;
+        try { current = parseInt(localStorage.getItem(MON_TOPOLOGY_WIDTH_KEY), 10); } catch(e) {}
+        monSetTopologyPanelWidth(current || ((window.innerWidth || 1200) * 0.5), false);
+        monScheduleTopologyRerender(220);
+    });
+}
 
 function fmtTraffic(bps) {
     if (!bps) return '0';
@@ -1435,6 +1723,12 @@ function getColor(t) { return NODE_COLORS[t] || NODE_COLORS.other; }
 function renderTopoDemo(nodes, links) {
     const wrap = document.getElementById('demo-topology-wrap');
     const container = document.getElementById('demo-topo-svg');
+    if (monTopologyCollapsed) {
+        monStopTopologySimulation();
+        if (container) container.innerHTML = '';
+        return;
+    }
+    monStopTopologySimulation();
     container.innerHTML = '';
 
     const width  = wrap.clientWidth;
@@ -1465,7 +1759,7 @@ function renderTopoDemo(nodes, links) {
     if (!nodes || nodes.length === 0) {
         demoG.append('text').attr('x', width/2).attr('y', height/2)
             .attr('text-anchor','middle').attr('fill','#94a3b8')
-            .text(di('no_events'));
+            .text(di('topology_empty'));
         return;
     }
 
@@ -1580,7 +1874,7 @@ function showDemoTooltip(event, d) {
     tt.innerHTML = `<h4>${escapeHtml(getNodeDisplayName(d))}</h4>
         <div>IP: ${d.ip_address||'-'}</div>
         <div>${di('tooltip_type')}: ${d.device_type||'-'}</div>
-        <div class="${d.is_online?'st-online':'st-offline'}">${d.is_online ? '● ' + di('online_s') : '● ' + di('offline_s')}</div>`;
+        <div class="${d.is_online?'st-online':'st-offline'}">${d.is_online ? '&#9679; ' + di('online_s') : '&#9675; ' + di('offline_s')}</div>`;
     tt.classList.add('visible');
     moveDemoTooltip(event);
 }
@@ -1613,7 +1907,7 @@ window.showDemoTooltip = showDemoTooltip;
 let _lastNodeIds = '';
 let _lastLinkIds = '';
 
-// ===== 閬?璅∪? (force | tree)嚗? localStorage 霈?? index.html 銝?渡??末 =====
+// ===== Topology view mode persistence (force | tree), shared with index.html =====
 let monCurrentView = (function() {
     try { return localStorage.getItem('topology_default_view') || 'force'; } catch(e) { return 'force'; }
 })();
@@ -1668,7 +1962,7 @@ function monSwitchView(view) {
     document.querySelectorAll('.mon-view-btn').forEach(b => b.classList.remove('active'));
     const btn = document.getElementById(`mon-btn-${view}`);
     if (btn) btn.classList.add('active');
-    // ?皜脫?
+    // Update active topology mode button.
     if (_lastNodeIds) {
         const nodes = _cachedTopoNodes || [];
         const links = _cachedTopoLinks || [];
@@ -1693,6 +1987,11 @@ async function refreshTopoStatus() {
 
         const newNodeIds = newNodes.map(n=>n.id).sort().join(',');
         const newLinkIds = newLinks.map(l=>l.id).sort().join(',');
+        if (monTopologyCollapsed) {
+            _lastNodeIds = newNodeIds;
+            _lastLinkIds = newLinkIds;
+            return;
+        }
         if (newNodeIds !== _lastNodeIds || newLinkIds !== _lastLinkIds) {
             _lastNodeIds = newNodeIds;
             _lastLinkIds = newLinkIds;
@@ -1746,23 +2045,30 @@ async function loadTopoDemo() {
             _cachedTopoLinks = links;
             _lastNodeIds = nodes.map(n=>n.id).sort().join(',');
             _lastLinkIds = links.map(l=>l.id).sort().join(',');
-            // ?郊?????
+            // ??駁??
             document.querySelectorAll('.mon-view-btn').forEach(b => b.classList.remove('active'));
             const activeBtn = document.getElementById(`mon-btn-${monCurrentView}`);
             if (activeBtn) activeBtn.classList.add('active');
-            // 皜脫?
+            if (monTopologyCollapsed) return;
+            // Update active topology mode button.
             if (monCurrentView === 'tree') renderTreeTopoDemo(nodes, links);
             else renderTopoDemo(nodes, links);
         }
     } catch(e) {
-        overlay.innerHTML = '<span style="color:#ef4444">\u62d3\u6a38\u8f09\u5165\u5931\u6557</span>';
+        overlay.innerHTML = '<span style="color:#ef4444">' + di('topology_load_failed') + '</span>';
         console.warn('[Demo] topology error', e);
     }
 }
 
-// ===== 璅寧??邪 (monitor.html) =====
+// ===== Side panel tabs (monitor.html) =====
 function renderTreeTopoDemo(nodes, links) {
     const container = document.getElementById('demo-topo-svg');
+    if (monTopologyCollapsed) {
+        monStopTopologySimulation();
+        if (container) container.innerHTML = '';
+        return;
+    }
+    monStopTopologySimulation();
     container.innerHTML = '';
     const wrap = document.getElementById('demo-topology-wrap');
     const width = wrap.clientWidth || 800;
@@ -1784,7 +2090,7 @@ function renderTreeTopoDemo(nodes, links) {
             .attr('y', height / 2)
             .attr('text-anchor', 'middle')
             .attr('fill', '#94a3b8')
-            .text(di('no_events'));
+            .text(di('topology_empty'));
         return;
     }
 
@@ -1979,21 +2285,25 @@ function sevClass(s) {
 async function loadLogs() {
     try {
         const res = await demoApi('/events?limit=50');
-        const list = document.getElementById('demo-log-list');
-        if (!res.success || !res.data || res.data.length === 0) {
-            list.innerHTML = `<div class="log-empty">${di('no_events')}</div>`;
-            return;
-        }
-        list.innerHTML = res.data.map(e => {
-            const sc = sevClass(e.severity);
-            const ts = e.created_at ? new Date(e.created_at).toLocaleTimeString('zh-TW',{hour12:false}) : '';
-            return `<div class="log-entry">
-                <span class="log-severity ${sc}">${(e.severity||'INFO').toUpperCase()}</span>
-                <span class="log-msg">${escapeHtml(e.message||e.event_type||'-')}</span>
-                <span class="log-time">${ts}</span>
-            </div>`;
-        }).join('');
-    } catch(e) { console.warn('[Demo] events error', e); }
+        const markup = !res.success || !res.data || res.data.length === 0
+            ? `<div class="log-empty">${di('no_events')}</div>`
+            : res.data.map(e => {
+                const sc = sevClass(e.severity);
+                const ts = e.created_at ? new Date(e.created_at).toLocaleTimeString(currentLang || 'zh-TW',{hour12:false}) : '';
+                return `<div class="log-entry">
+                    <span class="log-severity ${sc}">${(e.severity||'INFO').toUpperCase()}</span>
+                    <span class="log-msg">${escapeHtml(e.message||e.event_type||'-')}</span>
+                    <span class="log-time">${ts}</span>
+                </div>`;
+            }).join('');
+        const list = document.getElementById('demo-side-log-list');
+        if (list) list.innerHTML = markup;
+    } catch(e) {
+        console.warn('[Demo] events error', e);
+        const markup = `<div class="log-empty">${di('no_events')}</div>`;
+        const list = document.getElementById('demo-side-log-list');
+        if (list) list.innerHTML = markup;
+    }
 }
 
 // ===== AUTO REFRESH =====
@@ -2013,6 +2323,7 @@ function startAutoRefresh() {
             loadStats();
             loadLogs();
             refreshTopoStatus();
+            monRefreshCameraAvailability(false);
         }
     }, 1000);
 }
@@ -2021,13 +2332,132 @@ async function manualRefresh() {
     refreshCountdown = REFRESH_INTERVAL;
     const hint = document.getElementById('demo-refresh-hint');
     if (hint) hint.textContent = `${di('auto_refresh')}: ${refreshCountdown}s`;
-    await Promise.all([loadStats(), loadLogs(), refreshTopoStatus()]);
+    await Promise.all([loadStats(), loadLogs(), refreshTopoStatus(), monRefreshCameraAvailability(monActivePanel === 'cameras')]);
 }
 
 // ===== CAMERA MONITOR =====
 let monCameras = [];
 let monLayout = 4;
 let monFullscreenCellId = null;
+let monActivePanel = 'logs';
+let monCameraLicensed = false;
+let monCameraPanelReady = false;
+let monCameraMax = 0;
+const MON_CAMERA_PREVIEW_TRANSPORT_KEY = 'nms-camera-preview-transport';
+
+function monGetCameraPreviewTransport() {
+    try {
+        return String(localStorage.getItem(MON_CAMERA_PREVIEW_TRANSPORT_KEY) || 'mjpeg').toLowerCase();
+    } catch (_) {
+        return 'mjpeg';
+    }
+}
+
+function monUseWebRTCPreview() {
+    return monGetCameraPreviewTransport() === 'webrtc'
+        && !!(window.CameraWebRTC && window.CameraWebRTC.supports && window.CameraWebRTC.supports());
+}
+
+function monAllowedLayouts() {
+    const max = Math.max(0, parseInt(monCameraMax, 10) || 0);
+    if (max > 9) return [4, 9, 16];
+    if (max > 4) return [4, 9];
+    if (max > 0) return [4];
+    return [];
+}
+
+function monDefaultLayout() {
+    const desired = monCameras.length > 9 ? 16 : monCameras.length > 4 ? 9 : 4;
+    const allowed = monAllowedLayouts();
+    if (allowed.length === 0) return 4;
+    const maxAllowed = allowed[allowed.length - 1];
+    return Math.min(desired, maxAllowed);
+}
+
+function monUpdateLayoutButtons() {
+    const allowed = monAllowedLayouts();
+    const visibleLayouts = new Set(allowed);
+    if (allowed.length > 0 && !visibleLayouts.has(monLayout)) {
+        monLayout = monDefaultLayout();
+    }
+    [4, 9, 16].forEach(n => {
+        const btn = document.getElementById('cam-btn-' + n);
+        if (!btn) return;
+        const visible = visibleLayouts.has(n);
+        btn.hidden = !visible;
+        btn.disabled = !visible;
+        btn.classList.toggle('active', visible && n === monLayout);
+    });
+}
+
+function monGetCameraEmptyMessage() {
+    return di('no_camera_feeds');
+}
+
+function monRenderCameraPlaceholder(message) {
+    const grid = document.getElementById('demo-cam-grid');
+    if (!grid) return;
+    monExitFullscreen();
+    grid.className = 'demo-cam-grid grid-4';
+    grid.innerHTML =
+        '<div class="cam-no-license" style="grid-column:1/-1;grid-row:1/-1;">' +
+        '<div class="cam-no-icon">&#128249;</div>' +
+        '<div class="cam-no-text">' + escapeHtml(message) + '</div></div>';
+}
+
+function monSetCameraTabVisible(visible) {
+    const tab = document.getElementById('mon-tab-cameras');
+    if (tab) tab.hidden = !visible;
+    if (!visible && monActivePanel === 'cameras') monActivePanel = 'logs';
+    monUpdateSidePanel();
+}
+
+function monUpdateSidePanel() {
+    const showCameraPanel = monActivePanel === 'cameras' && monCameraLicensed;
+    const logsTab = document.getElementById('mon-tab-logs');
+    const cameraTab = document.getElementById('mon-tab-cameras');
+    const logsView = document.getElementById('demo-logs-view');
+    const cameraView = document.getElementById('demo-cameras-view');
+    const cameraControls = document.getElementById('demo-cam-controls');
+    if (logsTab) logsTab.classList.toggle('active', !showCameraPanel);
+    if (cameraTab) cameraTab.classList.toggle('active', showCameraPanel);
+    if (logsView) logsView.classList.toggle('active', !showCameraPanel);
+    if (cameraView) cameraView.classList.toggle('active', showCameraPanel);
+    if (cameraControls) {
+        cameraControls.hidden = !showCameraPanel;
+        cameraControls.style.display = showCameraPanel ? 'flex' : 'none';
+    }
+    monUpdateLayoutButtons();
+}
+
+window.monShowPanel = async function(panel) {
+    monActivePanel = panel === 'cameras' && monCameraLicensed ? 'cameras' : 'logs';
+    monUpdateSidePanel();
+    if (monActivePanel === 'cameras' && !monCameraPanelReady) {
+        await monInitCameras(true);
+    }
+};
+
+async function monRefreshCameraAvailability(refreshFeeds) {
+    try {
+        const statusRes = await demoApi('/cameras/status');
+        monCameraLicensed = !!(statusRes && statusRes.success && statusRes.data && statusRes.data.licensed);
+        monCameraMax = monCameraLicensed ? (parseInt(statusRes.data.max, 10) || 0) : 0;
+        monSetCameraTabVisible(monCameraLicensed);
+        if (!monCameraLicensed) {
+            monCameras = [];
+            monCameraPanelReady = false;
+            monUpdateLayoutButtons();
+            return;
+        }
+        if ((refreshFeeds && monActivePanel === 'cameras') || (monActivePanel === 'cameras' && !monCameraPanelReady)) {
+            await monInitCameras(true);
+        }
+    } catch(e) {
+        console.warn('[Monitor] camera license status failed:', e);
+        monSetCameraTabVisible(monCameraLicensed);
+    }
+}
 
 function monEnsureBackdrop() {
     let backdrop = document.getElementById('monitor-cam-backdrop');
@@ -2063,16 +2493,11 @@ window.monToggleFullscreen = function(idx) {
     monEnsureBackdrop().hidden = false;
     cell.classList.add('monitor-inline-fullscreen');
 };
-async function monInitCameras() {
+async function monInitCamerasLegacy() {
     const grid = document.getElementById('demo-cam-grid');
     try {
         const statusRes = await demoApi('/cameras/status');
         if (!statusRes || !statusRes.success || !statusRes.data || !statusRes.data.licensed) {
-            // Show no-license placeholder
-            if (grid) grid.innerHTML =
-                '<div class="cam-no-license" style="grid-column:1/-1;grid-row:1/-1;">' +
-                '<div class="cam-no-icon">?</div>' +
-                '<div class="cam-no-text">' + di('cam_no_license') + '</div></div>';
             return;
         }
 
@@ -2092,20 +2517,14 @@ async function monInitCameras() {
         if (monCameras.length === 0) {
             if (grid) grid.innerHTML =
                 '<div class="cam-no-license" style="grid-column:1/-1;grid-row:1/-1;">' +
-                '<div class="cam-no-icon">?</div>' +
-                '<div class="cam-no-text">?∪?冽?敶望?</div></div>';
+                '<div class="cam-no-icon">&#128247;</div>' +
+                '<div class="cam-no-text">' + di('no_camera_feeds') + '</div></div>';
             return;
         }
 
         // Determine default layout
-        if (monCameras.length <= 4)      monLayout = 4;
-        else if (monCameras.length <= 9) monLayout = 9;
-        else                             monLayout = 16;
-
-        [4, 9, 16].forEach(n => {
-            const btn = document.getElementById('cam-btn-' + n);
-            if (btn) btn.classList.toggle('active', n === monLayout);
-        });
+        monLayout = monDefaultLayout();
+        monUpdateLayoutButtons();
 
         monRenderGrid();
     } catch(e) {
@@ -2113,12 +2532,58 @@ async function monInitCameras() {
     }
 }
 
+async function monInitCameras(forceReload) {
+    if (!monCameraLicensed) {
+        monCameraPanelReady = false;
+        return;
+    }
+    if (monCameraPanelReady && !forceReload) {
+        monRenderGrid();
+        return;
+    }
+
+    try {
+        const monitorRes = await demoApi('/cameras/monitor');
+        const monitorList = monitorRes && monitorRes.success && Array.isArray(monitorRes.data)
+            ? monitorRes.data
+            : [];
+
+        if (monitorList.length > 0) {
+            monCameras = monitorList.filter(c => c.status === 'online' || c.monitor_display === 1);
+        } else {
+            const camRes = await demoApi('/cameras');
+            if (!camRes || !camRes.success || !camRes.data) {
+                monCameraPanelReady = false;
+                return;
+            }
+            monCameras = (camRes.data.cameras || camRes.data || []).filter(c => c.status === 'online' || c.is_enabled);
+        }
+
+        if (monCameras.length === 0) {
+            monCameraPanelReady = true;
+            monUpdateLayoutButtons();
+            monRenderCameraPlaceholder(monGetCameraEmptyMessage());
+            return;
+        }
+
+        monLayout = monDefaultLayout();
+        monUpdateLayoutButtons();
+
+        monCameraPanelReady = true;
+        monRenderGrid();
+    } catch(e) {
+        monCameraPanelReady = false;
+        console.warn('[Monitor] camera init failed:', e);
+    }
+}
+
 function monSetLayout(n) {
+    if (!monAllowedLayouts().includes(n)) {
+        monUpdateLayoutButtons();
+        return;
+    }
     monLayout = n;
-    [4, 9, 16].forEach(x => {
-        const btn = document.getElementById('cam-btn-' + x);
-        if (btn) btn.classList.toggle('active', x === n);
-    });
+    monUpdateLayoutButtons();
     monRenderGrid();
 }
 
@@ -2127,6 +2592,9 @@ function monRenderGrid() {
     if (!grid) return;
 
     monExitFullscreen();
+    if (window.CameraWebRTC && window.CameraWebRTC.stopAll) {
+        window.CameraWebRTC.stopAll(grid);
+    }
     // Stop existing MJPEG streams before replace
     grid.querySelectorAll('img[data-mjpeg]').forEach(img => { img.src = ''; });
 
@@ -2145,12 +2613,22 @@ function monRenderGrid() {
             const snapBase = '/api/v1/cameras/' + cam.id + '/snapshot?token=' + encodeURIComponent(token);
             html += '<div class="demo-cam-cell" id="mon-cell-' + i + '" ondblclick="monToggleFullscreen(' + i + ')">' +
                 '<div class="demo-cam-dot ' + dotCls + '"></div>' +
-                '<button type="button" class="demo-cam-fs-btn" onclick="event.stopPropagation(); monToggleFullscreen(' + i + ')" title="Fullscreen">FS</button>' +
-                '<img data-mjpeg="1" id="mon-img-' + i + '"' +
-                ' src="' + mjpegUrl + '"' +
-                ' onerror="monImgFallback(this,\'' + snapBase + '\',' + cam.id + ')"' +
-                ' style="width:100%;height:100%;object-fit:cover;">' +
-                '<div class="demo-cam-cell-label">' + escapeHtml(cam.name || '') + '</div>' +
+                '<button type="button" class="demo-cam-fs-btn" onclick="event.stopPropagation(); monToggleFullscreen(' + i + ')" title="' + di('fullscreen') + '">&#9974;</button>';
+            if (monUseWebRTCPreview()) {
+                html += '<video data-webrtc="1" id="mon-img-' + i + '"' +
+                    ' data-cam-id="' + cam.id + '"' +
+                    ' data-preview-mode="mse"' +
+                    ' data-mjpeg-url="' + escapeHtml(mjpegUrl) + '"' +
+                    ' data-snap-base="' + escapeHtml(snapBase) + '"' +
+                    ' autoplay muted playsinline' +
+                    ' style="width:100%;height:100%;object-fit:contain;background:#000;"></video>';
+            } else {
+                html += '<img data-mjpeg="1" id="mon-img-' + i + '"' +
+                    ' src="' + mjpegUrl + '"' +
+                    ' onerror="monImgFallback(this,\'' + snapBase + '\',' + cam.id + ')"' +
+                    ' style="width:100%;height:100%;object-fit:contain;background:#000;">';
+            }
+            html += '<div class="demo-cam-cell-label">' + escapeHtml(cam.name || '') + '</div>' +
                 '</div>';
         } else {
             html += '<div class="demo-cam-cell empty">-</div>';
@@ -2177,6 +2655,46 @@ function monRenderGrid() {
             monToggleFullscreen(idx);
         };
     });
+    grid.querySelectorAll('video[data-webrtc="1"]').forEach(video => {
+        monStartWebRTC(video, video.dataset.camId);
+    });
+}
+
+function monStartWebRTC(video, camId) {
+    if (!video || !camId || !monUseWebRTCPreview()) {
+        monReplaceWithMjpeg(video, camId);
+        return;
+    }
+    video.style.opacity = '0.35';
+    let fallbackDone = false;
+    const fallback = (el) => {
+        if (fallbackDone) return;
+        fallbackDone = true;
+        monReplaceWithMjpeg(el || video, camId);
+    };
+    const starter = window.CameraWebRTC.startLowLatency || window.CameraWebRTC.startMSE;
+    starter(video, camId, {
+        onReady: (el) => { el.style.opacity = '1'; },
+        onError: (_reason, el) => fallback(el)
+    }).catch(() => fallback(video));
+}
+
+function monMarkMSEPreviewUnavailable(video, camId) {
+    monReplaceWithMjpeg(video, camId);
+}
+
+function monReplaceWithMjpeg(video, camId) {
+    if (!video) return;
+    if (window.CameraWebRTC && window.CameraWebRTC.stop) window.CameraWebRTC.stop(video);
+    const img = document.createElement('img');
+    img.id = video.id;
+    img.setAttribute('data-mjpeg', '1');
+    img.style.cssText = video.style.cssText || 'width:100%;height:100%;object-fit:contain;background:#000;';
+    const mjpegUrl = video.dataset.mjpegUrl || ('/api/v1/cameras/' + camId + '/stream/mjpeg?token=' + encodeURIComponent(getToken() || ''));
+    const snapBase = video.dataset.snapBase || ('/api/v1/cameras/' + camId + '/snapshot?token=' + encodeURIComponent(getToken() || ''));
+    img.onerror = function() { monImgFallback(this, snapBase, camId); };
+    img.src = mjpegUrl;
+    video.replaceWith(img);
 }
 
 window.monImgFallback = function(img, baseSnap, camId) {
@@ -2192,7 +2710,10 @@ window.monImgFallback = function(img, baseSnap, camId) {
     }, 5000);
 };
 
-function monRefreshCams() { monRenderGrid(); }
+function monRefreshCams() {
+    if (!monCameraLicensed) return;
+    monInitCameras(true);
+}
 
 document.addEventListener('keydown', function(event) {
     if (event.key === 'Escape' && monFullscreenCellId) monExitFullscreen();
@@ -2211,6 +2732,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Restore lang
     currentLang = localStorage.getItem('nms_lang') || 'zh-TW';
     if (!DEMO_STRINGS[currentLang]) currentLang = 'zh-TW';
+    monInitTopologyPane();
     applyDemoI18n();
 
     renderUserBadge();
@@ -2224,8 +2746,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     } catch(e) {}
 
-    await Promise.all([loadStats(), loadLogs(), loadTopoDemo()]);
-    monInitCameras();
+    monUpdateSidePanel();
+    await Promise.all([loadStats(), loadLogs(), loadTopoDemo(), monRefreshCameraAvailability(false)]);
     startAutoRefresh();
     initNotifications();
 });
@@ -2233,6 +2755,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 <script src="/static/js/config.js"></script>
 <script>
 writeConfiguredScripts([
+    '/static/js/camera-webrtc.js',
     '/static/js/notifications.js'
 ]);
 </script>

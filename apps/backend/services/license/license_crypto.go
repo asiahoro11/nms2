@@ -14,10 +14,11 @@ import (
 )
 
 const (
-	FormalLicenseMode = "formal"
-	PoCLicenseMode    = "poc"
-	PoCLicensePrefix  = "POC1-"
-	PermanentYearCut  = 50
+	FormalLicenseMode  = "formal"
+	PoCLicenseMode     = "poc"
+	PoCLicensePrefix   = "POC1-"
+	PermanentYearCut   = 50
+	MaxPoCDurationDays = 3650
 )
 
 var supportedTimeLayouts = []string{
@@ -36,6 +37,7 @@ type LicensePayload struct {
 	DeviceCount   int      `json:"device_count"`
 	CameraCount   int      `json:"camera_count"`
 	DurationYears int      `json:"duration_years"`
+	DurationDays  int      `json:"duration_days,omitempty"`
 	Features      []string `json:"features"`
 	IssuedAt      string   `json:"issued_at"`
 	ValidUntil    string   `json:"valid_until"`
@@ -46,6 +48,27 @@ func normalizeLicenseMode(mode string) string {
 		return PoCLicenseMode
 	}
 	return FormalLicenseMode
+}
+
+func IsDeferredDurationPoC(payload *LicensePayload) bool {
+	if payload == nil {
+		return false
+	}
+	return payload.LicenseMode == PoCLicenseMode && payload.DurationDays > 0 && strings.TrimSpace(payload.ValidUntil) == ""
+}
+
+func ValidatePoCDurationDays(days int) error {
+	if days < 1 || days > MaxPoCDurationDays {
+		return errors.New("duration_days must be between 1 and 3650")
+	}
+	return nil
+}
+
+func ResolvePoCActivationWindow(start time.Time, durationDays int) (string, string, error) {
+	if err := ValidatePoCDurationDays(durationDays); err != nil {
+		return "", "", err
+	}
+	return start.Format(time.RFC3339), start.AddDate(0, 0, durationDays).Format(time.RFC3339), nil
 }
 
 // IsPermanentYears treats any year value at or above the cutoff as a perpetual license request.
@@ -240,6 +263,12 @@ func GenerateLicenseKeyWithCameras(machineID string, deviceCount int, cameraCoun
 
 // GenerateLicenseKeyAdvanced generates a formal or PoC encrypted license key.
 func GenerateLicenseKeyAdvanced(mode string, machineID string, deviceCount int, cameraCount int, features []string, validUntil string, secretKey []byte) (string, error) {
+	return GenerateLicenseKeyAdvancedWithDuration(mode, machineID, deviceCount, cameraCount, features, validUntil, 0, secretKey)
+}
+
+// GenerateLicenseKeyAdvancedWithDuration generates a formal or PoC encrypted license key,
+// optionally deferring PoC expiry calculation until activation time.
+func GenerateLicenseKeyAdvancedWithDuration(mode string, machineID string, deviceCount int, cameraCount int, features []string, validUntil string, durationDays int, secretKey []byte) (string, error) {
 	now := time.Now()
 	payload := LicensePayload{
 		LicenseMode:   normalizeLicenseMode(mode),
@@ -247,6 +276,7 @@ func GenerateLicenseKeyAdvanced(mode string, machineID string, deviceCount int, 
 		DeviceCount:   deviceCount,
 		CameraCount:   cameraCount,
 		DurationYears: 0,
+		DurationDays:  durationDays,
 		Features:      features,
 		IssuedAt:      now.Format(time.RFC3339),
 		ValidUntil:    strings.TrimSpace(validUntil),
@@ -254,6 +284,13 @@ func GenerateLicenseKeyAdvanced(mode string, machineID string, deviceCount int, 
 
 	if payload.LicenseMode == PoCLicenseMode {
 		payload.MachineID = ""
+		if payload.ValidUntil != "" {
+			payload.DurationDays = 0
+		} else if err := ValidatePoCDurationDays(payload.DurationDays); err != nil {
+			return "", err
+		}
+	} else {
+		payload.DurationDays = 0
 	}
 
 	jsonData, err := json.Marshal(payload)

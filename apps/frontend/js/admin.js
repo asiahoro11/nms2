@@ -967,7 +967,7 @@ function updateSidebarLogo(data) {
     }
 
     if (companyName) {
-        companyName.textContent = data.company_name || 'Management System';
+        companyName.textContent = data.company_name ?? 'Management System';
         if (data.font_size) {
             companyName.style.setProperty('font-size', data.font_size + 'px', 'important');
         }

@@ -1,8 +1,11 @@
-const SW_VERSION = new URL(self.location.href).searchParams.get('v') || 'v1.2.4';
+const SW_VERSION = new URL(self.location.href).searchParams.get('v') || 'v1.2.4.8';
 const CACHE_NAME = `sync-${SW_VERSION}`;
 const STATIC_ASSETS = [
     '/',
     '/index.html',
+    '/monitor.html',
+    '/embed.html',
+    '/static/monitor.html',
     `/static/css/main.css?v=${SW_VERSION}`,
     `/static/css/dashboard.css?v=${SW_VERSION}`,
     `/static/css/topology.css?v=${SW_VERSION}`,
@@ -21,6 +24,9 @@ const STATIC_ASSETS = [
     `/static/js/logs.js?v=${SW_VERSION}`,
     `/static/js/admin.js?v=${SW_VERSION}`,
     `/static/js/reports.js?v=${SW_VERSION}`,
+    `/static/js/iot.js?v=${SW_VERSION}`,
+    `/static/js/embed.js?v=${SW_VERSION}`,
+    `/static/js/camera-webrtc.js?v=${SW_VERSION}`,
     `/static/i18n/en-US.json?v=${SW_VERSION}`,
     `/static/i18n/zh-TW.json?v=${SW_VERSION}`,
     `/static/i18n/zh-CN.json?v=${SW_VERSION}`,
@@ -68,6 +74,22 @@ self.addEventListener('fetch', (event) => {
                 }
                 return response;
             })
-            .catch(() => caches.match(event.request))
+            .catch(async () => {
+                const cached = await caches.match(event.request);
+                if (cached) return cached;
+
+                if (event.request.mode === 'navigate') {
+                    const monitorFallback = await caches.match('/static/monitor.html');
+                    if (monitorFallback) return monitorFallback;
+
+                    const appFallback = await caches.match('/index.html');
+                    if (appFallback) return appFallback;
+                }
+
+                return new Response('', {
+                    status: 504,
+                    statusText: 'Network unavailable'
+                });
+            })
     );
 });

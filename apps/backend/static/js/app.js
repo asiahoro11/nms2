@@ -20,7 +20,8 @@ const state = {
         status: '',
         dateFrom: '',
         dateTo: '',
-        format: 'csv'
+        format: 'csv',
+        bundleFormat: 'json'
     },
     idleTimeout: 5 * 60 * 1000, // 5 minutes (300,000 ms)
     lastActivity: Date.now(),
@@ -550,6 +551,11 @@ function loadPage(page) {
                 pduInit();
             }
             break;
+        case 'iot':
+            if (typeof iotLoad === 'function') {
+                iotLoad();
+            }
+            break;
     }
 }
 
@@ -686,13 +692,8 @@ document.addEventListener('fullscreenchange', () => {
 
 // 匯出報表
 function exportReport(type, format) {
-    if (format === 'pdf' && type === 'devices') {
-        apiDownload(`/reports/devices/pdf`);
-    } else if (format === 'pdf' && type === 'logs') {
-        apiDownload(`/reports/logs/pdf`);
-    } else {
-        apiDownload(`/reports/${type}?format=${format}`);
-    }
+    const lang = (typeof currentLang !== 'undefined' && currentLang) ? currentLang : 'zh-TW';
+    apiDownload(`/reports/${type}?format=${encodeURIComponent(format)}&lang=${encodeURIComponent(lang)}`);
     showToast(t('app.toast.exporting'), 'info');
 }
 
@@ -703,6 +704,7 @@ function exportLogs() {
     const params = new URLSearchParams({
         format,
         type,
+        lang: (typeof currentLang !== 'undefined' && currentLang) ? currentLang : 'zh-TW',
     });
     if (state.logs && state.logs.severity) {
         params.set('severity', state.logs.severity);

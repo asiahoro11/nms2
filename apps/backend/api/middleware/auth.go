@@ -3,6 +3,7 @@ package middleware
 import (
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -45,6 +46,9 @@ func AuthRequired(secret []byte) gin.HandlerFunc {
 			c.Set("user_id", claims["user_id"])
 			c.Set("username", claims["username"])
 			c.Set("role", claims["role"])
+			c.Set("embed", claims["embed"])
+			c.Set("views", claims["views"])
+			c.Set("jti", claims["jti"])
 		} else {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid claims"})
 			c.Abort()
@@ -117,7 +121,7 @@ func Logger() gin.HandlerFunc {
 		}
 
 		if raw != "" {
-			path = path + "?" + raw
+			path = path + "?" + redactRawQuery(raw)
 		}
 
 		slog.Info(logMsg,
@@ -130,6 +134,20 @@ func Logger() gin.HandlerFunc {
 			slog.Any("role", role),
 		)
 	}
+}
+
+func redactRawQuery(raw string) string {
+	values, err := url.ParseQuery(raw)
+	if err != nil {
+		return raw
+	}
+	for key := range values {
+		switch strings.ToLower(key) {
+		case "token", "auth", "key", "password", "pass", "username", "user":
+			values.Set(key, "<redacted>")
+		}
+	}
+	return values.Encode()
 }
 
 func RequireEditor() gin.HandlerFunc {

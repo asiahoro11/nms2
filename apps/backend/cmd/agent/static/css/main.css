@@ -457,12 +457,16 @@ body.sidebar-collapsed .global-header {
     margin-left: var(--sidebar-width);
     padding: 24px;
     min-height: 100vh;
+    min-width: 0;
+    max-width: 100%;
     transition: margin-left var(--transition-normal);
 }
 
 /* ===== Page Sections ===== */
 .page {
     display: none;
+    min-width: 0;
+    max-width: 100%;
     animation: fadeIn var(--transition-normal);
 }
 
@@ -496,9 +500,11 @@ body.sidebar-collapsed .global-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 16px;
     margin-bottom: 24px;
     padding-bottom: 16px;
     border-bottom: 1px solid var(--border-color);
+    min-width: 0;
 }
 
 .page-header h1 {
@@ -514,6 +520,8 @@ body.sidebar-collapsed .global-header {
     display: flex;
     gap: 12px;
     align-items: center;
+    min-width: 0;
+    flex-wrap: wrap;
 }
 
 /* ===== Buttons ===== */
@@ -625,6 +633,26 @@ body.sidebar-collapsed .global-header {
     font-size: 14px;
     border-bottom: 1px solid var(--border-color);
     vertical-align: middle;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.devices-table-container,
+.logs-container,
+.embed-table-wrap {
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+}
+
+.admin-tab-content,
+.status-card,
+.card,
+.embed-card {
+    min-width: 0;
+    max-width: 100%;
 }
 
 .data-table tbody tr {
@@ -905,7 +933,7 @@ body.sidebar-collapsed .global-header {
 
 /* Mobile Menu Toggle Button */
 .mobile-menu-btn {
-    display: none;
+    display: none !important;
     font-size: 24px;
     cursor: pointer;
     padding: 8px 12px;
@@ -938,7 +966,7 @@ body.sidebar-collapsed .global-header {
 
 @media (max-width: 1024px) {
     .mobile-menu-btn {
-        display: block;
+        display: none !important;
     }
 
     .sidebar {
@@ -1853,6 +1881,205 @@ body.advanced-unlocked section.advanced-only {
     background: rgba(255,255,255,0.03);
     border: 1px solid rgba(255,255,255,0.06);
     border-radius: 8px;
+    max-width: 100%;
+    min-width: 0;
+}
+
+.iot-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 16px;
+    max-width: 100%;
+}
+
+.iot-form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
+    min-width: 0;
+}
+
+.iot-status-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.iot-status-row:last-child {
+    border-bottom: 0;
+}
+
+.iot-capabilities-list {
+    display: grid;
+    gap: 8px;
+}
+
+.iot-capability {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 6px 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.iot-capability:last-child {
+    border-bottom: 0;
+}
+
+.iot-capability strong,
+.iot-capability span,
+.iot-capability small {
+    min-width: 0;
+}
+
+.iot-capability small {
+    grid-column: 1 / -1;
+    color: var(--text-muted);
+    line-height: 1.35;
+}
+
+.iot-protocol-badge {
+    align-self: start;
+    padding: 2px 6px;
+    border-radius: 6px;
+    background: var(--bg-hover);
+    color: var(--text-secondary);
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+.iot-action-row {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+}
+
+.audit-filters > * {
+    min-width: 0;
+    max-width: 100%;
+}
+
+#logs-filter-bar .search-input,
+#logs-filter-bar .select-input {
+    flex: 1 1 150px;
+    min-width: 0 !important;
+}
+
+#logs-filter-bar .btn {
+    flex: 0 1 auto;
+}
+
+#logs-table {
+    table-layout: fixed;
+    min-width: 760px;
+}
+
+#logs-table th,
+#logs-table td {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+#logs-table th:nth-child(1),
+#logs-table td:nth-child(1) {
+    width: 160px;
+}
+
+#logs-table th:nth-child(2),
+#logs-table td:nth-child(2) {
+    width: 110px;
+}
+
+#logs-table th:nth-child(4),
+#logs-table td:nth-child(4) {
+    width: 120px;
+}
+
+#audit-table {
+    table-layout: fixed;
+    min-width: 860px;
+}
+
+#users-table,
+#licenses-table,
+#embed-tokens-table,
+#iot-devices-table,
+#iot-measurements-table {
+    table-layout: fixed;
+}
+
+#users-table {
+    min-width: 680px;
+}
+
+#licenses-table,
+#embed-tokens-table,
+#iot-devices-table {
+    min-width: 760px;
+}
+
+#iot-measurements-table {
+    min-width: 620px;
+}
+
+#audit-table th,
+#audit-table td {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+#users-table th,
+#users-table td,
+#licenses-table th,
+#licenses-table td,
+#embed-tokens-table th,
+#embed-tokens-table td,
+#iot-devices-table th,
+#iot-devices-table td,
+#iot-measurements-table th,
+#iot-measurements-table td {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+#audit-tab .audit-filters .form-input {
+    flex: 1 1 120px;
+    min-width: 0 !important;
+    max-width: 100%;
+}
+
+.embed-security-note,
+.iot-security-note {
+    margin-top: 10px;
+    margin-bottom: 12px;
+    padding: 10px 12px;
+    border: 1px solid rgba(243, 156, 18, 0.35);
+    border-radius: 8px;
+    background: rgba(243, 156, 18, 0.08);
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+
+.embed-security-note strong,
+.iot-security-note strong {
+    color: var(--warning-color);
+}
+
+@media (max-width: 767px) {
+    #logs-filter-bar .search-input,
+    #logs-filter-bar .select-input,
+    #logs-filter-bar .btn,
+    #audit-tab .audit-filters .form-input,
+    #audit-tab .audit-filters .btn {
+        flex: 1 1 100%;
+        width: 100%;
+    }
 }
 
 .badge-success { background: rgba(39,174,96,0.15); color: #27ae60; border: 1px solid rgba(39,174,96,0.3); padding: 2px 8px; border-radius: 4px; font-size: 11px; }
@@ -1884,3 +2111,71 @@ body.advanced-unlocked section.advanced-only {
 .subnet-inner-table { margin: 0; border-radius: 0; border: none; }
 .subnet-inner-table thead th { background: var(--table-header-bg, rgba(99,102,241,0.06)); }
 #btn-subnet-group.active { background: var(--primary-color); color: #fff; border-color: var(--primary-color); }
+
+
+/* ===== Inline SVG Icon Layer ===== */
+.svg-icon {
+    width: 1em;
+    height: 1em;
+    flex: 0 0 auto;
+    display: inline-block;
+    vertical-align: -0.125em;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.svg-icon path,
+.svg-icon rect,
+.svg-icon circle {
+    fill: none;
+    stroke: currentColor;
+    vector-effect: non-scaling-stroke;
+}
+
+.nms-icon-ready {
+    color: inherit;
+    line-height: 1;
+}
+
+.nav-icon,
+.bottom-nav-icon,
+.stat-icon,
+.license-notice-icon,
+.logo-icon,
+.header-action-btn,
+.sidebar-collapse-btn .collapse-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.nav-icon .svg-icon,
+.bottom-nav-icon .svg-icon {
+    width: 22px;
+    height: 22px;
+}
+
+.logo-icon .svg-icon {
+    width: 30px;
+    height: 30px;
+    color: var(--primary-color);
+}
+
+.header-action-btn .svg-icon {
+    width: 18px;
+    height: 18px;
+}
+
+.stat-icon .svg-icon {
+    width: 20px;
+    height: 20px;
+}
+
+.license-notice-icon .svg-icon {
+    width: 20px;
+    height: 20px;
+    color: var(--warning-color);
+}

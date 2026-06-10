@@ -1,5 +1,30 @@
 const API_BASE = '/api/v1';
 
+function apiNormalizeEndpoint(endpoint) {
+    if (typeof endpoint !== 'string') {
+        return '';
+    }
+
+    const trimmed = endpoint.trim();
+    if (!trimmed) {
+        return '';
+    }
+
+    if (trimmed === API_BASE) {
+        return '';
+    }
+
+    if (trimmed.startsWith(`${API_BASE}/`)) {
+        return trimmed.slice(API_BASE.length);
+    }
+
+    return trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+}
+
+function apiBuildURL(endpoint) {
+    return `${API_BASE}${apiNormalizeEndpoint(endpoint)}`;
+}
+
 function apiResolveLoginRoute() {
     return window.location.pathname.startsWith('/static/') ? '/static/login.html' : '/login';
 }
@@ -27,7 +52,7 @@ function getAuthToken() {
 }
 
 async function api(endpoint, options = {}) {
-    const url = `${API_BASE}${endpoint}`;
+    const url = apiBuildURL(endpoint);
     const token = getAuthToken();
 
     const defaultOptions = {
@@ -157,7 +182,7 @@ async function apiDelete(endpoint, body) {
 }
 
 async function apiUpload(endpoint, formData) {
-    const url = `${API_BASE}${endpoint}`;
+    const url = apiBuildURL(endpoint);
     const token = getAuthToken();
 
     const headers = {};

@@ -18,7 +18,7 @@
         "devices": "장치 목록",
         "topology": "네트워크 토폴로지",
         "cameras": "카메라 감시",
-        "logs": "?? ? ??",
+        "logs": "로그 및 감사",
         "admin": "시스템 관리",
         "access_control": "출입 통제",
         "logout": "로그아웃",
@@ -368,24 +368,24 @@
         "view_tree": "덴드로그램"
     },
     "logs": {
-        "title": "?? ? ??",
+        "title": "로그 및 감사",
         "time": "시간",
-        "level": "수준",
+        "level": "등급",
         "message": "메시지",
         "device": "장치",
         "event_type_col": "상태",
-        "export": "?? ????",
+        "export": "로그 내보내기",
         "toast": {
-            "load_failed": "??? ???? ?????",
-            "retention_saved": "?? ??? ???????",
-            "retention_save_failed": "?? ?? ??? ??????",
-            "action_failed": "?? ??? ??????",
-            "bundle_exporting": "?? ??? ???? ?",
-            "review_updated_prefix": "?? ??? ???: ",
-            "ack_updated": "???? ??????",
-            "unack_updated": "???? ??? ??? ??????"
+            "load_failed": "로그를 불러오지 못했습니다",
+            "retention_saved": "보존 정책이 저장되었습니다",
+            "retention_save_failed": "보존 정책 저장에 실패했습니다",
+            "action_failed": "로그 작업에 실패했습니다",
+            "bundle_exporting": "감사 패키지를 내보내는 중",
+            "review_updated_prefix": "검토 상태가 업데이트됨: ",
+            "ack_updated": "이벤트가 확인되었습니다",
+            "unack_updated": "이벤트 확인이 취소되었습니다"
         },
-        "empty": "??? ?? ??? ????",
+        "empty": "조건에 맞는 로그 기록이 없습니다",
         "event_type": {
             "status_change": "상태 변경",
             "camera_bandwidth": "카메라 대역폭",
@@ -407,102 +407,108 @@
             "info": "정보",
             "debug": "디버그"
         },
-        "center_title": "?? ? ??",
-        "loading": "???? ?...",
+        "center_title": "로그 및 감사",
+        "loading": "로딩 중...",
         "types": {
-            "system": "??? ??",
-            "device": "?? ??",
-            "audit": "?? ??",
-            "config_change": "?? ??"
+            "system": "시스템 로그",
+            "device": "장치 로그",
+            "audit": "감사 로그",
+            "config_change": "설정 변경"
         },
         "columns": {
-            "time": "??",
-            "system_source": "??? / ???",
-            "device_source": "?? / ??",
-            "audit_source": "??? / ??",
-            "config_source": "?? / ??",
-            "level_review": "?? / ??",
-            "level_ack": "?? / ??",
-            "status_review": "?? / ??",
-            "details": "?? ??"
+            "time": "시간",
+            "system_source": "서비스 / 이벤트",
+            "device_source": "장치 / 시설",
+            "audit_source": "사용자 / 모듈",
+            "config_source": "모듈 / 대상",
+            "level_review": "등급 / 검토",
+            "level_ack": "등급 / 확인",
+            "status_review": "상태 / 검토",
+            "details": "상세 정보"
         },
         "placeholders": {
             "scope": {
-                "system": "??? ??",
-                "device": "?? ?? ??",
-                "audit": "?? ??",
-                "config_change": "?? ??"
+                "system": "서비스 원본",
+                "device": "장치 시설 유형",
+                "audit": "작업 모듈",
+                "config_change": "변경 모듈"
             }
         },
         "filters": {
-            "search": "?? ?? ??",
-            "actor": "???",
-            "device": "??? / IP / MAC",
-            "scope": "?? / ??",
-            "date_from": "???",
-            "date_to": "???",
-            "apply": "?? ??",
-            "clear": "?? ???",
-            "bundle": "?? ??? ????",
-            "all_levels": "?? ??",
-            "all_review_status": "?? ?? ??",
-            "all_ack_status": "?? ?? ??",
-            "all_action_status": "?? ?? ??"
+            "search": "키워드 검색",
+            "actor": "작업자",
+            "device": "장치 이름 / IP / MAC",
+            "scope": "모듈 / 원본",
+            "date_from": "시작일",
+            "date_to": "종료일",
+            "apply": "필터 적용",
+            "clear": "조건 지우기",
+            "bundle": "감사 패키지 내보내기",
+            "all_levels": "모든 등급",
+            "all_review_status": "모든 검토 상태",
+            "all_ack_status": "모든 확인 상태",
+            "all_action_status": "모든 작업 상태"
         },
         "retention": {
-            "title": "?? ??",
-            "description": "? ?? ??? ?? ??? ?? ??? ?????.",
-            "enable": "?? ?? ???",
-            "save": "?? ?? ??",
-            "hint": "??? system_config ? ???? ?? ?? ?? ???? ??? ? ????.",
-            "audit": "?? ??",
-            "system": "??? ??",
-            "device": "?? ??",
-            "config_change": "?? ??"
+            "title": "보존 정책",
+            "description": "각 로그 유형의 보존 일수를 설정하여 감사 및 운영 요구사항을 충족합니다.",
+            "enable": "로그 보존 설정 사용",
+            "save": "보존 정책 저장",
+            "hint": "설정 값은 system_config에 저장되며 이후 예약 정리에 사용됩니다.",
+            "audit": "감사 로그",
+            "system": "시스템 로그",
+            "device": "장치 로그",
+            "config_change": "설정 변경"
         },
         "status": {
-            "pending": "?? ??",
-            "reviewed": "?? ??",
-            "flagged": "?? ??",
-            "acked": "???",
-            "unacked": "???",
-            "success": "??",
-            "failed": "??",
-            "warning": "??"
+            "pending": "검토 대기",
+            "reviewed": "검토 완료",
+            "flagged": "추적 필요",
+            "acked": "확인됨",
+            "unacked": "미확인",
+            "success": "성공",
+            "failed": "실패",
+            "warning": "경고"
         },
         "labels": {
-            "source_ip": "?? IP",
-            "source_mac": "?? MAC",
+            "source_ip": "원본 IP",
+            "source_mac": "원본 MAC",
             "recordset_id": "Recordset ID",
             "correlation_id": "Correlation ID",
-            "actor": "???",
-            "change_scope": "?? ??",
-            "before": "?? ?",
-            "after": "?? ?",
-            "review_status": "?? ??",
-            "review_note": "?? ??",
-            "ack_status": "?? ??",
-            "device_name": "???",
-            "ip_address": "IP ??",
-            "mac_address": "MAC ??",
-            "module": "??",
-            "service": "???",
-            "facility": "?? ??"
+            "actor": "작업자",
+            "change_scope": "변경 범위",
+            "before": "변경 전",
+            "after": "변경 후",
+            "review_status": "검토 상태",
+            "review_note": "검토 메모",
+            "ack_status": "확인 상태",
+            "device_name": "장치 이름",
+            "ip_address": "IP 주소",
+            "mac_address": "MAC 주소",
+            "module": "모듈",
+            "service": "서비스",
+            "facility": "시설 유형"
         },
         "actions": {
-            "review_pending": "?? ??? ??",
-            "review_reviewed": "?? ??? ??",
-            "review_flagged": "?? ??? ??",
-            "ack": "??? ??",
-            "unack": "?? ??"
+            "review_pending": "검토 대기로 설정",
+            "review_reviewed": "검토 완료로 설정",
+            "review_flagged": "추적 필요로 설정",
+            "ack": "이벤트 확인",
+            "unack": "확인 취소"
         },
         "prompts": {
-            "review_note": "?? ?? (??)",
-            "ack_note": "?? ?? (??)"
+            "review_note": "검토 메모를 입력하세요",
+            "ack_note": "확인 메모를 입력하세요"
         },
         "pagination": {
-            "prev": "??",
-            "next": "??"
+            "prev": "이전",
+            "next": "다음"
+        },
+        "tabs": {
+            "system": "시스템 로그",
+            "device": "장치 로그",
+            "audit": "감사 로그",
+            "config": "설정 변경"
         }
     },
     "admin": {
@@ -591,7 +597,23 @@
             "traffic_exporting": "트래픽 보고서 내보내는 중...",
             "health_exporting": "상태 보고서 내보내는 중...",
             "availability_exporting": "가용성 보고서 내보내는 중...",
-            "inventory_exporting": "인벤토리 목록 내보내는 중..."
+            "inventory_exporting": "인벤토리 목록 내보내는 중...",
+            "interface_report": "인터페이스 / PoE 보고서",
+            "interface_report_desc": "포트, 상태, 오류, PoE 및 트래픽 카운터를 내보냅니다",
+            "health_trend_report": "상태 추세 보고서",
+            "health_trend_report_desc": "CPU, 메모리, 디스크 평균값, 최고값 및 알림 샘플을 내보냅니다",
+            "sla_report": "SLA 증빙 보고서",
+            "sla_report_desc": "현재 가용성과 업 / 다운 이벤트 증빙을 내보냅니다",
+            "audit_change_report": "감사 / 변경 보고서",
+            "audit_change_report_desc": "사용자 작업, 리소스 변경 및 검토 상태를 내보냅니다",
+            "license_capacity_report": "라이선스 용량 보고서",
+            "license_capacity_report_desc": "라이선스 용량, 현재 사용량 및 남은 할당량을 내보냅니다",
+            "camera_module_report": "카메라 모듈 보고서",
+            "camera_module_report_desc": "카메라 인벤토리, 상태 및 스트림 모드를 내보냅니다",
+            "pdu_report": "PDU / UPS 보고서",
+            "pdu_report_desc": "PDU 및 UPS 인벤토리와 폴링 상태를 내보냅니다",
+            "access_control_report": "출입 통제 보고서",
+            "access_control_report_desc": "도어 컨트롤러 인벤토리와 온라인 상태를 내보냅니다"
         },
         "branding": {
             "current_logo": "현재 로고",

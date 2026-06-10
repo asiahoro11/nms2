@@ -18,7 +18,7 @@
         "devices": "设备列表",
         "topology": "网络拓扑",
         "cameras": "摄影机监控",
-        "logs": "?????",
+        "logs": "日志与审计",
         "admin": "系统管理",
         "access_control": "门禁管理",
         "logout": "注销",
@@ -368,24 +368,24 @@
         "view_tree": "树状图"
     },
     "logs": {
-        "title": "?????",
+        "title": "日志与审计",
         "time": "时间",
         "level": "等级",
         "message": "消息",
         "device": "设备",
         "event_type_col": "状态",
-        "export": "????",
+        "export": "导出日志",
         "toast": {
-            "load_failed": "??????",
-            "retention_saved": "???????",
-            "retention_save_failed": "????????",
-            "action_failed": "??????",
-            "bundle_exporting": "???????",
-            "review_updated_prefix": "????",
-            "ack_updated": "?????",
-            "unack_updated": "????????"
+            "load_failed": "加载日志失败",
+            "retention_saved": "保留策略已保存",
+            "retention_save_failed": "保存保留策略失败",
+            "action_failed": "日志操作失败",
+            "bundle_exporting": "正在导出审计包",
+            "review_updated_prefix": "审核状态已更新为",
+            "ack_updated": "设备日志已确认",
+            "unack_updated": "设备日志已取消确认"
         },
-        "empty": "???????????",
+        "empty": "当前没有符合条件的日志记录",
         "event_type": {
             "status_change": "状态变更",
             "camera_bandwidth": "摄像机带宽",
@@ -407,102 +407,108 @@
             "info": "信息",
             "debug": "调试"
         },
-        "center_title": "?????",
-        "loading": "???...",
+        "center_title": "日志与审计",
+        "loading": "加载中...",
         "types": {
-            "system": "????",
-            "device": "????",
-            "audit": "????",
-            "config_change": "????"
+            "system": "系统日志",
+            "device": "设备日志",
+            "audit": "审计日志",
+            "config_change": "配置变更"
         },
         "columns": {
-            "time": "??",
-            "system_source": "?? / ??",
-            "device_source": "?? / ??",
-            "audit_source": "?? / ??",
-            "config_source": "?? / ??",
-            "level_review": "?? / ??",
-            "level_ack": "?? / ??",
-            "status_review": "?? / ??",
-            "details": "????"
+            "time": "时间",
+            "system_source": "服务 / 事件",
+            "device_source": "设备 / 设施",
+            "audit_source": "用户 / 模块",
+            "config_source": "模块 / 目标",
+            "level_review": "等级 / 审核",
+            "level_ack": "等级 / 确认",
+            "status_review": "状态 / 审核",
+            "details": "详细信息"
         },
         "placeholders": {
             "scope": {
-                "system": "????",
-                "device": "??????",
-                "audit": "????",
-                "config_change": "????"
+                "system": "服务来源",
+                "device": "设备设施类型",
+                "audit": "操作模块",
+                "config_change": "变更模块"
             }
         },
         "filters": {
-            "search": "??????",
-            "actor": "???",
-            "device": "???? / IP / MAC",
-            "scope": "?? / ??",
-            "date_from": "????",
-            "date_to": "????",
-            "apply": "????",
-            "clear": "????",
-            "bundle": "?????",
-            "all_levels": "????",
-            "all_review_status": "??????",
-            "all_ack_status": "??????",
-            "all_action_status": "??????"
+            "search": "搜索关键字",
+            "actor": "操作者",
+            "device": "设备名称 / IP / MAC",
+            "scope": "模块 / 来源",
+            "date_from": "起始日期",
+            "date_to": "结束日期",
+            "apply": "应用筛选",
+            "clear": "清除条件",
+            "bundle": "导出审计包",
+            "all_levels": "所有等级",
+            "all_review_status": "所有审核状态",
+            "all_ack_status": "所有确认状态",
+            "all_action_status": "所有操作状态"
         },
         "retention": {
-            "title": "????",
-            "description": "????????????????",
-            "enable": "??????",
-            "save": "??????",
-            "hint": "????? system_config????????????",
-            "audit": "????",
-            "system": "????",
-            "device": "????",
-            "config_change": "????"
+            "title": "保留策略",
+            "description": "设置各类日志的保留天数，以满足审计与运维需求。",
+            "enable": "启用日志保留设置",
+            "save": "保存保留策略",
+            "hint": "设置值会写入 system_config，供后续计划清理使用。",
+            "audit": "审计日志",
+            "system": "系统日志",
+            "device": "设备日志",
+            "config_change": "配置变更"
         },
         "status": {
-            "pending": "???",
-            "reviewed": "???",
-            "flagged": "???",
-            "acked": "???",
-            "unacked": "???",
-            "success": "??",
-            "failed": "??",
-            "warning": "??"
+            "pending": "待审核",
+            "reviewed": "已审核",
+            "flagged": "需跟踪",
+            "acked": "已确认",
+            "unacked": "未确认",
+            "success": "成功",
+            "failed": "失败",
+            "warning": "警告"
         },
         "labels": {
-            "source_ip": "?? IP",
-            "source_mac": "?? MAC",
+            "source_ip": "来源 IP",
+            "source_mac": "来源 MAC",
             "recordset_id": "Recordset ID",
             "correlation_id": "Correlation ID",
-            "actor": "???",
-            "change_scope": "????",
-            "before": "???",
-            "after": "???",
-            "review_status": "????",
-            "review_note": "????",
-            "ack_status": "????",
-            "device_name": "????",
-            "ip_address": "IP ??",
-            "mac_address": "MAC ??",
-            "module": "??",
-            "service": "??",
-            "facility": "????"
+            "actor": "操作者",
+            "change_scope": "变更范围",
+            "before": "变更前",
+            "after": "变更后",
+            "review_status": "审核状态",
+            "review_note": "审核备注",
+            "ack_status": "确认状态",
+            "device_name": "设备名称",
+            "ip_address": "IP 地址",
+            "mac_address": "MAC 地址",
+            "module": "模块",
+            "service": "服务",
+            "facility": "设施类型"
         },
         "actions": {
-            "review_pending": "?????",
-            "review_reviewed": "?????",
-            "review_flagged": "?????",
-            "ack": "????",
-            "unack": "????"
+            "review_pending": "设为待审核",
+            "review_reviewed": "设为已审核",
+            "review_flagged": "设为需跟踪",
+            "ack": "确认事件",
+            "unack": "取消确认"
         },
         "prompts": {
-            "review_note": "?????????",
-            "ack_note": "?????????"
+            "review_note": "请输入审核备注",
+            "ack_note": "请输入确认备注"
         },
         "pagination": {
-            "prev": "???",
-            "next": "???"
+            "prev": "上一页",
+            "next": "下一页"
+        },
+        "tabs": {
+            "system": "系统日志",
+            "device": "设备日志",
+            "audit": "审计日志",
+            "config": "配置变更"
         }
     },
     "admin": {
@@ -591,7 +597,23 @@
             "traffic_exporting": "流量报表导出中...",
             "health_exporting": "健康度报表导出中...",
             "availability_exporting": "可用性报表导出中...",
-            "inventory_exporting": "资产清单导出中..."
+            "inventory_exporting": "资产清单导出中...",
+            "interface_report": "接口 / PoE 报表",
+            "interface_report_desc": "导出端口、状态、错误、PoE 与流量计数",
+            "health_trend_report": "健康趋势报表",
+            "health_trend_report_desc": "导出 CPU、内存、磁盘平均值、峰值与告警样本",
+            "sla_report": "SLA 佐证报表",
+            "sla_report_desc": "导出当前可用性与上线 / 离线事件佐证",
+            "audit_change_report": "审计 / 变更报表",
+            "audit_change_report_desc": "导出用户操作、资源变更与复核状态",
+            "license_capacity_report": "授权容量报表",
+            "license_capacity_report_desc": "导出授权容量、当前使用量与剩余额度",
+            "camera_module_report": "摄像机模块报表",
+            "camera_module_report_desc": "导出摄像机清单、状态与串流模式",
+            "pdu_report": "PDU / UPS 报表",
+            "pdu_report_desc": "导出 PDU 与 UPS 清单及轮询状态",
+            "access_control_report": "门禁报表",
+            "access_control_report_desc": "导出门禁控制器清单与连接状态"
         },
         "branding": {
             "current_logo": "当前 Logo",

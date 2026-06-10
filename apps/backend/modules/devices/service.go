@@ -188,6 +188,9 @@ func (s *Service) UpdateDevice(id string, input map[string]interface{}) (Device,
 	allowedFields := []string{"name", "ip_address", "mac_address", "device_type", "snmp_community", "snmp_version", "vendor", "model", "firmware", "pos_x", "pos_y"}
 	for _, field := range allowedFields {
 		if val, ok := input[field]; ok {
+			if field == "snmp_community" && strings.TrimSpace(fmt.Sprint(val)) == "" {
+				continue
+			}
 			updates = append(updates, field+" = ?")
 			args = append(args, val)
 		}

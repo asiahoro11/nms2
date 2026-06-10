@@ -461,15 +461,16 @@ func parseIntFromString(s string) (int, error) {
 
 // GenerateLicenseKeyInput for license key generation request
 type GenerateLicenseKeyInput struct {
-	MachineID   string   `json:"machine_id"`
-	LicenseMode string   `json:"license_mode"`
-	LicenseType string   `json:"license_type"` // "device", "alert", "camera", "access_control", "combined", "full"
-	DeviceCount int      `json:"device_count"` // Required for device/combined/full
-	CameraCount int      `json:"camera_count"` // Required for camera/combined/full (4/9/16)
-	Years       int      `json:"years"`        // 1-5 years
-	ValidUntil  string   `json:"valid_until"`
-	Features    []string `json:"features"`   // Alert features: line, telegram, whatsapp
-	AlertOnly   bool     `json:"alert_only"` // One-time alert license (no device)
+	MachineID    string   `json:"machine_id"`
+	LicenseMode  string   `json:"license_mode"`
+	LicenseType  string   `json:"license_type"` // "device", "alert", "camera", "access_control", "combined", "full"
+	DeviceCount  int      `json:"device_count"` // Required for device/combined/full
+	CameraCount  int      `json:"camera_count"` // Required for camera/combined/full (4/9/16)
+	Years        int      `json:"years"`        // 1-5 years
+	DurationDays int      `json:"duration_days"`
+	ValidUntil   string   `json:"valid_until"`
+	Features     []string `json:"features"`   // Alert features: line, telegram, whatsapp
+	AlertOnly    bool     `json:"alert_only"` // One-time alert license (no device)
 }
 
 // GenerateLicenseKey generates a new license key for a customer (Admin only)

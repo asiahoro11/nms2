@@ -203,6 +203,7 @@
         state.logs.dateFrom = state.logs.dateFrom || '';
         state.logs.dateTo = state.logs.dateTo || '';
         state.logs.format = state.logs.format || 'csv';
+        state.logs.bundleFormat = state.logs.bundleFormat || 'json';
     }
 
     function page() {
@@ -660,10 +661,16 @@
             <input type="date" id="logs-date-to" class="select-input" title="${escapeHtml(translate('logs.filters.date_to', '結束日期'))}">
             <select id="logs-format-select" class="select-input">
                 <option value="csv">CSV</option>
+                <option value="pdf">PDF</option>
                 <option value="json">JSON</option>
             </select>
             <button type="button" class="btn btn-secondary btn-sm" id="logs-apply-btn">${escapeHtml(translate('logs.filters.apply', '套用篩選'))}</button>
             <button type="button" class="btn btn-secondary btn-sm" id="logs-clear-btn">${escapeHtml(translate('logs.filters.clear', '清除條件'))}</button>
+            <select id="logs-bundle-format-select" class="select-input" title="${escapeHtml(translate('logs.filters.bundle_format', '審查包格式'))}">
+                <option value="json">JSON</option>
+                <option value="pdf">PDF</option>
+                <option value="csv">CSV</option>
+            </select>
             <button type="button" class="btn btn-primary btn-sm" id="logs-bundle-btn">${escapeHtml(translate('logs.filters.bundle', '匯出審查包'))}</button>
         `;
         logsPage.insertBefore(bar, container);
@@ -676,6 +683,7 @@
         const dateFromInput = bar.querySelector('#logs-date-from');
         const dateToInput = bar.querySelector('#logs-date-to');
         const formatSelect = bar.querySelector('#logs-format-select');
+        const bundleFormatSelect = bar.querySelector('#logs-bundle-format-select');
         const applyButton = bar.querySelector('#logs-apply-btn');
         const clearButton = bar.querySelector('#logs-clear-btn');
         const bundleButton = bar.querySelector('#logs-bundle-btn');
@@ -722,6 +730,9 @@
         });
         formatSelect.addEventListener('change', (event) => {
             state.logs.format = event.target.value || 'csv';
+        });
+        bundleFormatSelect.addEventListener('change', (event) => {
+            state.logs.bundleFormat = event.target.value || 'json';
         });
         applyButton.addEventListener('click', () => {
             state.logs.page = 1;
@@ -770,6 +781,7 @@
         const dateFromInput = logsPage.querySelector('#logs-date-from');
         const dateToInput = logsPage.querySelector('#logs-date-to');
         const formatSelect = logsPage.querySelector('#logs-format-select');
+        const bundleFormatSelect = logsPage.querySelector('#logs-bundle-format-select');
         const datalist = logsPage.querySelector('#logs-scope-datalist');
         const meta = typeMeta();
 
@@ -789,6 +801,7 @@
         if (dateFromInput) dateFromInput.value = state.logs.dateFrom || '';
         if (dateToInput) dateToInput.value = state.logs.dateTo || '';
         if (formatSelect) formatSelect.value = state.logs.format || 'csv';
+        if (bundleFormatSelect) bundleFormatSelect.value = state.logs.bundleFormat || 'json';
 
         if (statusSelect) {
             statusSelect.innerHTML = statusOptions()
@@ -1031,7 +1044,9 @@
     }
 
     function exportEvidenceBundle() {
-        apiDownload(`/log-center/evidence-bundle?${buildExportParams().toString()}`);
+        const params = buildExportParams();
+        params.set('format', state.logs.bundleFormat || 'json');
+        apiDownload(`/log-center/evidence-bundle?${params.toString()}`);
         showToast(translate('logs.toast.bundle_exporting', '正在匯出審查包'), 'info');
     }
 

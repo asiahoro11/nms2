@@ -56,6 +56,20 @@ func (s *Service) HasActiveStandardLicense() bool {
 	return count > 0
 }
 
+func (s *Service) HasActivePoCLicense() bool {
+	var count int
+	query := `
+		SELECT COUNT(*) FROM licenses
+		WHERE is_active = 1
+		  AND ` + ActiveLicenseWindowSQL + `
+		  AND LOWER(TRIM(COALESCE(license_type, ''))) = 'poc'
+	`
+	if err := s.db.QueryRow(query).Scan(&count); err != nil {
+		return false
+	}
+	return count > 0
+}
+
 func (s *Service) HasActiveLicense() bool {
 	return licensesvc.HasActiveLicense(s.db)
 }
@@ -85,6 +99,9 @@ func (s *Service) IsPoCEdition() bool {
 	if s.HasActiveStandardLicense() {
 		return false
 	}
+	if s.HasActivePoCLicense() {
+		return true
+	}
 
 	return s.distributionIsPoC()
 }
@@ -97,6 +114,9 @@ func (s *Service) DisplayVersion() string {
 	}
 	if s.HasActiveStandardLicense() {
 		return base
+	}
+	if s.HasActivePoCLicense() {
+		return pocVersionLabel(version)
 	}
 	if s.distributionIsPoC() {
 		return pocVersionLabel(version)
@@ -312,19 +332,62 @@ func (s *Service) ActivateLicense(rawKey, machineID string, formalSecret, pocSec
 
 	var result sql.Result
 	var existingID int
-	alreadyExists := s.db.QueryRow("SELECT id FROM licenses WHERE license_key = ?", key).Scan(&existingID) == nil
+	var existingValidFrom sql.NullString
+	var existingValidUntil sql.NullString
+	alreadyExists := s.db.QueryRow(
+		"SELECT id, COALESCE(valid_from, ''), COALESCE(valid_until, '') FROM licenses WHERE license_key = ?",
+		key,
+	).Scan(&existingID, &existingValidFrom, &existingValidUntil) == nil
+
+	now := time.Now()
+	validFrom := payload.IssuedAt
+	validUntil := payload.ValidUntil
+	if licensesvc.IsDeferredDurationPoC(payload) {
+		storedValidFrom := strings.TrimSpace(existingValidFrom.String)
+		storedValidUntil := strings.TrimSpace(existingValidUntil.String)
+		switch {
+		case storedValidUntil != "":
+			expiry, err := licensesvc.ParseLicenseTime(storedValidUntil)
+			if err != nil {
+				return ActivateResult{}, errors.New("invalid stored license expiry time")
+			}
+			if now.After(expiry) {
+				return ActivateResult{}, errors.New("license has expired")
+			}
+			validFrom = storedValidFrom
+			validUntil = storedValidUntil
+		case storedValidFrom != "":
+			start := now
+			if parsedStart, err := licensesvc.ParseLicenseTime(storedValidFrom); err == nil {
+				start = parsedStart
+			}
+			validFrom, validUntil, err = licensesvc.ResolvePoCActivationWindow(start, payload.DurationDays)
+			if err != nil {
+				return ActivateResult{}, err
+			}
+		default:
+			validFrom, validUntil, err = licensesvc.ResolvePoCActivationWindow(now, payload.DurationDays)
+			if err != nil {
+				return ActivateResult{}, err
+			}
+		}
+	}
+
+	resultPayload := *payload
+	resultPayload.IssuedAt = validFrom
+	resultPayload.ValidUntil = validUntil
 	if alreadyExists {
 		result, err = s.db.Exec(`
 			UPDATE licenses SET
 				license_type=?, device_count=?, camera_count=?, enabled_features=?,
 				valid_from=?, valid_until=?, is_active=1
 			WHERE license_key=?
-		`, licenseType, payload.DeviceCount, payload.CameraCount, string(featuresJSON), payload.IssuedAt, payload.ValidUntil, key)
+		`, licenseType, payload.DeviceCount, payload.CameraCount, string(featuresJSON), validFrom, validUntil, key)
 	} else {
 		result, err = s.db.Exec(`
 			INSERT INTO licenses (license_key, license_type, device_count, camera_count, enabled_features, valid_from, valid_until, is_active)
 			VALUES (?, ?, ?, ?, ?, ?, ?, 1)
-		`, key, licenseType, payload.DeviceCount, payload.CameraCount, string(featuresJSON), payload.IssuedAt, payload.ValidUntil)
+		`, key, licenseType, payload.DeviceCount, payload.CameraCount, string(featuresJSON), validFrom, validUntil)
 	}
 	if err != nil {
 		return ActivateResult{}, err
@@ -374,8 +437,8 @@ func (s *Service) ActivateLicense(rawKey, machineID string, formalSecret, pocSec
 	id, _ := result.LastInsertId()
 	return ActivateResult{
 		ID:          id,
-		Message:     activationMessage(payload),
-		Payload:     payload,
+		Message:     activationMessage(&resultPayload),
+		Payload:     &resultPayload,
 		LicenseType: licenseType,
 		Reactivated: alreadyExists,
 	}, nil
@@ -424,6 +487,9 @@ func (s *Service) GenerateLicenseKey(input GenerateInput, formalSecret, pocSecre
 	if licenseMode != licensesvc.PoCLicenseMode && strings.TrimSpace(input.MachineID) == "" {
 		return GenerateResult{}, errors.New("formal license requires machine_id")
 	}
+	if licenseMode != licensesvc.PoCLicenseMode && input.DurationDays > 0 {
+		return GenerateResult{}, errors.New("duration_days is only supported for poc licenses")
+	}
 
 	isAnnual := licenseType == "device" || licenseType == "combined" || licenseType == "camera" || licenseType == "access_control" || licenseType == "full"
 	if isAnnual && licenseMode != licensesvc.PoCLicenseMode {
@@ -445,11 +511,21 @@ func (s *Service) GenerateLicenseKey(input GenerateInput, formalSecret, pocSecre
 
 	validUntil := strings.TrimSpace(input.ValidUntil)
 	if licenseMode == licensesvc.PoCLicenseMode {
-		if validUntil == "" {
-			return GenerateResult{}, errors.New("poc license requires valid_until")
+		if input.DurationDays > 0 && validUntil != "" {
+			return GenerateResult{}, errors.New("use either duration_days or valid_until for poc license")
 		}
-		if _, err := licensesvc.ParseLicenseTime(validUntil); err != nil {
-			return GenerateResult{}, errors.New("invalid valid_until format")
+		if input.DurationDays > 0 {
+			if err := licensesvc.ValidatePoCDurationDays(input.DurationDays); err != nil {
+				return GenerateResult{}, err
+			}
+			validUntil = ""
+		} else if validUntil == "" {
+			return GenerateResult{}, errors.New("poc license requires duration_days or valid_until")
+		}
+		if validUntil != "" {
+			if _, err := licensesvc.ParseLicenseTime(validUntil); err != nil {
+				return GenerateResult{}, errors.New("invalid valid_until format")
+			}
 		}
 	} else if isAnnual {
 		if licensesvc.IsPermanentYears(input.Years) {
@@ -487,7 +563,16 @@ func (s *Service) GenerateLicenseKey(input GenerateInput, formalSecret, pocSecre
 		deviceCount = 0
 	}
 
-	licenseKey, err := licensesvc.GenerateLicenseKeyAdvanced(licenseMode, input.MachineID, deviceCount, cameraCount, features, validUntil, secretKey)
+	licenseKey, err := licensesvc.GenerateLicenseKeyAdvancedWithDuration(
+		licenseMode,
+		input.MachineID,
+		deviceCount,
+		cameraCount,
+		features,
+		validUntil,
+		input.DurationDays,
+		secretKey,
+	)
 	if err != nil {
 		return GenerateResult{}, err
 	}
@@ -506,16 +591,17 @@ func (s *Service) GenerateLicenseKey(input GenerateInput, formalSecret, pocSecre
 	}
 
 	return GenerateResult{
-		LicenseKey:  licenseKey,
-		LicenseMode: licenseMode,
-		LicenseType: licenseType,
-		TypeDisplay: typeDisplay,
-		DeviceCount: deviceCount,
-		CameraCount: cameraCount,
-		Years:       input.Years,
-		Features:    features,
-		ValidUntil:  validUntil,
-		IsPermanent: validUntil == "",
+		LicenseKey:   licenseKey,
+		LicenseMode:  licenseMode,
+		LicenseType:  licenseType,
+		TypeDisplay:  typeDisplay,
+		DeviceCount:  deviceCount,
+		CameraCount:  cameraCount,
+		Years:        input.Years,
+		DurationDays: input.DurationDays,
+		Features:     features,
+		ValidUntil:   validUntil,
+		IsPermanent:  validUntil == "" && input.DurationDays == 0,
 	}, nil
 }
 

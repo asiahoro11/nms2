@@ -7,6 +7,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -29,6 +30,11 @@ type Camera struct {
 	Port                 int        `json:"port"`
 	Username             string     `json:"username"`
 	RTSPUrl              string     `json:"rtsp_url"`
+	PreviewRTSPUrl       string     `json:"preview_rtsp_url"`
+	RecordingRTSPUrl     string     `json:"recording_rtsp_url"`
+	RTSPTransport        string     `json:"rtsp_transport"`
+	RTSPUDPMinPort       int        `json:"rtsp_udp_min_port"`
+	RTSPUDPMaxPort       int        `json:"rtsp_udp_max_port"`
 	ONVIFUrl             string     `json:"onvif_url"`
 	Manufacturer         string     `json:"manufacturer"`
 	Model                string     `json:"model"`
@@ -51,6 +57,11 @@ type CameraRequest struct {
 	IPAddress            string `json:"ip_address" binding:"required"`
 	Port                 int    `json:"port"`
 	RTSPUrl              string `json:"rtsp_url"`
+	PreviewRTSPUrl       string `json:"preview_rtsp_url"`
+	RecordingRTSPUrl     string `json:"recording_rtsp_url"`
+	RTSPTransport        string `json:"rtsp_transport"`
+	RTSPUDPMinPort       int    `json:"rtsp_udp_min_port"`
+	RTSPUDPMaxPort       int    `json:"rtsp_udp_max_port"`
 	ONVIFUrl             string `json:"onvif_url"`
 	Username             string `json:"username"`
 	Password             string `json:"password"`
@@ -62,6 +73,39 @@ type CameraRequest struct {
 	MonitorOrder         int    `json:"monitor_order"`
 	RecordingSource      string `json:"recording_source"` // "rtsp" | "onvif"
 	RecordingBitrateKbps int    `json:"recording_bitrate_kbps"`
+}
+
+func normalizeCameraRequest(req *CameraRequest) {
+	req.RTSPUrl = strings.TrimSpace(req.RTSPUrl)
+	req.PreviewRTSPUrl = strings.TrimSpace(req.PreviewRTSPUrl)
+	req.RecordingRTSPUrl = strings.TrimSpace(req.RecordingRTSPUrl)
+	if req.PreviewRTSPUrl == "" {
+		req.PreviewRTSPUrl = req.RTSPUrl
+	}
+	if req.RTSPUrl == "" {
+		req.RTSPUrl = req.PreviewRTSPUrl
+	}
+	switch strings.ToLower(strings.TrimSpace(req.RTSPTransport)) {
+	case "tcp", "udp":
+		req.RTSPTransport = strings.ToLower(strings.TrimSpace(req.RTSPTransport))
+	default:
+		req.RTSPTransport = "auto"
+	}
+	if req.RTSPUDPMinPort < 0 {
+		req.RTSPUDPMinPort = 0
+	}
+	if req.RTSPUDPMaxPort < 0 {
+		req.RTSPUDPMaxPort = 0
+	}
+	if req.RTSPUDPMinPort > 65535 {
+		req.RTSPUDPMinPort = 65535
+	}
+	if req.RTSPUDPMaxPort > 65535 {
+		req.RTSPUDPMaxPort = 65535
+	}
+	if req.RTSPUDPMinPort > 0 && req.RTSPUDPMaxPort > 0 && req.RTSPUDPMinPort > req.RTSPUDPMaxPort {
+		req.RTSPUDPMinPort, req.RTSPUDPMaxPort = req.RTSPUDPMaxPort, req.RTSPUDPMinPort
+	}
 }
 
 // ============================================================
@@ -240,6 +284,7 @@ func (h *Handler) CreateCamera(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, Response{Success: false, Error: err.Error()})
 		return
 	}
+	normalizeCameraRequest(&req)
 
 	count, err := h.camera.CountCameras()
 	if err != nil {
@@ -256,7 +301,7 @@ func (h *Handler) CreateCamera(c *gin.Context) {
 	}
 
 	var encPwd *string
-	if req.Password != "" {
+	if req.Password != "" && strings.TrimSpace(req.Username) != "" {
 		encrypted, encErr := cameramodule.EncryptPassword(h.config.Security.JWTSecret, req.Password)
 		if encErr != nil {
 			c.JSON(http.StatusInternalServerError, Response{Success: false, Error: "password encryption failed"})
@@ -281,6 +326,11 @@ func (h *Handler) CreateCamera(c *gin.Context) {
 		IPAddress:            req.IPAddress,
 		Port:                 req.Port,
 		RTSPUrl:              req.RTSPUrl,
+		PreviewRTSPUrl:       req.PreviewRTSPUrl,
+		RecordingRTSPUrl:     req.RecordingRTSPUrl,
+		RTSPTransport:        req.RTSPTransport,
+		RTSPUDPMinPort:       req.RTSPUDPMinPort,
+		RTSPUDPMaxPort:       req.RTSPUDPMaxPort,
 		ONVIFUrl:             req.ONVIFUrl,
 		Username:             req.Username,
 		PasswordEncrypted:    encPwd,
@@ -308,6 +358,9 @@ func (h *Handler) CreateCamera(c *gin.Context) {
 		"monitor_order":     req.MonitorOrder,
 		"recording_source":  req.RecordingSource,
 		"recording_bitrate": req.RecordingBitrateKbps,
+		"rtsp_transport":    req.RTSPTransport,
+		"rtsp_udp_min_port": req.RTSPUDPMinPort,
+		"rtsp_udp_max_port": req.RTSPUDPMaxPort,
 	})
 	c.JSON(http.StatusCreated, Response{Success: true, Message: "camera created", Data: map[string]int64{"id": id}})
 }
@@ -354,6 +407,7 @@ func (h *Handler) UpdateCamera(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, Response{Success: false, Error: err.Error()})
 		return
 	}
+	normalizeCameraRequest(&req)
 
 	before, err := h.camera.GetCamera(id)
 	if err == sql.ErrNoRows {
@@ -370,13 +424,16 @@ func (h *Handler) UpdateCamera(c *gin.Context) {
 	}
 
 	var encPwd *string
-	if req.Password != "" {
+	if req.Password != "" && strings.TrimSpace(req.Username) != "" {
 		encrypted, encErr := cameramodule.EncryptPassword(h.config.Security.JWTSecret, req.Password)
 		if encErr != nil {
 			c.JSON(http.StatusInternalServerError, Response{Success: false, Error: "password encryption failed"})
 			return
 		}
 		encPwd = &encrypted
+	} else if strings.TrimSpace(req.Username) == "" {
+		empty := ""
+		encPwd = &empty
 	}
 	if req.RecordingSource == "" {
 		req.RecordingSource = "rtsp"
@@ -388,6 +445,11 @@ func (h *Handler) UpdateCamera(c *gin.Context) {
 		IPAddress:            req.IPAddress,
 		Port:                 req.Port,
 		RTSPUrl:              req.RTSPUrl,
+		PreviewRTSPUrl:       req.PreviewRTSPUrl,
+		RecordingRTSPUrl:     req.RecordingRTSPUrl,
+		RTSPTransport:        req.RTSPTransport,
+		RTSPUDPMinPort:       req.RTSPUDPMinPort,
+		RTSPUDPMaxPort:       req.RTSPUDPMaxPort,
 		ONVIFUrl:             req.ONVIFUrl,
 		Username:             req.Username,
 		PasswordEncrypted:    encPwd,
@@ -418,39 +480,50 @@ func (h *Handler) UpdateCamera(c *gin.Context) {
 		"camera_name": before.Name,
 		"ip_address":  before.IPAddress,
 		"old_values": map[string]interface{}{
-			"name":              before.Name,
-			"location":          before.Location,
-			"ip_address":        before.IPAddress,
-			"port":              before.Port,
-			"username":          before.Username,
-			"rtsp_url":          before.RTSPUrl,
-			"onvif_url":         before.ONVIFUrl,
-			"manufacturer":      before.Manufacturer,
-			"model":             before.Model,
-			"supports_ptz":      before.SupportsPTZ,
-			"stream_type":       before.StreamType,
-			"monitor_display":   before.MonitorDisplay,
-			"monitor_order":     before.MonitorOrder,
-			"recording_source":  before.RecordingSource,
-			"recording_bitrate": before.RecordingBitrateKbps,
+			"name":               before.Name,
+			"location":           before.Location,
+			"ip_address":         before.IPAddress,
+			"port":               before.Port,
+			"username":           before.Username,
+			"rtsp_url":           cameramodule.RedactSensitiveText(before.RTSPUrl),
+			"preview_rtsp_url":   cameramodule.RedactSensitiveText(before.PreviewRTSPUrl),
+			"recording_rtsp_url": cameramodule.RedactSensitiveText(before.RecordingRTSPUrl),
+			"onvif_url":          before.ONVIFUrl,
+			"manufacturer":       before.Manufacturer,
+			"model":              before.Model,
+			"supports_ptz":       before.SupportsPTZ,
+			"stream_type":        before.StreamType,
+			"monitor_display":    before.MonitorDisplay,
+			"monitor_order":      before.MonitorOrder,
+			"recording_source":   before.RecordingSource,
+			"recording_bitrate":  before.RecordingBitrateKbps,
+			"rtsp_transport":     before.RTSPTransport,
+			"rtsp_udp_min_port":  before.RTSPUDPMinPort,
+			"rtsp_udp_max_port":  before.RTSPUDPMaxPort,
 		},
 		"new_values": map[string]interface{}{
-			"name":              req.Name,
-			"location":          req.Location,
-			"ip_address":        req.IPAddress,
-			"port":              req.Port,
-			"username":          req.Username,
-			"rtsp_url":          req.RTSPUrl,
-			"onvif_url":         req.ONVIFUrl,
-			"manufacturer":      req.Manufacturer,
-			"model":             req.Model,
-			"supports_ptz":      req.SupportsPTZ,
-			"stream_type":       req.StreamType,
-			"monitor_display":   req.MonitorDisplay,
-			"monitor_order":     req.MonitorOrder,
-			"recording_source":  req.RecordingSource,
-			"recording_bitrate": req.RecordingBitrateKbps,
-			"password_updated":  req.Password != "",
+			"name":               req.Name,
+			"location":           req.Location,
+			"ip_address":         req.IPAddress,
+			"port":               req.Port,
+			"username":           req.Username,
+			"rtsp_url":           cameramodule.RedactSensitiveText(req.RTSPUrl),
+			"preview_rtsp_url":   cameramodule.RedactSensitiveText(req.PreviewRTSPUrl),
+			"recording_rtsp_url": cameramodule.RedactSensitiveText(req.RecordingRTSPUrl),
+			"onvif_url":          req.ONVIFUrl,
+			"manufacturer":       req.Manufacturer,
+			"model":              req.Model,
+			"supports_ptz":       req.SupportsPTZ,
+			"stream_type":        req.StreamType,
+			"monitor_display":    req.MonitorDisplay,
+			"monitor_order":      req.MonitorOrder,
+			"recording_source":   req.RecordingSource,
+			"recording_bitrate":  req.RecordingBitrateKbps,
+			"rtsp_transport":     req.RTSPTransport,
+			"rtsp_udp_min_port":  req.RTSPUDPMinPort,
+			"rtsp_udp_max_port":  req.RTSPUDPMaxPort,
+			"password_updated":   req.Password != "",
+			"password_cleared":   strings.TrimSpace(req.Username) == "",
 		},
 	})
 	c.JSON(http.StatusOK, Response{Success: true, Message: "camera updated"})
@@ -582,7 +655,7 @@ func (h *Handler) createCameraLegacy(c *gin.Context) {
 		var err error
 		encPwd, err = cameramodule.EncryptPassword(h.config.Security.JWTSecret, req.Password)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, Response{Success: false, Error: "?ï???îº??­æ??"})
+			c.JSON(http.StatusInternalServerError, Response{Success: false, Error: "?ïîº??­æ??"})
 			return
 		}
 	}
@@ -623,7 +696,7 @@ func (h *Handler) createCameraLegacy(c *gin.Context) {
 		"recording_source":  req.RecordingSource,
 		"recording_bitrate": req.RecordingBitrateKbps,
 	})
-	c.JSON(http.StatusCreated, Response{Success: true, Message: "?î³è£?î?æ­???", Data: map[string]int64{"id": id}})
+	c.JSON(http.StatusCreated, Response{Success: true, Message: "?î³è£?î?æ­", Data: map[string]int64{"id": id}})
 }
 
 // GetCamera GET /api/v1/cameras/:id
@@ -721,7 +794,7 @@ func (h *Handler) updateCameraLegacy(c *gin.Context) {
 	if req.Password != "" {
 		encPwd, encErr := cameramodule.EncryptPassword(h.config.Security.JWTSecret, req.Password)
 		if encErr != nil {
-			c.JSON(http.StatusInternalServerError, Response{Success: false, Error: "?ï???îº??­æ??"})
+			c.JSON(http.StatusInternalServerError, Response{Success: false, Error: "?ïîº??­æ??"})
 			return
 		}
 		result, err = h.db.Exec(`UPDATE cameras SET name=?, location=?, ip_address=?,
@@ -915,6 +988,7 @@ func (h *Handler) GetCameraMJPEG(c *gin.Context) {
 		return
 	}
 	id := c.Param("id")
+	requestStartedAt := time.Now()
 	sub, err := h.camera.SubscribeMJPEG(id)
 	if err != nil {
 		switch {
@@ -927,8 +1001,9 @@ func (h *Handler) GetCameraMJPEG(c *gin.Context) {
 		}
 		return
 	}
+	cameramodule.Debugf("mjpeg_http_subscribed cam=%s client=%s subscribe_ms=%d", id, c.ClientIP(), time.Since(requestStartedAt).Milliseconds())
 	defer sub.Cleanup()
-	firstFrame, err := h.camera.WaitForMJPEGFirstFrame(id, sub, 8*time.Second)
+	firstFrame, err := h.camera.WaitForMJPEGFirstFrame(id, sub, 12*time.Second)
 	if err != nil {
 		switch {
 		case errors.Is(err, cameramodule.ErrStreamUnavailable):
@@ -940,15 +1015,22 @@ func (h *Handler) GetCameraMJPEG(c *gin.Context) {
 		}
 		return
 	}
+	cameramodule.Debugf("mjpeg_http_ready cam=%s client=%s wait_first_frame_ms=%d first_bytes=%d", id, c.ClientIP(), time.Since(requestStartedAt).Milliseconds(), len(firstFrame))
 	boundary := "mjpegboundary"
 	c.Writer.Header().Set("Content-Type", "multipart/x-mixed-replace; boundary="+boundary)
-	c.Writer.Header().Set("Cache-Control", "no-cache, no-store")
+	c.Writer.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+	c.Writer.Header().Set("Pragma", "no-cache")
+	c.Writer.Header().Set("Expires", "0")
 	c.Writer.Header().Set("Connection", "keep-alive")
+	c.Writer.Header().Set("X-Accel-Buffering", "no")
 	c.Writer.WriteHeader(http.StatusOK)
+	frameSeq := 1
+	flushStartedAt := time.Now()
 	fmt.Fprintf(c.Writer, "--%s\r\nContent-Type: image/jpeg\r\nContent-Length: %d\r\n\r\n", boundary, len(firstFrame))
 	_, _ = c.Writer.Write(firstFrame)
 	fmt.Fprintf(c.Writer, "\r\n")
 	c.Writer.Flush()
+	cameramodule.Debugf("mjpeg_http_flush cam=%s client=%s seq=%d bytes=%d flush_ms=%d since_req_ms=%d", id, c.ClientIP(), frameSeq, len(firstFrame), time.Since(flushStartedAt).Milliseconds(), time.Since(requestStartedAt).Milliseconds())
 	clientGone := c.Request.Context().Done()
 	for {
 		select {
@@ -958,14 +1040,140 @@ func (h *Handler) GetCameraMJPEG(c *gin.Context) {
 			if !ok {
 				return
 			}
+			frameSeq++
+			flushStartedAt = time.Now()
 			fmt.Fprintf(c.Writer, "--%s\r\nContent-Type: image/jpeg\r\nContent-Length: %d\r\n\r\n", boundary, len(frame))
 			_, _ = c.Writer.Write(frame)
 			fmt.Fprintf(c.Writer, "\r\n")
 			c.Writer.Flush()
+			if frameSeq <= 5 || frameSeq%30 == 0 {
+				cameramodule.Debugf("mjpeg_http_flush cam=%s client=%s seq=%d bytes=%d flush_ms=%d since_req_ms=%d", id, c.ClientIP(), frameSeq, len(frame), time.Since(flushStartedAt).Milliseconds(), time.Since(requestStartedAt).Milliseconds())
+			}
 		case <-time.After(10 * time.Second):
 			fmt.Fprintf(c.Writer, "--%s\r\n\r\n", boundary)
 			c.Writer.Flush()
 		}
+	}
+}
+
+func waitForReadableFile(path string, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	for {
+		if info, err := os.Stat(path); err == nil && !info.IsDir() && info.Size() > 0 {
+			return nil
+		}
+		if time.Now().After(deadline) {
+			return os.ErrNotExist
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+}
+
+func rewriteHLSPlaylist(content []byte, token string) []byte {
+	if strings.TrimSpace(token) == "" {
+		return content
+	}
+	escaped := url.QueryEscape(token)
+	lines := strings.Split(string(content), "\n")
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasSuffix(trimmed, ".ts") && !strings.Contains(trimmed, "?") {
+			suffix := ""
+			if strings.HasSuffix(line, "\r") {
+				line = strings.TrimSuffix(line, "\r")
+				suffix = "\r"
+			}
+			lines[i] = line + "?token=" + escaped + suffix
+		}
+	}
+	return []byte(strings.Join(lines, "\n"))
+}
+
+// GetCameraHLS GET /api/v1/cameras/:id/stream/hls/:file
+// Optional stable preview path. MJPEG remains the default low-latency grid path.
+func (h *Handler) GetCameraHLS(c *gin.Context) {
+	if err := h.ensureCameraSchema(); err != nil {
+		c.JSON(http.StatusInternalServerError, Response{Success: false, Error: err.Error()})
+		return
+	}
+	if !h.cameraLicenseEnabled() {
+		c.JSON(http.StatusForbidden, Response{Success: false, Error: "camera_not_licensed"})
+		return
+	}
+
+	file := c.Param("file")
+	if file == "" || filepath.Base(file) != file || !(file == "index.m3u8" || strings.HasSuffix(file, ".ts")) {
+		c.JSON(http.StatusBadRequest, Response{Success: false, Error: "invalid_hls_file"})
+		return
+	}
+
+	id := c.Param("id")
+	dir, err := h.camera.EnsureHLSStream(id)
+	if err != nil {
+		switch {
+		case errors.Is(err, cameramodule.ErrCameraNotFound):
+			c.JSON(http.StatusNotFound, Response{Success: false, Error: "camera_not_found"})
+		case errors.Is(err, cameramodule.ErrFFmpegNotFound):
+			c.JSON(http.StatusServiceUnavailable, Response{Success: false, Error: "ffmpeg_not_found"})
+		case errors.Is(err, cameramodule.ErrStreamUnavailable):
+			c.JSON(http.StatusServiceUnavailable, Response{Success: false, Error: "camera_stream_unavailable"})
+		default:
+			c.JSON(http.StatusInternalServerError, Response{Success: false, Error: err.Error()})
+		}
+		return
+	}
+
+	path := filepath.Join(dir, file)
+	if err := waitForReadableFile(path, 6*time.Second); err != nil {
+		c.JSON(http.StatusServiceUnavailable, Response{Success: false, Error: "camera_hls_not_ready"})
+		return
+	}
+	c.Header("Cache-Control", "no-cache, no-store, must-revalidate")
+	c.Header("Pragma", "no-cache")
+	c.Header("Expires", "0")
+	if file == "index.m3u8" {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			c.JSON(http.StatusServiceUnavailable, Response{Success: false, Error: "camera_hls_not_ready"})
+			return
+		}
+		c.Data(http.StatusOK, "application/vnd.apple.mpegurl; charset=utf-8", rewriteHLSPlaylist(data, c.Query("token")))
+		return
+	}
+	c.File(path)
+}
+
+// GetCameraWebRTCWS GET /api/v1/cameras/:id/stream/webrtc/ws
+// Proxies go2rtc WebRTC signaling while keeping the go2rtc API bound to localhost.
+func (h *Handler) GetCameraWebRTCWS(c *gin.Context) {
+	if err := h.ensureCameraSchema(); err != nil {
+		c.JSON(http.StatusInternalServerError, Response{Success: false, Error: err.Error()})
+		return
+	}
+	if !h.cameraLicenseEnabled() {
+		c.JSON(http.StatusForbidden, Response{Success: false, Error: "camera_not_licensed"})
+		return
+	}
+
+	id := c.Param("id")
+	streamName, err := h.camera.EnsureWebRTCStream(c.Request.Context(), id)
+	if err != nil {
+		switch {
+		case errors.Is(err, cameramodule.ErrCameraNotFound):
+			c.JSON(http.StatusNotFound, Response{Success: false, Error: "camera_not_found"})
+		case errors.Is(err, cameramodule.ErrGo2RTCNotFound):
+			c.JSON(http.StatusServiceUnavailable, Response{Success: false, Error: "go2rtc_not_found"})
+		case cameramodule.IsGo2RTCError(err):
+			log.Printf("[Camera] go2rtc stream prepare failed camera_id=%s: %v", id, err)
+			c.JSON(http.StatusServiceUnavailable, Response{Success: false, Error: "go2rtc_unavailable"})
+		default:
+			c.JSON(http.StatusInternalServerError, Response{Success: false, Error: err.Error()})
+		}
+		return
+	}
+
+	if err := h.camera.ProxyGo2RTCWebSocket(c.Writer, c.Request, streamName); err != nil {
+		log.Printf("[Camera] WebRTC signaling proxy failed camera_id=%s: %v", id, err)
 	}
 }
 
@@ -1140,6 +1348,19 @@ func (h *Handler) BatchDeleteRecordings(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "deleted": deleted})
 }
 
+func recordingContentType(path string) string {
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".ts", ".mpegts", ".mts":
+		return "video/mp2t"
+	case ".mkv":
+		return "video/x-matroska"
+	case ".mov":
+		return "video/quicktime"
+	default:
+		return "video/mp4"
+	}
+}
+
 // PlayRecording GET /recordings/:id/play
 func (h *Handler) PlayRecording(c *gin.Context) {
 	id := c.Param("id")
@@ -1156,7 +1377,7 @@ func (h *Handler) PlayRecording(c *gin.Context) {
 	defer f.Close()
 	fi, _ := f.Stat()
 	c.Header("Content-Disposition", fmt.Sprintf(`inline; filename="%s"`, filepath.Base(fp)))
-	c.Header("Content-Type", "video/mp4")
+	c.Header("Content-Type", recordingContentType(fp))
 	http.ServeContent(c.Writer, c.Request, filepath.Base(fp), fi.ModTime(), f)
 }
 
@@ -1173,7 +1394,7 @@ func (h *Handler) ExportRecording(c *gin.Context) {
 		return
 	}
 	c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, recording.FileName))
-	c.Header("Content-Type", "video/mp4")
+	c.Header("Content-Type", recordingContentType(recording.FilePath))
 	http.ServeFile(c.Writer, c.Request, recording.FilePath)
 }
 
@@ -1448,7 +1669,7 @@ func (h *Handler) StartCameraHealthLoop() {
 				continue
 			}
 			for _, result := range results {
-				h.WriteSystemLog("notice", "camera", "camera_recovered", "camera recovered", map[string]interface{}{
+				h.WriteSystemLog("info", "camera", "camera_port_reachable", "camera port reachable; waiting for frame", map[string]interface{}{
 					"camera_id":  result.CameraID,
 					"ip_address": result.IPAddress,
 					"latency_ms": result.LatencyMS,

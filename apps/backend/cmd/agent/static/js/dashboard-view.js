@@ -9,6 +9,7 @@ let topologySimulation = null;
 let dvCameras = [];        // all cameras
 let dvCamLayout = 4;       // 4 | 9 | 16
 let dvCamInterval = null;  // snapshot refresh timer (fallback)
+const DV_PREVIEW_TRANSPORT_KEY = 'nms-camera-preview-transport';
 
 // ========== 初始化 ==========
 document.addEventListener('DOMContentLoaded', () => {
@@ -54,6 +55,15 @@ function checkAuth() {
 
 function dvGetToken() {
     return sessionStorage.getItem('nms_token') || localStorage.getItem('token') || '';
+}
+
+function dvUseWebRTCPreview() {
+    try {
+        return String(localStorage.getItem(DV_PREVIEW_TRANSPORT_KEY) || 'mjpeg').toLowerCase() === 'webrtc'
+            && !!(window.CameraWebRTC && window.CameraWebRTC.supports && window.CameraWebRTC.supports());
+    } catch (_) {
+        return false;
+    }
 }
 
 // ========== 全螢幕控制 ==========
@@ -174,6 +184,9 @@ function dvRenderCamGrid() {
     const grid = document.getElementById('dv-camera-grid');
     if (!grid) return;
 
+    if (window.CameraWebRTC && window.CameraWebRTC.stopAll) {
+        window.CameraWebRTC.stopAll(grid);
+    }
     // Stop existing MJPEG connections
     grid.querySelectorAll('img[data-mjpeg]').forEach(img => { img.src = ''; });
 
@@ -195,11 +208,24 @@ function dvRenderCamGrid() {
             const snapUrl  = `/api/v1/cameras/${cam.id}/snapshot?t=${Date.now()}&token=${token}`;
             html += `
             <div class="camera-cell" id="dv-cell-${i}">
-                <div class="camera-status-dot ${dotCls}"></div>
+                <div class="camera-status-dot ${dotCls}"></div>`;
+            if (dvUseWebRTCPreview()) {
+                html += `
+                <video data-webrtc="1" id="dv-img-${i}"
+                     data-cam-id="${cam.id}"
+                     data-preview-mode="webrtc"
+                     data-mjpeg-url="${escDV(mjpegUrl)}"
+                     data-snap-base="${escDV(snapUrl.replace(/&t=\d+/, ''))}"
+                     autoplay muted playsinline
+                     style="width:100%;height:100%;object-fit:cover;"></video>`;
+            } else {
+                html += `
                 <img data-mjpeg="1" id="dv-img-${i}"
                      src="${mjpegUrl}"
                      onerror="dvImgFallback(this,'${snapUrl.replace(/&t=\d+/, '')}',${cam.id})"
-                     style="width:100%;height:100%;object-fit:cover;">
+                     style="width:100%;height:100%;object-fit:cover;">`;
+            }
+            html += `
                 <div class="camera-label">${escDV(cam.name)}</div>
             </div>`;
         } else {
@@ -208,6 +234,58 @@ function dvRenderCamGrid() {
     }
 
     grid.innerHTML = html;
+    grid.querySelectorAll('video[data-webrtc="1"]').forEach(video => {
+        dvStartWebRTC(video, video.dataset.camId);
+    });
+}
+
+function dvStartWebRTC(video, camId) {
+    if (!video || !camId || !window.CameraWebRTC || !window.CameraWebRTC.supports || !window.CameraWebRTC.supports()) {
+        dvReplaceWithSnapshot(video, camId);
+        return;
+    }
+    video.style.opacity = '0.35';
+    let fallbackDone = false;
+    const fallback = (el) => {
+        if (fallbackDone) return;
+        fallbackDone = true;
+        dvReplaceWithSnapshot(el || video, camId);
+    };
+    const starter = window.CameraWebRTC.startLowLatency || window.CameraWebRTC.startMSE;
+    starter(video, camId, {
+        onReady: (el) => { el.style.opacity = '1'; },
+        onError: (_reason, el) => fallback(el)
+    }).catch(() => fallback(video));
+}
+
+function dvReplaceWithSnapshot(video, camId) {
+    if (!video) return;
+    if (window.CameraWebRTC && window.CameraWebRTC.stop) window.CameraWebRTC.stop(video);
+    const cameraId = camId || video.dataset.camId || '';
+    const img = document.createElement('img');
+    img.id = video.id;
+    img.style.cssText = video.style.cssText || 'width:100%;height:100%;object-fit:cover;';
+    img.dataset.previewMode = 'snapshot';
+    img.dataset.camId = String(cameraId);
+    const snapBase = video.dataset.snapBase || `/api/v1/cameras/${cameraId}/snapshot?token=${dvGetToken()}`;
+    const sep = snapBase.includes('?') ? '&' : '?';
+    img.onerror = function() { dvImgFallback(this, snapBase, cameraId); };
+    img.src = `${snapBase}${sep}t=${Date.now()}`;
+    video.replaceWith(img);
+}
+
+function dvReplaceWithMjpeg(video, camId) {
+    if (!video) return;
+    if (window.CameraWebRTC && window.CameraWebRTC.stop) window.CameraWebRTC.stop(video);
+    const img = document.createElement('img');
+    img.id = video.id;
+    img.setAttribute('data-mjpeg', '1');
+    img.style.cssText = video.style.cssText || 'width:100%;height:100%;object-fit:cover;';
+    const mjpegUrl = video.dataset.mjpegUrl || `/api/v1/cameras/${camId}/stream/mjpeg?token=${dvGetToken()}`;
+    const snapBase = video.dataset.snapBase || `/api/v1/cameras/${camId}/snapshot?token=${dvGetToken()}`;
+    img.onerror = function() { dvImgFallback(this, snapBase, camId); };
+    img.src = mjpegUrl;
+    video.replaceWith(img);
 }
 
 // Fallback: if MJPEG fails, refresh snapshot every 5s

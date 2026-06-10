@@ -44,28 +44,30 @@ type TrialActivateResult struct {
 }
 
 type GenerateInput struct {
-	MachineID   string
-	LicenseMode string
-	LicenseType string
-	DeviceCount int
-	CameraCount int
-	Years       int
-	ValidUntil  string
-	Features    []string
-	AlertOnly   bool
+	MachineID    string
+	LicenseMode  string
+	LicenseType  string
+	DeviceCount  int
+	CameraCount  int
+	Years        int
+	DurationDays int
+	ValidUntil   string
+	Features     []string
+	AlertOnly    bool
 }
 
 type GenerateResult struct {
-	LicenseKey  string
-	LicenseMode string
-	LicenseType string
-	TypeDisplay string
-	DeviceCount int
-	CameraCount int
-	Years       int
-	Features    []string
-	ValidUntil  string
-	IsPermanent bool
+	LicenseKey   string
+	LicenseMode  string
+	LicenseType  string
+	TypeDisplay  string
+	DeviceCount  int
+	CameraCount  int
+	Years        int
+	DurationDays int
+	Features     []string
+	ValidUntil   string
+	IsPermanent  bool
 }
 
 type ReissueInput struct {
@@ -78,12 +80,12 @@ type ReissueResult struct {
 }
 
 type AdminLicenseRecord struct {
-	ID           int    `json:"id"`
-	LicenseKey   string `json:"license_key"`
-	LicenseType  string `json:"license_type"`
-	MaxDevices   int    `json:"max_devices"`
-	ValidUntil   string `json:"valid_until"`
-	IsActive     bool   `json:"is_active"`
+	ID          int    `json:"id"`
+	LicenseKey  string `json:"license_key"`
+	LicenseType string `json:"license_type"`
+	MaxDevices  int    `json:"max_devices"`
+	ValidUntil  string `json:"valid_until"`
+	IsActive    bool   `json:"is_active"`
 }
 
 type AdminLicenseList struct {

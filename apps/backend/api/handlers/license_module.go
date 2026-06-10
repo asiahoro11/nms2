@@ -129,15 +129,16 @@ func (h *Handler) GenerateLicenseKey(c *gin.Context) {
 	}
 
 	result, err := h.license.GenerateLicenseKey(licensemodule.GenerateInput{
-		MachineID:   input.MachineID,
-		LicenseMode: input.LicenseMode,
-		LicenseType: input.LicenseType,
-		DeviceCount: input.DeviceCount,
-		CameraCount: input.CameraCount,
-		Years:       input.Years,
-		ValidUntil:  input.ValidUntil,
-		Features:    input.Features,
-		AlertOnly:   input.AlertOnly,
+		MachineID:    input.MachineID,
+		LicenseMode:  input.LicenseMode,
+		LicenseType:  input.LicenseType,
+		DeviceCount:  input.DeviceCount,
+		CameraCount:  input.CameraCount,
+		Years:        input.Years,
+		DurationDays: input.DurationDays,
+		ValidUntil:   input.ValidUntil,
+		Features:     input.Features,
+		AlertOnly:    input.AlertOnly,
 	}, h.getFormalSecretKey(), h.getPOCSecretKey())
 	if err != nil {
 		c.JSON(http.StatusBadRequest, Response{Success: false, Error: err.Error()})

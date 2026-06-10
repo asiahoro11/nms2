@@ -11,7 +11,7 @@ type Device struct {
 	IPAddress     string  `json:"ip_address"`
 	MACAddress    *string `json:"mac_address"`
 	DeviceType    string  `json:"device_type"`
-	SNMPCommunity string  `json:"snmp_community"`
+	SNMPCommunity string  `json:"-"`
 	SNMPVersion   int     `json:"snmp_version"`
 	Vendor        *string `json:"vendor"`
 	Model         *string `json:"model"`

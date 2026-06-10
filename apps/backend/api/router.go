@@ -24,12 +24,13 @@ func SetupRouter(cfg *config.Config, db *sql.DB, collector *snmp.Collector, asse
 	r.Use(gin.Recovery())
 	r.Use(middleware.CORS(cfg.Security.AllowedOrigins))
 	r.Use(middleware.Logger())
-	r.Use(middleware.Secure(cfg))
+	r.Use(middleware.Secure(cfg, db))
 
 	// 建�??��???
 	h := handlers.New(cfg, db, collector)
 	h.StartCameraHealthLoop()
 	h.StartLicenseHealthLoop()
+	h.StartIoTLoop()
 
 	// --- ?��?檔�??��? ---
 	// ?��?�?1: 檢查?��??��?下是?��??�實�?frontend 資�?�?(?�發??
@@ -191,6 +192,13 @@ func SetupRouter(cfg *config.Config, db *sql.DB, collector *snmp.Collector, asse
 			deviceMgmtRead.GET("/devices/:id/events", h.GetDeviceEvents)
 			deviceMgmtRead.GET("/topology", h.GetTopology)
 			deviceMgmtRead.GET("/topology/device/:id/interfaces", h.GetDeviceInterfacesForLink)
+			deviceMgmtRead.GET("/integrations/network-snapshot", h.GetIntegrationNetworkSnapshot)
+			deviceMgmtRead.GET("/integrations/embed-snapshot", h.GetIntegrationEmbedSnapshot)
+			deviceMgmtRead.GET("/iot/status", h.GetIoTStatus)
+			deviceMgmtRead.GET("/iot/capabilities", h.GetIoTCapabilities)
+			deviceMgmtRead.GET("/iot/devices", h.ListIoTDevices)
+			deviceMgmtRead.GET("/iot/measurements", h.GetIoTMeasurements)
+			deviceMgmtRead.GET("/iot/queue/status", h.GetIoTQueueStatus)
 		}
 
 		editor := v1.Group("")
@@ -220,6 +228,14 @@ func SetupRouter(cfg *config.Config, db *sql.DB, collector *snmp.Collector, asse
 			editor.GET("/reports/health", h.ExportDeviceHealthReport)
 			editor.GET("/reports/availability", h.ExportAvailabilityReport)
 			editor.GET("/reports/inventory", h.ExportInventoryReport)
+			editor.GET("/reports/interfaces", h.ExportInterfaceReport)
+			editor.GET("/reports/health-trend", h.ExportHealthTrendReport)
+			editor.GET("/reports/sla", h.ExportSLAReport)
+			editor.GET("/reports/audit", h.ExportAuditReport)
+			editor.GET("/reports/license-capacity", h.ExportLicenseCapacityReport)
+			editor.GET("/reports/cameras", h.ExportCameraReport)
+			editor.GET("/reports/pdu", h.ExportPDUReport)
+			editor.GET("/reports/access-control", h.ExportAccessControlReport)
 			editor.POST("/devices/:id/reboot", h.RebootDevice)
 			editor.POST("/devices/:id/backup", h.SaveDeviceConfig)
 			editor.GET("/devices/:id/backups", h.GetDeviceConfigBackups)
@@ -228,6 +244,9 @@ func SetupRouter(cfg *config.Config, db *sql.DB, collector *snmp.Collector, asse
 			editor.GET("/devices/:id/ap", h.GetDeviceApStatus)
 			editor.POST("/devices/:id/poe/:portIndex/action", h.ControlPoEPort)
 			editor.POST("/devices/:id/interfaces/:ifIndex/status", h.ControlPortStatus)
+			editor.POST("/iot/ingest", h.IngestIoTMeasurement)
+			editor.POST("/iot/devices/:id/poll", h.PollIoTDevice)
+			editor.POST("/iot/queue/flush", h.FlushIoTForwardQueue)
 		}
 
 		admin := v1.Group("")
@@ -263,6 +282,17 @@ func SetupRouter(cfg *config.Config, db *sql.DB, collector *snmp.Collector, asse
 			admin.GET("/security/settings", h.GetSecuritySettings)
 			admin.PUT("/security/settings", h.UpdateSecuritySettings)
 			admin.PUT("/system/config/:key", h.UpdateSystemConfig)
+			admin.GET("/integrations/settings", h.GetIntegrationSettings)
+			admin.PUT("/integrations/settings", h.UpdateIntegrationSettings)
+			admin.GET("/integrations/embed-tokens", h.ListEmbedTokens)
+			admin.POST("/integrations/embed-tokens", h.CreateEmbedToken)
+			admin.DELETE("/integrations/embed-tokens/:tokenId", h.RevokeEmbedToken)
+			admin.POST("/iot/devices", h.CreateIoTDevice)
+			admin.PUT("/iot/devices/:id", h.UpdateIoTDevice)
+			admin.DELETE("/iot/devices/:id", h.DeleteIoTDevice)
+			admin.GET("/iot/forwarder/settings", h.GetIoTForwarderSettings)
+			admin.PUT("/iot/forwarder/settings", h.UpdateIoTForwarderSettings)
+			admin.POST("/iot/queue/cleanup", h.CleanupIoTForwardQueue)
 
 			// Encrypted Backup Management
 			admin.POST("/system/backup/encrypted", h.ExportEncryptedBackup)

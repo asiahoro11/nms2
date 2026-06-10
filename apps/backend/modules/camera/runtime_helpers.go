@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"sync"
@@ -20,14 +21,108 @@ import (
 
 // hwAccelInfo caches which GPU decode backends ffmpeg supports.
 type hwAccelInfo struct {
-	once  sync.Once
-	cuda  bool
-	qsv   bool
-	vaapi bool
-	d3d11 bool
+	once     sync.Once
+	mu       sync.Mutex
+	cuda     bool
+	qsv      bool
+	vaapi    bool
+	d3d11    bool
+	disabled map[string]bool
 }
 
 var hwAccel hwAccelInfo
+
+type ffmpegDecodeMode struct {
+	name      string
+	inputArgs []string
+	vfFilter  string
+}
+
+type rtspRuntimeOptions struct {
+	Transport  string
+	UDPMinPort int
+	UDPMaxPort int
+}
+
+func rtspTransportFallbacks() []string {
+	return []string{"tcp", "udp"}
+}
+
+func rtspTransportsForPreference(preference string) []string {
+	switch normalizeRTSPTransportPreference(preference) {
+	case "udp":
+		return []string{"udp"}
+	case "auto":
+		return rtspTransportFallbacks()
+	default:
+		return []string{"tcp"}
+	}
+}
+
+func normalizeRTSPTransportPreference(transport string) string {
+	switch strings.ToLower(strings.TrimSpace(transport)) {
+	case "auto":
+		return "auto"
+	case "tcp":
+		return "tcp"
+	case "udp":
+		return "udp"
+	default:
+		return "tcp"
+	}
+}
+
+func normalizeRTSPTransport(transport string) string {
+	switch strings.ToLower(strings.TrimSpace(transport)) {
+	case "udp":
+		return "udp"
+	default:
+		return "tcp"
+	}
+}
+
+func normalizeRTSPRuntimeOptions(options rtspRuntimeOptions) rtspRuntimeOptions {
+	options.Transport = normalizeRTSPTransportPreference(options.Transport)
+	if options.UDPMinPort < 0 {
+		options.UDPMinPort = 0
+	}
+	if options.UDPMaxPort < 0 {
+		options.UDPMaxPort = 0
+	}
+	if options.UDPMinPort > 65535 {
+		options.UDPMinPort = 65535
+	}
+	if options.UDPMaxPort > 65535 {
+		options.UDPMaxPort = 65535
+	}
+	if options.UDPMinPort > 0 && options.UDPMaxPort > 0 && options.UDPMinPort > options.UDPMaxPort {
+		options.UDPMinPort, options.UDPMaxPort = options.UDPMaxPort, options.UDPMinPort
+	}
+	return options
+}
+
+func (o rtspRuntimeOptions) transports() []string {
+	return rtspTransportsForPreference(o.Transport)
+}
+
+func (o rtspRuntimeOptions) inputArgs(transport string) []string {
+	normalized := normalizeRTSPRuntimeOptions(o)
+	transport = normalizeRTSPTransport(transport)
+	args := []string{"-rtsp_transport", transport}
+	if transport == "udp" && normalized.UDPMinPort > 0 && normalized.UDPMaxPort > 0 {
+		args = append(args, "-min_port", fmt.Sprintf("%d", normalized.UDPMinPort), "-max_port", fmt.Sprintf("%d", normalized.UDPMaxPort))
+	}
+	return args
+}
+
+func (m ffmpegDecodeMode) isHardware() bool {
+	return m.name != "" && m.name != "cpu"
+}
+
+var (
+	urlCredentialsPattern = regexp.MustCompile(`(?i)\b([a-z][a-z0-9+.-]*://)([^@\s/]+@)`)
+	urlSecretQueryPattern = regexp.MustCompile(`(?i)([?&](?:user|username|pass|password|pwd|token|access_token|refresh_token|auth|authorization|key|api_key|client_secret|secret|community|snmp_community)=)[^&\s]+`)
+)
 
 // FindFFmpegBin returns the path to the ffmpeg binary.
 func FindFFmpegBin() string {
@@ -213,41 +308,138 @@ func HasHardwareDecode(ffmpegBin string) bool {
 func GetHardwareAccelState(ffmpegBin string) HardwareAccelState {
 	ProbeGPU(ffmpegBin)
 	return HardwareAccelState{
-		CUDA:   hwAccel.cuda,
-		QSV:    hwAccel.qsv,
-		VAAPI:  hwAccel.vaapi,
-		D3D11:  hwAccel.d3d11,
-		Active: hwAccel.cuda || hwAccel.qsv || hwAccel.vaapi || hwAccel.d3d11,
+		CUDA:   hwAccel.cuda && !isHardwareDecodeModeDisabled("cuda"),
+		QSV:    hwAccel.qsv && !isHardwareDecodeModeDisabled("qsv"),
+		VAAPI:  hwAccel.vaapi && !isHardwareDecodeModeDisabled("vaapi"),
+		D3D11:  hwAccel.d3d11 && !isHardwareDecodeModeDisabled("d3d11va"),
+		Active: hasActiveHardwareDecodeMode(),
 	}
+}
+
+func isHardwareDecodeModeDisabled(name string) bool {
+	hwAccel.mu.Lock()
+	defer hwAccel.mu.Unlock()
+	return hwAccel.disabled != nil && hwAccel.disabled[name]
+}
+
+func hasActiveHardwareDecodeMode() bool {
+	return (hwAccel.cuda && !isHardwareDecodeModeDisabled("cuda")) ||
+		(hwAccel.qsv && !isHardwareDecodeModeDisabled("qsv")) ||
+		(hwAccel.vaapi && !isHardwareDecodeModeDisabled("vaapi")) ||
+		(hwAccel.d3d11 && !isHardwareDecodeModeDisabled("d3d11va"))
+}
+
+func disableHardwareDecodeMode(mode ffmpegDecodeMode, reason string) {
+	if !mode.isHardware() {
+		return
+	}
+	hwAccel.mu.Lock()
+	defer hwAccel.mu.Unlock()
+	if hwAccel.disabled == nil {
+		hwAccel.disabled = make(map[string]bool)
+	}
+	if hwAccel.disabled["cuda"] && hwAccel.disabled["qsv"] && hwAccel.disabled["vaapi"] && hwAccel.disabled["d3d11va"] {
+		return
+	}
+	for _, name := range []string{"cuda", "qsv", "vaapi", "d3d11va"} {
+		hwAccel.disabled[name] = true
+	}
+	if strings.TrimSpace(reason) == "" {
+		reason = "no first frame from hardware decoder"
+	}
+	log.Printf("[Camera] disabling ffmpeg hwaccel after mode=%s decode failure; CPU decode will be used: %s",
+		mode.name, strings.TrimSpace(RedactSensitiveText(reason)))
+}
+
+func isHardwareDecodeFailure(stderr string) bool {
+	lower := strings.ToLower(stderr)
+	return strings.Contains(lower, "hardware is lacking") ||
+		strings.Contains(lower, "hwaccel") ||
+		strings.Contains(lower, "failed setup for format") ||
+		strings.Contains(lower, "device creation failed") ||
+		strings.Contains(lower, "no device available") ||
+		strings.Contains(lower, "cuvid") ||
+		strings.Contains(lower, "cuda") && strings.Contains(lower, "failed") ||
+		strings.Contains(lower, "qsv") && strings.Contains(lower, "failed") ||
+		strings.Contains(lower, "vaapi") && strings.Contains(lower, "failed") ||
+		strings.Contains(lower, "d3d11") && strings.Contains(lower, "failed")
+}
+
+func hwDecodeModes() []ffmpegDecodeMode {
+	modes := make([]ffmpegDecodeMode, 0, 2)
+	switch {
+	case hwAccel.cuda && !isHardwareDecodeModeDisabled("cuda"):
+		modes = append(modes, ffmpegDecodeMode{
+			name:      "cuda",
+			inputArgs: []string{"-hwaccel", "cuda", "-hwaccel_output_format", "cuda"},
+			vfFilter:  "scale_cuda=iw:ih,hwdownload,format=nv12",
+		})
+	case hwAccel.qsv && !isHardwareDecodeModeDisabled("qsv"):
+		modes = append(modes, ffmpegDecodeMode{
+			name:      "qsv",
+			inputArgs: []string{"-hwaccel", "qsv", "-hwaccel_output_format", "qsv"},
+			vfFilter:  "vpp_qsv=iw:ih,hwdownload,format=nv12",
+		})
+	case hwAccel.vaapi && !isHardwareDecodeModeDisabled("vaapi"):
+		modes = append(modes, ffmpegDecodeMode{
+			name:      "vaapi",
+			inputArgs: []string{"-hwaccel", "vaapi", "-hwaccel_output_format", "vaapi", "-vaapi_device", "/dev/dri/renderD128"},
+			vfFilter:  "scale_vaapi=iw:ih,hwdownload,format=nv12",
+		})
+	case hwAccel.d3d11 && !isHardwareDecodeModeDisabled("d3d11va"):
+		modes = append(modes, ffmpegDecodeMode{
+			name:      "d3d11va",
+			inputArgs: []string{"-hwaccel", "d3d11va"},
+		})
+	}
+	modes = append(modes, ffmpegDecodeMode{name: "cpu"})
+	return modes
 }
 
 func hwDecodeArgs() (inputArgs []string, vfFilter string) {
-	switch {
-	case hwAccel.cuda:
-		return []string{"-hwaccel", "cuda", "-hwaccel_output_format", "cuda"},
-			"scale_cuda=iw:ih,hwdownload,format=nv12"
-	case hwAccel.qsv:
-		return []string{"-hwaccel", "qsv", "-hwaccel_output_format", "qsv"},
-			"vpp_qsv=iw:ih,hwdownload,format=nv12"
-	case hwAccel.vaapi:
-		return []string{"-hwaccel", "vaapi", "-hwaccel_output_format", "vaapi", "-vaapi_device", "/dev/dri/renderD128"},
-			"scale_vaapi=iw:ih,hwdownload,format=nv12"
-	case hwAccel.d3d11:
-		return []string{"-hwaccel", "d3d11va"}, ""
-	default:
+	modes := hwDecodeModes()
+	if len(modes) == 0 {
 		return nil, ""
 	}
+	return modes[0].inputArgs, modes[0].vfFilter
 }
 
 func BuildFFmpegStreamArgs(rtspURL, boundary string, fps, quality, bitrateKbps int) []string {
-	hwIn, baseVf := hwDecodeArgs()
-	args := []string{"-rtsp_transport", "tcp"}
-	args = append(args, hwIn...)
-	args = append(args, "-i", rtspURL, "-r", fmt.Sprintf("%d", fps))
+	modes := hwDecodeModes()
+	return BuildFFmpegStreamArgsForMode(rtspURL, boundary, fps, quality, bitrateKbps, modes[0])
+}
+
+func BuildFFmpegStreamArgsForMode(rtspURL, boundary string, fps, quality, bitrateKbps int, mode ffmpegDecodeMode) []string {
+	return BuildFFmpegStreamArgsForModeTransport(rtspURL, boundary, fps, quality, bitrateKbps, mode, "tcp")
+}
+
+func BuildFFmpegStreamArgsForModeTransport(rtspURL, boundary string, fps, quality, bitrateKbps int, mode ffmpegDecodeMode, transport string) []string {
+	return BuildFFmpegStreamArgsForModeTransportOptions(rtspURL, boundary, fps, quality, bitrateKbps, mode, transport, rtspRuntimeOptions{})
+}
+
+func BuildFFmpegStreamArgsForModeTransportOptions(rtspURL, boundary string, fps, quality, bitrateKbps int, mode ffmpegDecodeMode, transport string, options rtspRuntimeOptions) []string {
+	args := options.inputArgs(transport)
+	args = append(args, mode.inputArgs...)
+	args = append(args,
+		"-fflags", "nobuffer",
+		"-flags", "low_delay",
+		"-avioflags", "direct",
+		"-analyzeduration", "0",
+		"-probesize", "32768",
+		"-rtbufsize", "256k",
+		"-max_delay", "0",
+		"-reorder_queue_size", "0",
+		"-use_wallclock_as_timestamps", "1",
+		"-i", rtspURL,
+		"-an",
+	)
 
 	vfFilters := make([]string, 0, 2)
-	if baseVf != "" {
-		vfFilters = append(vfFilters, baseVf)
+	if mode.vfFilter != "" {
+		vfFilters = append(vfFilters, mode.vfFilter)
+	}
+	if fps > 0 {
+		vfFilters = append(vfFilters, fmt.Sprintf("fps=%d", fps))
 	}
 
 	if bitrateKbps > 0 {
@@ -255,17 +447,17 @@ func BuildFFmpegStreamArgs(rtspURL, boundary string, fps, quality, bitrateKbps i
 		var scaleFilter string
 		switch {
 		case bitrateKbps >= 3000:
-			qv = 3
+			qv = 2
 		case bitrateKbps >= 1500:
-			qv = 5
+			qv = 4
 		case bitrateKbps >= 800:
-			qv = 7
+			qv = 5
 			scaleFilter = "scale='min(iw,1280)':'min(ih,720)':force_original_aspect_ratio=decrease"
 		case bitrateKbps >= 400:
-			qv = 12
+			qv = 9
 			scaleFilter = "scale='min(iw,854)':'min(ih,480)':force_original_aspect_ratio=decrease"
 		default:
-			qv = 20
+			qv = 15
 			scaleFilter = "scale='min(iw,640)':'min(ih,360)':force_original_aspect_ratio=decrease"
 		}
 		if scaleFilter != "" {
@@ -280,20 +472,83 @@ func BuildFFmpegStreamArgs(rtspURL, boundary string, fps, quality, bitrateKbps i
 		args = append(args, "-vf", strings.Join(vfFilters, ","))
 	}
 
-	args = append(args, "-f", "mpjpeg", "-boundary_tag", boundary, "-")
+	args = append(args,
+		"-vsync", "0",
+		"-flush_packets", "1",
+		"-muxdelay", "0",
+		"-muxpreload", "0",
+		"-f", "mpjpeg",
+		"-boundary_tag", boundary,
+		"-",
+	)
+	return args
+}
+
+func BuildFFmpegHLSArgsForModeTransportOptions(rtspURL, playlistPath, segmentPattern string, mode ffmpegDecodeMode, transport string, options rtspRuntimeOptions) []string {
+	args := options.inputArgs(transport)
+	args = append(args, mode.inputArgs...)
+	args = append(args,
+		"-fflags", "nobuffer",
+		"-flags", "low_delay",
+		"-avioflags", "direct",
+		"-analyzeduration", "0",
+		"-probesize", "32768",
+		"-rtbufsize", "512k",
+		"-max_delay", "0",
+		"-reorder_queue_size", "0",
+		"-use_wallclock_as_timestamps", "1",
+		"-i", rtspURL,
+		"-an",
+	)
+	if mode.vfFilter != "" {
+		args = append(args, "-vf", mode.vfFilter)
+	}
+	args = append(args,
+		"-c:v", "copy",
+		"-flush_packets", "1",
+		"-muxdelay", "0",
+		"-muxpreload", "0",
+		"-f", "hls",
+		"-hls_time", "1",
+		"-hls_list_size", "3",
+		"-hls_flags", "delete_segments+omit_endlist+program_date_time",
+		"-hls_segment_filename", segmentPattern,
+		playlistPath,
+	)
 	return args
 }
 
 func BuildFFmpegSnapshotArgs(rtspURL string) []string {
-	hwIn, vf := hwDecodeArgs()
-	args := []string{"-rtsp_transport", "tcp"}
-	args = append(args, hwIn...)
+	modes := hwDecodeModes()
+	return BuildFFmpegSnapshotArgsForMode(rtspURL, modes[0])
+}
+
+func BuildFFmpegSnapshotArgsForMode(rtspURL string, mode ffmpegDecodeMode) []string {
+	return BuildFFmpegSnapshotArgsForModeTransport(rtspURL, mode, "tcp")
+}
+
+func BuildFFmpegSnapshotArgsForModeTransport(rtspURL string, mode ffmpegDecodeMode, transport string) []string {
+	return BuildFFmpegSnapshotArgsForModeTransportOptions(rtspURL, mode, transport, rtspRuntimeOptions{})
+}
+
+func BuildFFmpegSnapshotArgsForModeTransportOptions(rtspURL string, mode ffmpegDecodeMode, transport string, options rtspRuntimeOptions) []string {
+	args := options.inputArgs(transport)
+	args = append(args, mode.inputArgs...)
 	args = append(args, "-i", rtspURL, "-frames:v", "1", "-f", "image2pipe")
-	if vf != "" {
-		args = append(args, "-vf", vf)
+	if mode.vfFilter != "" {
+		args = append(args, "-vf", mode.vfFilter)
 	}
 	args = append(args, "-vcodec", "mjpeg", "-")
 	return args
+}
+
+func RedactSensitiveText(text string) string {
+	if text == "" {
+		return text
+	}
+	text = urlCredentialsPattern.ReplaceAllString(text, "${1}<credentials>@")
+	text = urlSecretQueryPattern.ReplaceAllString(text, "${1}<redacted>")
+	return text
 }
 
 func IndexBytes(data, sep []byte) int {
@@ -335,20 +590,27 @@ func RTSPCleanURL(rawURL string) string {
 }
 
 func BuildAudioArgs(ffmpegBin, rtspURL string) []string {
+	return BuildAudioArgsForTransport(ffmpegBin, rtspURL, "tcp", rtspRuntimeOptions{})
+}
+
+func BuildAudioArgsForTransport(ffmpegBin, rtspURL, transport string, options rtspRuntimeOptions) []string {
 	ffprobeBin := strings.TrimSuffix(ffmpegBin, "ffmpeg") + "ffprobe"
 	if strings.HasSuffix(ffmpegBin, ".exe") {
 		ffprobeBin = strings.TrimSuffix(ffmpegBin, "ffmpeg.exe") + "ffprobe.exe"
 	}
 
-	probeCmd := exec.Command(ffprobeBin,
+	probeArgs := []string{
 		"-v", "error",
 		"-select_streams", "a:0",
 		"-show_entries", "stream=codec_name",
 		"-of", "default=noprint_wrappers=1:nokey=1",
-		"-rtsp_transport", "tcp",
+	}
+	probeArgs = append(probeArgs, options.inputArgs(transport)...)
+	probeArgs = append(probeArgs,
 		"-timeout", "5000000",
 		rtspURL,
 	)
+	probeCmd := exec.Command(ffprobeBin, probeArgs...)
 	out, err := probeCmd.Output()
 	codec := strings.TrimSpace(strings.ToLower(string(out)))
 	if err != nil || codec == "" {

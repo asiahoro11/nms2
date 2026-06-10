@@ -48,7 +48,7 @@
             <div class="sidebar-header">
                 <div class="logo">
                     <img id="sidebar-logo" src="" alt="Logo" style="height: 32px; display: none;">
-                    <span class="logo-icon" id="default-logo-icon">📡</span>
+                    <span class="logo-icon" id="default-logo-icon" data-icon="brand">📡</span>
                     <span class="logo-text" id="sidebar-company-name">Management System</span>
                 </div>
                 <button class="sidebar-collapse-btn" onclick="toggleSidebarCollapse()" title="收合選單">
@@ -83,6 +83,10 @@
                     <span class="nav-icon">🔋</span>
                     <span class="nav-text" data-i18n="nav.pdu">PDU/UPS 監控</span>
                 </a>
+                <a href="#iot" class="nav-item" id="nav-iot" data-page="iot" data-permission="editor,admin">
+                    <span class="nav-icon">IoT</span>
+                    <span class="nav-text">IoT / Modbus</span>
+                </a>
                 <a href="#logs" class="nav-item" data-page="logs" data-permission="editor,admin">
                     <span class="nav-icon">📋</span>
                     <span class="nav-text" data-i18n="nav.logs">日誌與稽核</span>
@@ -115,7 +119,6 @@
         <!-- 主內容區 -->
         <!-- 全域頂部導航列 -->
         <div class="global-header">
-            <button class="mobile-menu-btn" onclick="toggleSidebar()" aria-label="切換選單">☰</button>
             <div class="global-header-right">
                 <button onclick="openDemoMode()" class="demo-mode-btn" title="返回主控台選擇畫面">
                     🏠 主控台
@@ -657,6 +660,70 @@
                             <div class="report-actions">
                                 <button class="btn btn-secondary" onclick="exportInventoryReport('csv')">📄 CSV</button>
                                 <button class="btn btn-secondary" onclick="exportInventoryReport('pdf')">📄 PDF</button>
+                            </div>
+                        </div>
+                        <div class="report-card">
+                            <h3 data-i18n="admin.reports.interface_report">介面 / PoE 報表</h3>
+                            <p data-i18n="admin.reports.interface_report_desc">匯出連接埠、狀態、錯誤、PoE 與流量計數</p>
+                            <div class="report-actions">
+                                <button class="btn btn-secondary" onclick="exportInterfaceReport('csv')">📄 CSV</button>
+                                <button class="btn btn-secondary" onclick="exportInterfaceReport('pdf')">📄 PDF</button>
+                            </div>
+                        </div>
+                        <div class="report-card">
+                            <h3 data-i18n="admin.reports.health_trend_report">健康趨勢報表</h3>
+                            <p data-i18n="admin.reports.health_trend_report_desc">匯出 CPU、記憶體、磁碟平均值、峰值與告警樣本</p>
+                            <div class="report-actions">
+                                <button class="btn btn-secondary" onclick="exportHealthTrendReport('csv')">📄 CSV</button>
+                                <button class="btn btn-secondary" onclick="exportHealthTrendReport('pdf')">📄 PDF</button>
+                            </div>
+                        </div>
+                        <div class="report-card">
+                            <h3 data-i18n="admin.reports.sla_report">SLA 佐證報表</h3>
+                            <p data-i18n="admin.reports.sla_report_desc">匯出目前可用性與上線 / 離線事件佐證</p>
+                            <div class="report-actions">
+                                <button class="btn btn-secondary" onclick="exportSLAReport('csv')">📄 CSV</button>
+                                <button class="btn btn-secondary" onclick="exportSLAReport('pdf')">📄 PDF</button>
+                            </div>
+                        </div>
+                        <div class="report-card">
+                            <h3 data-i18n="admin.reports.audit_change_report">稽核 / 變更報表</h3>
+                            <p data-i18n="admin.reports.audit_change_report_desc">匯出使用者操作、資源變更與覆核狀態</p>
+                            <div class="report-actions">
+                                <button class="btn btn-secondary" onclick="exportAuditReport('csv')">📄 CSV</button>
+                                <button class="btn btn-secondary" onclick="exportAuditReport('pdf')">📄 PDF</button>
+                            </div>
+                        </div>
+                        <div class="report-card">
+                            <h3 data-i18n="admin.reports.license_capacity_report">授權容量報表</h3>
+                            <p data-i18n="admin.reports.license_capacity_report_desc">匯出授權容量、目前使用量與剩餘額度</p>
+                            <div class="report-actions">
+                                <button class="btn btn-secondary" onclick="exportLicenseCapacityReport('csv')">📄 CSV</button>
+                                <button class="btn btn-secondary" onclick="exportLicenseCapacityReport('pdf')">📄 PDF</button>
+                            </div>
+                        </div>
+                        <div class="report-card">
+                            <h3 data-i18n="admin.reports.camera_module_report">攝影機模組報表</h3>
+                            <p data-i18n="admin.reports.camera_module_report_desc">匯出攝影機清單、狀態與串流模式</p>
+                            <div class="report-actions">
+                                <button class="btn btn-secondary" onclick="exportCameraReport('csv')">📄 CSV</button>
+                                <button class="btn btn-secondary" onclick="exportCameraReport('pdf')">📄 PDF</button>
+                            </div>
+                        </div>
+                        <div class="report-card">
+                            <h3 data-i18n="admin.reports.pdu_report">PDU / UPS 報表</h3>
+                            <p data-i18n="admin.reports.pdu_report_desc">匯出 PDU 與 UPS 清單及輪詢狀態</p>
+                            <div class="report-actions">
+                                <button class="btn btn-secondary" onclick="exportPDUReport('csv')">📄 CSV</button>
+                                <button class="btn btn-secondary" onclick="exportPDUReport('pdf')">📄 PDF</button>
+                            </div>
+                        </div>
+                        <div class="report-card">
+                            <h3 data-i18n="admin.reports.access_control_report">門禁報表</h3>
+                            <p data-i18n="admin.reports.access_control_report_desc">匯出門禁控制器清單與連線狀態</p>
+                            <div class="report-actions">
+                                <button class="btn btn-secondary" onclick="exportAccessControlReport('csv')">📄 CSV</button>
+                                <button class="btn btn-secondary" onclick="exportAccessControlReport('pdf')">📄 PDF</button>
                             </div>
                         </div>
                     </div>
@@ -1230,6 +1297,182 @@
                 <div id="pdu-grid" class="pdu-grid"></div>
             </section>
 
+            <section id="iot" class="page">
+                <header class="page-header">
+                    <h1>IoT / Modbus</h1>
+                    <div class="header-actions">
+                        <button class="btn btn-secondary" onclick="iotLoad()">Refresh</button>
+                        <button class="btn btn-primary" onclick="iotCreateDevice()" data-permission="admin">Add Modbus TCP</button>
+                    </div>
+                </header>
+
+                <div class="iot-grid">
+                    <div class="status-card">
+                        <h3>IoT Status</h3>
+                        <div class="iot-status-row"><span>Devices</span><strong id="iot-device-count">0</strong></div>
+                        <div class="iot-status-row"><span>Enabled</span><strong id="iot-enabled-count">0</strong></div>
+                        <div class="iot-status-row"><span>Measurements</span><strong id="iot-measurement-count">0</strong></div>
+                        <div class="iot-status-row"><span>Forward pending</span><strong id="iot-forward-pending-count">0</strong></div>
+                        <div class="iot-status-row"><span>Forward failed</span><strong id="iot-forward-failed-count">0</strong></div>
+                        <div class="iot-status-row"><span>Sent hold</span><strong id="iot-forward-sent-count">0</strong></div>
+                    </div>
+
+                    <div class="status-card">
+                        <h3>Supported Protocols</h3>
+                        <div id="iot-capabilities-list" class="iot-capabilities-list">
+                            <div class="empty-message">Loading...</div>
+                        </div>
+                    </div>
+
+                    <div class="status-card">
+                        <h3>Modbus TCP Device</h3>
+                        <div class="iot-form-grid">
+                            <input class="text-input" id="iot-name" placeholder="Name">
+                            <input class="text-input" id="iot-host" placeholder="Host IP">
+                            <input class="text-input" id="iot-port" type="number" placeholder="Port" value="502">
+                            <input class="text-input" id="iot-unit" type="number" placeholder="Unit ID" value="1">
+                            <input class="text-input" id="iot-address" type="number" placeholder="Register address" value="0">
+                            <select class="select-input" id="iot-function-code">
+                                <option value="3">FC03 Holding Register</option>
+                                <option value="4">FC04 Input Register</option>
+                            </select>
+                            <select class="select-input" id="iot-data-type">
+                                <option value="uint16">uint16</option>
+                                <option value="int16">int16</option>
+                                <option value="uint32">uint32</option>
+                                <option value="int32">int32</option>
+                                <option value="float32">float32</option>
+                            </select>
+                            <input class="text-input" id="iot-metric" placeholder="Metric" value="temperature">
+                            <input class="text-input" id="iot-scale" type="number" step="0.001" placeholder="Scale" value="1">
+                            <input class="text-input" id="iot-offset" type="number" step="0.001" placeholder="Offset" value="0">
+                            <input class="text-input" id="iot-poll-interval" type="number" min="5" placeholder="Poll seconds" value="60">
+                            <select class="select-input" id="iot-byte-order">
+                                <option value="big">byte big endian</option>
+                                <option value="little">byte little endian</option>
+                            </select>
+                            <select class="select-input" id="iot-word-order">
+                                <option value="big">word big endian</option>
+                                <option value="little">word little endian</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="status-card" data-permission="admin">
+                        <h3>Forward Queue</h3>
+                        <div class="iot-form-grid">
+                            <select class="select-input" id="iot-forward-enabled">
+                                <option value="false">Forward disabled</option>
+                                <option value="true">Forward enabled</option>
+                            </select>
+                            <input class="text-input" id="iot-forward-url" placeholder="Webhook URL">
+                            <input class="text-input" id="iot-forward-token" placeholder="Bearer token  leave blank to keep existing">
+                            <input class="text-input" id="iot-forward-batch" type="number" min="1" max="500" value="50">
+                            <button class="btn btn-primary" onclick="iotSaveForwarderSettings()">Save Forwarder</button>
+                            <button class="btn btn-secondary" onclick="iotFlushQueue()">Flush Now</button>
+                        </div>
+                    </div>
+
+                    <div class="status-card">
+                        <h3>Gateway Ingest Test</h3>
+                        <div class="iot-form-grid">
+                            <select class="select-input" id="iot-ingest-protocol">
+                                <option value="rest">REST / Webhook</option>
+                                <option value="mqtt">MQTT Bridge</option>
+                                <option value="opcua">OPC-UA Gateway</option>
+                                <option value="bacnet">BACnet Gateway</option>
+                            </select>
+                            <input class="text-input" id="iot-ingest-id" placeholder="External ID" value="demo-sensor-1">
+                            <input class="text-input" id="iot-ingest-name" placeholder="Name" value="Demo Sensor">
+                            <input class="text-input" id="iot-ingest-metric" placeholder="Metric" value="temperature">
+                            <input class="text-input" id="iot-ingest-value" type="number" step="0.01" placeholder="Value" value="25.5">
+                            <button class="btn btn-secondary" onclick="iotSendIngest()">Send Ingest</button>
+                        </div>
+                    </div>
+
+                    <div class="status-card">
+                        <h3>iframe Embed Token</h3>
+                        <div class="iot-form-grid">
+                            <input class="text-input" id="embed-name" placeholder="Token name" value="Customer Portal">
+                            <select class="select-input" id="embed-view">
+                                <option value="dashboard">dashboard</option>
+                                <option value="topology">topology</option>
+                                <option value="devices">devices</option>
+                                <option value="alerts">alerts</option>
+                                <option value="iot">iot</option>
+                            </select>
+                            <input class="text-input" id="embed-expiry" type="number" value="1440" min="5" max="43200">
+                            <button class="btn btn-secondary" onclick="iotCreateEmbedToken()" data-permission="admin">Generate Token</button>
+                        </div>
+                        <textarea class="text-input" id="embed-output" rows="4" readonly style="width:100%;margin-top:10px;"></textarea>
+                    </div>
+
+                    <div class="status-card" data-permission="admin">
+                        <h3>iframe Allowlist</h3>
+                        <textarea class="text-input" id="integration-frame-ancestors" rows="4" placeholder="'self'&#10;https://customer.example.com" style="width:100%;"></textarea>
+                        <div class="iot-action-row">
+                            <button class="btn btn-secondary btn-sm" onclick="integrationLoadSettings()">Reload</button>
+                            <button class="btn btn-primary btn-sm" onclick="integrationSaveSettings()">Save</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="devices-table-container" style="margin-top:16px;" data-permission="admin">
+                    <table class="data-table" id="embed-tokens-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Views</th>
+                                <th>Expires</th>
+                                <th>Last used</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="embed-tokens-tbody">
+                            <tr><td colspan="6" class="empty-message">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="devices-table-container" style="margin-top:16px;">
+                    <table class="data-table" id="iot-devices-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Protocol</th>
+                                <th>Target</th>
+                                <th>Register</th>
+                                <th>Metric</th>
+                                <th>Last value</th>
+                                <th>Last seen</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="iot-devices-tbody">
+                            <tr><td colspan="8" class="empty-message">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="devices-table-container" style="margin-top:16px;">
+                    <table class="data-table" id="iot-measurements-table">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>External ID</th>
+                                <th>Metric</th>
+                                <th>Value</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="iot-measurements-tbody">
+                            <tr><td colspan="5" class="empty-message">No data</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
         </main>
 
     </div>
@@ -1301,6 +1544,10 @@
             <span class="bottom-nav-icon">🔋</span>
             <span class="bottom-nav-label" data-i18n="nav.pdu">PDU/UPS</span>
         </button>
+        <button class="bottom-nav-item nav-iot" id="bottom-nav-iot" data-page="iot" data-permission="editor,admin" onclick="loadPage('iot')">
+            <span class="bottom-nav-icon">IoT</span>
+            <span class="bottom-nav-label">IoT</span>
+        </button>
         <button class="bottom-nav-item nav-logs" data-page="logs" onclick="loadPage('logs')">
             <span class="bottom-nav-icon">📋</span>
             <span class="bottom-nav-label" data-i18n="nav.logs">日誌與稽核</span>
@@ -1328,11 +1575,14 @@
             '/static/js/admin.js',
             '/static/js/reports.js',
             '/static/js/auth.js',
+            '/static/js/camera-webrtc.js',
             '/static/js/camera-module.js',
             '/static/js/door-module.js',
             '/static/js/pdu-module.js',
+            '/static/js/iot.js',
             '/static/js/notifications.js',
-            '/static/js/app.js'
+            '/static/js/app.js',
+            '/static/js/icons.js'
         ]);
     </script>
     <script>

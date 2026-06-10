@@ -13,6 +13,8 @@ var (
 	ErrSnapshotEmpty       = errors.New("camera_snapshot_empty")
 	ErrStreamUnavailable   = errors.New("camera_stream_unavailable")
 	ErrStreamTimeout       = errors.New("camera_stream_timeout")
+	ErrGo2RTCNotFound      = errors.New("go2rtc_not_found")
+	ErrGo2RTCUnavailable   = errors.New("go2rtc_unavailable")
 	ErrRecordingNotFound   = errors.New("recording_not_found")
 	ErrRecordingNotAllowed = errors.New("recording_not_licensed")
 )
@@ -30,6 +32,11 @@ type Camera struct {
 	Port                 int        `json:"port"`
 	Username             string     `json:"username"`
 	RTSPUrl              string     `json:"rtsp_url"`
+	PreviewRTSPUrl       string     `json:"preview_rtsp_url"`
+	RecordingRTSPUrl     string     `json:"recording_rtsp_url"`
+	RTSPTransport        string     `json:"rtsp_transport"`
+	RTSPUDPMinPort       int        `json:"rtsp_udp_min_port"`
+	RTSPUDPMaxPort       int        `json:"rtsp_udp_max_port"`
 	ONVIFUrl             string     `json:"onvif_url"`
 	Manufacturer         string     `json:"manufacturer"`
 	Model                string     `json:"model"`
@@ -52,6 +59,11 @@ type CameraInput struct {
 	IPAddress            string
 	Port                 int
 	RTSPUrl              string
+	PreviewRTSPUrl       string
+	RecordingRTSPUrl     string
+	RTSPTransport        string
+	RTSPUDPMinPort       int
+	RTSPUDPMaxPort       int
 	ONVIFUrl             string
 	Username             string
 	PasswordEncrypted    *string
@@ -69,6 +81,8 @@ type MonitorCamera struct {
 	ID             int    `json:"id"`
 	Name           string `json:"name"`
 	RTSPUrl        string `json:"rtsp_url"`
+	PreviewRTSPUrl string `json:"preview_rtsp_url"`
+	RTSPTransport  string `json:"rtsp_transport"`
 	Username       string `json:"username"`
 	StreamType     string `json:"stream_type"`
 	MonitorDisplay int    `json:"monitor_display"`

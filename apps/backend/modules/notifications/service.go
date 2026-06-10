@@ -3,6 +3,7 @@ package notifications
 import (
 	"database/sql"
 	"fmt"
+	"sync"
 	"time"
 
 	"management-server/config"
@@ -11,9 +12,13 @@ import (
 )
 
 type Service struct {
-	db      *sql.DB
-	config  *config.Config
-	license *licensemodule.Service
+	db                   *sql.DB
+	config               *config.Config
+	license              *licensemodule.Service
+	alertSettingsMu      sync.Mutex
+	alertSettingsEnsured bool
+	notificationsMu      sync.Mutex
+	notificationsEnsured bool
 }
 
 func NewService(db *sql.DB, cfg *config.Config) *Service {
@@ -25,6 +30,13 @@ func NewService(db *sql.DB, cfg *config.Config) *Service {
 }
 
 func (s *Service) EnsureAlertSettingsTable() error {
+	s.alertSettingsMu.Lock()
+	defer s.alertSettingsMu.Unlock()
+
+	if s.alertSettingsEnsured {
+		return nil
+	}
+
 	_, err := s.db.Exec(`
 		CREATE TABLE IF NOT EXISTS alert_settings (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -46,10 +58,18 @@ func (s *Service) EnsureAlertSettingsTable() error {
 		}
 	}
 
+	s.alertSettingsEnsured = true
 	return nil
 }
 
 func (s *Service) EnsureNotificationsTable() error {
+	s.notificationsMu.Lock()
+	defer s.notificationsMu.Unlock()
+
+	if s.notificationsEnsured {
+		return nil
+	}
+
 	_, err := s.db.Exec(`
 		CREATE TABLE IF NOT EXISTS notifications (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -60,7 +80,12 @@ func (s *Service) EnsureNotificationsTable() error {
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 		)
 	`)
-	return err
+	if err != nil {
+		return err
+	}
+
+	s.notificationsEnsured = true
+	return nil
 }
 
 func (s *Service) FeatureFlags() map[string]bool {

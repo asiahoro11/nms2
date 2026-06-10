@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-TW">
 
 <head>
@@ -17,7 +17,7 @@
     <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/static/icons/favicon-16x16.png">
-    <title>&#x767b;&#x5165;</title>
+    <title>Login</title>
     <script src="/static/js/config.js"></script>
     <script>
         writeConfiguredStyles([
@@ -31,7 +31,6 @@
     </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        /* Theme Variables */
         :root {
             --login-bg: linear-gradient(135deg, #f0f4f8 0%, #d9e2ec 50%, #f0f4f8 100%);
             --card-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(248, 250, 252, 0.9));
@@ -56,6 +55,10 @@
             --shadow-color: rgba(0, 0, 0, 0.5);
         }
 
+        * {
+            box-sizing: border-box;
+        }
+
         body {
             min-height: 100vh;
             display: flex;
@@ -65,12 +68,12 @@
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             margin: 0;
             transition: background 0.3s ease;
+            padding: 20px;
         }
 
         .login-container {
             width: 100%;
             max-width: 420px;
-            padding: 20px;
         }
 
         .login-card {
@@ -150,7 +153,8 @@
             transition: all 0.3s ease;
         }
 
-        .form-group input:focus {
+        .form-group input:focus,
+        .lang-select:focus {
             outline: none;
             border-color: #60a5fa;
             box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.2);
@@ -198,6 +202,20 @@
             display: block;
         }
 
+        .success-message {
+            display: none;
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            border-radius: 8px;
+            padding: 12px 16px;
+            color: #22c55e;
+            font-size: 0.9rem;
+        }
+
+        .success-message.show {
+            display: block;
+        }
+
         .login-footer {
             display: flex;
             justify-content: space-between;
@@ -212,7 +230,6 @@
             font-size: 0.8rem;
         }
 
-        /* Theme Toggle */
         .theme-toggle {
             display: flex;
             align-items: center;
@@ -229,25 +246,11 @@
             border-color: #60a5fa;
         }
 
-        .theme-toggle-icon {
-            font-size: 16px;
-            transition: transform 0.3s ease;
-        }
-
         .theme-toggle-label {
             font-size: 12px;
             color: var(--text-secondary);
         }
 
-        body.dark-theme .theme-toggle-icon::before {
-            content: '??';
-        }
-
-        body:not(.dark-theme) .theme-toggle-icon::before {
-            content: '?儭?;
-        }
-
-        /* Loading spinner */
         .spinner {
             display: none;
             width: 20px;
@@ -269,10 +272,6 @@
             margin-right: 8px;
         }
 
-        .login-btn.loading .btn-text {
-            opacity: 0.8;
-        }
-
         .lang-select {
             width: 100%;
             background: var(--input-bg);
@@ -283,7 +282,6 @@
             font-size: 1rem;
             transition: all 0.3s ease;
             cursor: pointer;
-            outline: none;
             appearance: none;
             background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
             background-repeat: no-repeat;
@@ -291,11 +289,17 @@
             background-size: 1em;
         }
 
-        .lang-select:hover {
-            border-color: #60a5fa;
-        }
+        @media (max-width: 480px) {
+            .login-card {
+                padding: 28px 20px;
+            }
 
-        /* Mode selector ??reuse lang-select styles */
+            .login-footer {
+                flex-direction: column;
+                gap: 10px;
+                align-items: flex-start;
+            }
+        }
     </style>
 </head>
 
@@ -305,130 +309,121 @@
             <div class="login-header">
                 <div class="login-logo">
                     <img id="login-custom-logo" src="" alt="Logo" style="height: 48px; display: none;">
-                    <span class="login-logo-icon" id="login-default-icon">?</span>
-                    <span class="login-logo-text" id="login-company-name"></span>
+                    <span class="login-logo-icon" id="login-default-icon">N</span>
+                    <span class="login-logo-text" id="login-company-name">Management System</span>
                 </div>
-                <h1 data-i18n="app.title">蝞∠?蝟餌絞</h1>
-                <p data-i18n="login.title">隢?乩誑蝜潛?</p>
+                <h1 data-i18n="app.title">管理系統</h1>
+                <p data-i18n="login.title">系統登入</p>
             </div>
 
             <form class="login-form" id="login-form" onsubmit="handleLogin(event)">
                 <div class="error-message" id="error-message"></div>
 
                 <div class="form-group">
-                    <label for="username" data-i18n="login.username">撣唾?</label>
-                    <input type="text" id="username" name="username" placeholder="隢撓?亙董?? autocomplete="username"
-                        required data-i18n="[placeholder]login.username">
+                    <label for="username" data-i18n="login.username">登入帳號</label>
+                    <input type="text" id="username" name="username" placeholder="Enter username" autocomplete="username" required data-i18n="[placeholder]login.username">
                 </div>
 
                 <div class="form-group">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <label for="password" data-i18n="login.password">撖Ⅳ</label>
-                        <a href="javascript:void(0)" onclick="toggleView('forgot')"
-                            style="font-size: 0.8rem; color: #60a5fa; text-decoration: none;"
-                            data-i18n="login.forgot_password">敹?撖Ⅳ嚗?/a>
+                        <label for="password" data-i18n="login.password">登入密碼</label>
+                        <a href="javascript:void(0)" onclick="toggleView('forgot')" style="font-size: 0.8rem; color: #60a5fa; text-decoration: none;" data-i18n="login.forgot_password">忘記密碼？</a>
                     </div>
-                    <input type="password" id="password" name="password" placeholder="隢撓?亙?蝣?
-                        autocomplete="current-password" required data-i18n="[placeholder]login.password">
+                    <input type="password" id="password" name="password" placeholder="Enter password" autocomplete="current-password" required data-i18n="[placeholder]login.password">
                 </div>
 
                 <div class="form-group">
-                    <label data-i18n="login.language">隤頂??</label>
+                    <label data-i18n="login.language">語系切換</label>
                     <div id="login-lang-container"></div>
                 </div>
 
                 <button type="submit" class="login-btn" id="login-btn">
                     <span class="spinner"></span>
-                    <span class="btn-text" data-i18n="login.login_btn">?餃</span>
+                    <span class="btn-text" data-i18n="login.login_btn">登入</span>
                 </button>
             </form>
 
             <form class="login-form" id="twofactor-form" style="display: none;" onsubmit="handleTwoFactorLogin(event)">
                 <div class="login-header" style="margin-bottom: 20px;">
-                    <h2 style="font-size: 1.2rem; margin: 0; color: var(--text-primary);">鈭?畾菟?霅?/h2>
-                    <p style="font-size: 0.85rem; margin-top: 5px;" id="twofactor-description">隢撓?仿?霅Ⅳ隞亙???乓?/p>
+                    <h2 style="font-size: 1.2rem; margin: 0; color: var(--text-primary);" id="twofactor-title">Two-Factor Authentication</h2>
+                    <p style="font-size: 0.85rem; margin-top: 5px;" id="twofactor-description">Enter the code to complete sign in.</p>
                 </div>
 
                 <div class="error-message" id="twofactor-error-message"></div>
 
                 <div class="form-group">
-                    <label for="twofactor-code">撽?蝣?/ ?蝣?/label>
-                    <input type="text" id="twofactor-code" name="code" placeholder="隢撓?仿?霅Ⅳ???渡Ⅳ" autocomplete="one-time-code" required>
+                    <label for="twofactor-code" id="twofactor-code-label">Verification Code / Backup Code</label>
+                    <input type="text" id="twofactor-code" name="code" placeholder="Enter verification code or backup code" autocomplete="one-time-code" required>
                 </div>
 
                 <button type="submit" class="login-btn" id="twofactor-btn">
                     <span class="spinner"></span>
-                    <span class="btn-text">撽?銝衣??/span>
+                    <span class="btn-text" id="twofactor-submit-text">Verify and Login</span>
                 </button>
 
                 <div style="text-align: center; margin-top: 10px;">
-                    <a href="javascript:void(0)" onclick="cancelTwoFactor()"
-                        style="font-size: 0.9rem; color: #60a5fa; text-decoration: none;">餈??餃</a>
+                    <a href="javascript:void(0)" onclick="cancelTwoFactor()" style="font-size: 0.9rem; color: #60a5fa; text-decoration: none;" id="twofactor-back-link">Back to login</a>
                 </div>
             </form>
 
             <form class="login-form" id="forgot-form" style="display: none;" onsubmit="handleRequestReset(event)">
                 <div class="login-header" style="margin-bottom: 20px;">
-                    <h2 style="font-size: 1.2rem; margin: 0; color: var(--text-primary);"
-                        data-i18n="login.request_reset_title">?身?函?撖Ⅳ</h2>
-                    <p style="font-size: 0.85rem; margin-top: 5px;" data-i18n="login.request_reset_desc">隢撓?交閮餃???
-                        Email嚗??潮?閮剛?瘜?函?靽∠拳??/p>
+                    <h2 style="font-size: 1.2rem; margin: 0; color: var(--text-primary);" data-i18n="login.request_reset_title">重設您的密碼</h2>
+                    <p style="font-size: 0.85rem; margin-top: 5px;" data-i18n="login.request_reset_desc">請輸入您註冊的 Email，將發送重設語法到您的信箱。</p>
                 </div>
 
                 <div class="error-message" id="forgot-error-message"></div>
-                <div id="forgot-success-message"
-                    style="display: none; background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 8px; padding: 12px 16px; color: #22c55e; font-size: 0.9rem;">
-                    <strong data-i18n="login.reset_success_msg">?身?誘撌脩??/strong><br>
-                    <span style="font-size: 0.8rem;" data-i18n="login.reset_success_desc">憒?甇?Email
-                        撌脰酉???典??典嗾???扳?圈?閮凋縑隞嗚?/span>
+                <div id="forgot-success-message" class="success-message">
+                    <strong data-i18n="login.reset_success_msg">重設指令已發出</strong><br>
+                    <span style="font-size: 0.8rem;" data-i18n="login.reset_success_desc">如果此 Email 已註冊，您將在幾分鐘內收到重設信件。請檢查您的信箱 (包含垃圾郵件)。</span>
                 </div>
 
                 <div class="form-group">
-                    <label for="forgot-email" data-i18n="login.email">?餃??萎辣 (Email)</label>
-                    <input type="email" id="forgot-email" name="email" placeholder="靘?: user@example.com" required
-                        data-i18n="[placeholder]login.email_placeholder">
+                    <label for="forgot-email" data-i18n="login.email">電子郵件 (Email)</label>
+                    <input type="email" id="forgot-email" name="email" placeholder="user@example.com" required data-i18n="[placeholder]login.email_placeholder">
                 </div>
 
                 <button type="submit" class="login-btn" id="forgot-btn">
                     <span class="spinner"></span>
-                    <span class="btn-text" data-i18n="login.send_reset_link">?潮?閮凋縑隞?/span>
+                    <span class="btn-text" data-i18n="login.send_reset_link">發送重設信件</span>
                 </button>
 
                 <div style="text-align: center; margin-top: 10px;">
-                    <a href="javascript:void(0)" onclick="toggleView('login')"
-                        style="font-size: 0.9rem; color: #60a5fa; text-decoration: none;"
-                        data-i18n="login.back_to_login">餈??餃</a>
+                    <a href="javascript:void(0)" onclick="toggleView('login')" style="font-size: 0.9rem; color: #60a5fa; text-decoration: none;" data-i18n="login.back_to_login">返回登入</a>
                 </div>
             </form>
 
             <div class="login-footer">
-                <span class="login-footer-text">穢 2026 <span
-                        style="font-size:10px; opacity:0.7" data-app-version></span></span>
+                <span class="login-footer-text">(C) 2026 <span style="font-size:10px; opacity:0.7" data-app-version></span></span>
                 <div class="theme-toggle" onclick="toggleLoginTheme()">
-                    <span class="theme-toggle-icon"></span>
-                    <span class="theme-toggle-label" data-i18n="common.theme">銝駁?</span>
+                    <span id="theme-toggle-icon">SUN</span>
+                    <span class="theme-toggle-label" data-i18n="common.theme">主題</span>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        // Initialize theme from localStorage
         (function () {
             const savedTheme = localStorage.getItem('nms-theme');
-            document.body.classList.toggle('dark-theme', savedTheme !== 'light');
+            const isDark = savedTheme !== 'light';
+            document.body.classList.toggle('dark-theme', isDark);
+            document.getElementById('theme-toggle-icon').textContent = isDark ? 'SUN' : 'MOON';
         })();
 
-        // Toggle theme function
-        function toggleLoginTheme() {
-            const isDark = document.body.classList.toggle('dark-theme');
-            localStorage.setItem('nms-theme', isDark ? 'dark' : 'light');
-        }
-
-        // View toggle logic
         let pendingTwoFactorChallenge = null;
         let pendingTwoFactorMethod = '';
         let pendingTwoFactorUsername = '';
+
+        function translate(key, fallback) {
+            return typeof t === 'function' ? (t(key) || fallback) : fallback;
+        }
+
+        function toggleLoginTheme() {
+            const isDark = document.body.classList.toggle('dark-theme');
+            localStorage.setItem('nms-theme', isDark ? 'dark' : 'light');
+            document.getElementById('theme-toggle-icon').textContent = isDark ? 'SUN' : 'MOON';
+        }
 
         function toggleView(view) {
             const loginForm = document.getElementById('login-form');
@@ -478,13 +473,12 @@
         ]);
     </script>
     <script>
-        // Use stored language, or default to zh-TW
         if (!localStorage.getItem('nms_lang')) {
             localStorage.setItem('nms_lang', 'zh-TW');
         }
 
         async function refreshLoginCaches() {
-            const currentVersion = typeof getAssetVersion === 'function' ? getAssetVersion() : 'v1.2.4';
+            const currentVersion = typeof getAssetVersion === 'function' ? getAssetVersion() : 'v1.2.4-poc-ui1';
 
             if ('serviceWorker' in navigator) {
                 try {
@@ -509,11 +503,9 @@
             }
         }
 
-        // I18n auto-initializes itself, just wait for it to be ready
         document.addEventListener('DOMContentLoaded', async () => {
             await refreshLoginCaches();
 
-            // Wait a bit for i18n to finish initialization
             setTimeout(() => {
                 if (typeof applyTranslations === 'function') {
                     applyTranslations();
@@ -524,76 +516,72 @@
             }, 100);
         });
 
-        // Load custom branding
         fetch('/api/v1/branding')
-            .then(res => res.json())
-            .then(data => {
-                if (data.success && data.data) {
-                    const logoContainer = document.querySelector('.login-logo');
-                    const logoImg = document.getElementById('login-custom-logo');
-                    const defaultIcon = document.getElementById('login-default-icon');
-                    const companyName = document.getElementById('login-company-name');
-                    const branding = data.data;
+            .then((res) => res.json())
+            .then((data) => {
+                if (!data.success || !data.data) {
+                    return;
+                }
 
+                const logoContainer = document.querySelector('.login-logo');
+                const logoImg = document.getElementById('login-custom-logo');
+                const defaultIcon = document.getElementById('login-default-icon');
+                const companyName = document.getElementById('login-company-name');
+                const branding = data.data;
 
-                    if (branding.logo_path) {
-                        logoImg.src = branding.logo_path;
-                        logoImg.style.display = 'block';
-                        if (defaultIcon) defaultIcon.style.display = 'none';
-                    } else {
-                        logoImg.style.display = 'none';
-                        if (defaultIcon) defaultIcon.style.display = 'none'; // Keep hidden by user request
-                    }
+                if (branding.logo_path) {
+                    logoImg.src = branding.logo_path;
+                    logoImg.style.display = 'block';
+                    defaultIcon.style.display = 'none';
+                } else {
+                    logoImg.style.display = 'none';
+                    defaultIcon.style.display = 'none';
+                }
 
+                if (branding.company_name !== undefined && branding.company_name !== null) {
+                    companyName.textContent = branding.company_name;
                     if (branding.company_name) {
-                        companyName.textContent = branding.company_name;
-                        document.title = branding.company_name + ' - ?餃';
+                        document.title = branding.company_name + ' - Login';
                     }
+                }
 
-                    // Apply styles (color, size)
-                    if (companyName) {
-                        if (branding.font_size) {
-                            companyName.style.setProperty('font-size', branding.font_size + 'px', 'important');
-                        }
-                        if (branding.font_color) {
-                            companyName.style.color = branding.font_color;
-                            companyName.style.webkitTextFillColor = branding.font_color; // Update this too
-                            companyName.style.background = 'none';
-                        }
-                    }
+                if (branding.font_size) {
+                    companyName.style.setProperty('font-size', branding.font_size + 'px', 'important');
+                }
+                if (branding.font_color) {
+                    companyName.style.color = branding.font_color;
+                    companyName.style.webkitTextFillColor = branding.font_color;
+                    companyName.style.background = 'none';
+                }
 
-                    // Apply position
-                    if (branding.name_position && logoContainer) {
-                        const position = branding.name_position;
-                        logoContainer.style.display = 'flex';
-                        logoContainer.style.alignItems = 'center';
+                if (branding.name_position && logoContainer) {
+                    const position = branding.name_position;
+                    logoContainer.style.display = 'flex';
+                    logoContainer.style.alignItems = 'center';
 
-                        if (position === 'top') {
-                            logoContainer.style.flexDirection = 'column-reverse';
-                        } else if (position === 'bottom') {
-                            logoContainer.style.flexDirection = 'column';
-                        } else if (position === 'left') {
-                            logoContainer.style.flexDirection = 'row-reverse';
-                        } else {
-                            logoContainer.style.flexDirection = 'row';
-                        }
+                    if (position === 'top') {
+                        logoContainer.style.flexDirection = 'column-reverse';
+                    } else if (position === 'bottom') {
+                        logoContainer.style.flexDirection = 'column';
+                    } else if (position === 'left') {
+                        logoContainer.style.flexDirection = 'row-reverse';
+                    } else {
+                        logoContainer.style.flexDirection = 'row';
                     }
                 }
             })
-            .catch(() => { });
+            .catch(() => {});
     </script>
 
     <script>
-        // Check if already logged in (skip check if restored=true)
         const urlParams = new URLSearchParams(window.location.search);
         const isRestored = urlParams.get('restored') === 'true';
         const token = sessionStorage.getItem('nms_token');
 
         if (token && !isRestored) {
-            // Verify token is still valid
             fetch('/api/v1/auth/me', {
-                headers: { 'Authorization': 'Bearer ' + token }
-            }).then(res => {
+                headers: { Authorization: 'Bearer ' + token }
+            }).then((res) => {
                 if (res.ok) {
                     const modeSelectionRoute = window.location.pathname.startsWith('/static/') ? '/static/mode-selection.html' : '/mode-selection.html';
                     window.location.href = modeSelectionRoute;
@@ -619,7 +607,7 @@
             errorEl.textContent = '';
 
             if (!username || !password) {
-                showError(t('login.error_required') || '請輸入帳號與密碼');
+                showError(translate('login.error_required', 'Please enter username and password.'));
                 return;
             }
 
@@ -636,7 +624,7 @@
                 let data;
                 try {
                     data = await response.json();
-                } catch (e) {
+                } catch (_) {
                     throw new Error('Server returned invalid JSON');
                 }
 
@@ -650,11 +638,11 @@
                         completeLoginSuccess(data.data);
                     }
                 } else {
-                    showError(data.error || t('login.error_failed') || '登入失敗');
+                    showError(data.error || translate('login.error_failed', 'Login failed.'));
                 }
             } catch (error) {
                 console.error('Login error:', error);
-                showError(t('login.error_connection') || '連線失敗，請稍後再試。');
+                showError(translate('login.error_connection', 'Connection failed. Please try again later.'));
             } finally {
                 btn.classList.remove('loading');
                 btn.disabled = false;
@@ -672,13 +660,13 @@
             errorEl.textContent = '';
 
             if (!pendingTwoFactorChallenge) {
-                errorEl.textContent = '登入驗證已失效，請重新登入。';
+                errorEl.textContent = 'The login verification has expired. Please sign in again.';
                 errorEl.classList.add('show');
                 return;
             }
 
             if (!code) {
-                errorEl.textContent = '請輸入驗證碼。';
+                errorEl.textContent = 'Please enter the verification code.';
                 errorEl.classList.add('show');
                 return;
             }
@@ -702,12 +690,12 @@
                 if (data.success) {
                     completeLoginSuccess(data.data);
                 } else {
-                    errorEl.textContent = data.error || '驗證失敗';
+                    errorEl.textContent = data.error || 'Verification failed.';
                     errorEl.classList.add('show');
                 }
             } catch (error) {
                 console.error('2FA verify error:', error);
-                errorEl.textContent = '驗證失敗，請稍後再試。';
+                errorEl.textContent = 'Verification failed. Please try again later.';
                 errorEl.classList.add('show');
             } finally {
                 btn.classList.remove('loading');
@@ -722,9 +710,9 @@
             errorEl.textContent = '';
 
             if (method === 'email_otp') {
-                descEl.textContent = '系統已寄出驗證碼到您的 Email，請輸入該驗證碼完成登入。';
+                descEl.textContent = 'A verification code has been sent to your email address.';
             } else {
-                descEl.textContent = '請輸入驗證器中的驗證碼，或輸入一組備援碼完成登入。';
+                descEl.textContent = 'Enter the authenticator code or one of your backup codes.';
             }
 
             toggleView('2fa');
@@ -769,7 +757,8 @@
             const successEl = document.getElementById('forgot-success-message');
 
             errorEl.classList.remove('show');
-            successEl.style.display = 'none';
+            errorEl.textContent = '';
+            successEl.classList.remove('show');
             btn.classList.add('loading');
             btn.disabled = true;
 
@@ -782,24 +771,23 @@
 
                 const data = await response.json();
                 if (data.success) {
-                    successEl.style.display = 'block';
+                    successEl.classList.add('show');
                     document.getElementById('forgot-form').reset();
                 } else {
-                    errorEl.textContent = data.error || '寄送失敗';
+                    errorEl.textContent = data.error || 'Unable to send the reset link.';
                     errorEl.classList.add('show');
                 }
-            } catch (err) {
-                errorEl.textContent = '系統錯誤，請稍後再試。';
+            } catch (_) {
+                errorEl.textContent = 'System error. Please try again later.';
                 errorEl.classList.add('show');
             } finally {
                 btn.classList.remove('loading');
                 btn.disabled = false;
             }
         }
-        // Focus username field on load
+
         document.getElementById('username').focus();
     </script>
 </body>
 
 </html>
-

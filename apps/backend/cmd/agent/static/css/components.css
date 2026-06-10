@@ -10,6 +10,7 @@
     border-bottom: 1px solid var(--border-color);
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    max-width: 100%;
 }
 
 .tab-btn {
@@ -53,11 +54,15 @@
 
 .admin-tab-content {
     display: none;
+    min-width: 0;
+    max-width: 100%;
     animation: fadeIn var(--transition-normal);
 }
 
 .admin-tab-content.active {
     display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 .section-header {
@@ -138,7 +143,11 @@
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-lg);
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: visible;
+    max-width: 100%;
+    min-width: 0;
+    -webkit-overflow-scrolling: touch;
 }
 
 /* ===== Devices Table Container ===== */
@@ -146,7 +155,11 @@
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-lg);
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: visible;
+    max-width: 100%;
+    min-width: 0;
+    -webkit-overflow-scrolling: touch;
 }
 
 /* ===== Action Buttons ===== */
@@ -951,10 +964,13 @@
     gap: 24px;
     margin-top: 20px;
     align-items: stretch;
+    min-width: 0;
+    max-width: 100%;
 }
 
 .host-info-card {
     flex: 0 0 350px;
+    max-width: 100%;
 }
 
 .host-usage-card {
@@ -978,6 +994,8 @@
     border-radius: var(--radius-lg);
     padding: 24px;
     box-shadow: var(--shadow-sm);
+    min-width: 0;
+    max-width: 100%;
 }
 
 .status-card h3 {
@@ -992,8 +1010,10 @@
 .info-group {
     display: flex;
     justify-content: space-between;
+    gap: 12px;
     padding: 12px 0;
     border-bottom: 1px solid var(--bg-tertiary);
+    min-width: 0;
 }
 
 .info-group:last-child {
@@ -1009,6 +1029,9 @@
     color: var(--text-primary);
     font-weight: 500;
     font-size: 14px;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    text-align: right;
 }
 
 .usage-item {
@@ -1066,13 +1089,18 @@ body.advanced-unlocked .tab-btn.advanced-only {
 /* Gauge Boxes */
 .host-gauges-container {
     display: flex;
+    flex-wrap: wrap;
     gap: 16px;
     margin-bottom: 24px;
     justify-content: flex-start;
+    min-width: 0;
+    max-width: 100%;
 }
 
 .gauge-box {
-    flex: 0 0 220px;
+    flex: 1 1 180px;
+    min-width: 0;
+    max-width: 220px;
     background: var(--bg-tertiary);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
@@ -1089,7 +1117,8 @@ body.advanced-unlocked .tab-btn.advanced-only {
     }
 
     .gauge-box {
-        min-width: 100%;
+        max-width: 100%;
+        width: 100%;
     }
 }
 

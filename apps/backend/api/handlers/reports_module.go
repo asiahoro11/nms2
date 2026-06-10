@@ -12,3 +12,13 @@ func (h *Handler) ExportDeviceHealthReport(c *gin.Context) {
 }
 func (h *Handler) ExportAvailabilityReport(c *gin.Context) { h.reports.ExportAvailabilityReport(c) }
 func (h *Handler) ExportInventoryReport(c *gin.Context)    { h.reports.ExportInventoryReport(c) }
+func (h *Handler) ExportInterfaceReport(c *gin.Context)    { h.reports.ExportInterfaceReport(c) }
+func (h *Handler) ExportHealthTrendReport(c *gin.Context)  { h.reports.ExportHealthTrendReport(c) }
+func (h *Handler) ExportSLAReport(c *gin.Context)          { h.reports.ExportSLAReport(c) }
+func (h *Handler) ExportAuditReport(c *gin.Context)        { h.reports.ExportAuditReport(c) }
+func (h *Handler) ExportLicenseCapacityReport(c *gin.Context) {
+	h.reports.ExportLicenseCapacityReport(c)
+}
+func (h *Handler) ExportCameraReport(c *gin.Context)        { h.reports.ExportCameraReport(c) }
+func (h *Handler) ExportPDUReport(c *gin.Context)           { h.reports.ExportPDUReport(c) }
+func (h *Handler) ExportAccessControlReport(c *gin.Context) { h.reports.ExportAccessControlReport(c) }

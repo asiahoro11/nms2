@@ -1,0 +1,698 @@
+package reports
+
+import (
+	"os"
+	"strings"
+
+	"github.com/gin-gonic/gin"
+	"github.com/jung-kurt/gofpdf"
+)
+
+type reportTranslator struct {
+	lang string
+}
+
+func newReportTranslator(c *gin.Context) reportTranslator {
+	lang := strings.TrimSpace(c.Query("lang"))
+	if lang == "" {
+		lang = strings.TrimSpace(c.Query("locale"))
+	}
+	if lang == "" {
+		lang = strings.TrimSpace(c.GetHeader("X-Report-Lang"))
+	}
+	if lang == "" {
+		lang = "zh-TW"
+	}
+	return reportTranslator{lang: normalizeReportLang(lang)}
+}
+
+func normalizeReportLang(lang string) string {
+	normalized := strings.ToLower(strings.ReplaceAll(lang, "_", "-"))
+	switch {
+	case strings.HasPrefix(normalized, "en"):
+		return "en-US"
+	case strings.HasPrefix(normalized, "zh-cn"), strings.HasPrefix(normalized, "zh-hans"):
+		return "zh-CN"
+	case strings.HasPrefix(normalized, "ja"):
+		return "ja-JP"
+	case strings.HasPrefix(normalized, "ko"):
+		return "ko-KR"
+	default:
+		return "zh-TW"
+	}
+}
+
+func (rt reportTranslator) T(key string) string {
+	if value := reportI18N[rt.lang][key]; value != "" {
+		return value
+	}
+	if value := reportI18N["zh-TW"][key]; value != "" {
+		return value
+	}
+	return key
+}
+
+func (rt reportTranslator) Headers(keys ...string) []string {
+	headers := make([]string, 0, len(keys))
+	for _, key := range keys {
+		headers = append(headers, rt.T(key))
+	}
+	return headers
+}
+
+func (rt reportTranslator) DisplayValue(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "online":
+		return rt.T("value.online")
+	case "offline":
+		return rt.T("value.offline")
+	case "up":
+		return rt.T("value.up")
+	case "down":
+		return rt.T("value.down")
+	case "unknown":
+		return rt.T("value.unknown")
+	case "enabled":
+		return rt.T("value.enabled")
+	case "disabled":
+		return rt.T("value.disabled")
+	case "active":
+		return rt.T("value.active")
+	case "inactive":
+		return rt.T("value.inactive")
+	case "yes":
+		return rt.T("value.yes")
+	case "no":
+		return rt.T("value.no")
+	case "system":
+		return rt.T("value.system")
+	case "never":
+		return rt.T("value.never")
+	default:
+		return value
+	}
+}
+
+func newReportPDF(orientation string) (*gofpdf.Fpdf, string, bool) {
+	for _, path := range reportFontCandidates() {
+		if _, err := os.Stat(path); err != nil {
+			continue
+		}
+		pdf := gofpdf.New(orientation, "mm", "A4", "")
+		pdf.AddUTF8Font("ReportFont", "", path)
+		pdf.AddUTF8Font("ReportFont", "B", path)
+		if pdf.Error() == nil {
+			return pdf, "ReportFont", true
+		}
+	}
+	return gofpdf.New(orientation, "mm", "A4", ""), "Arial", false
+}
+
+func reportPDFText(text string, unicodeFont bool) string {
+	if unicodeFont {
+		return text
+	}
+	return cleanString(text)
+}
+
+func truncateReportText(text string, maxRunes int) string {
+	runes := []rune(text)
+	if len(runes) <= maxRunes {
+		return text
+	}
+	if maxRunes <= 3 {
+		return string(runes[:maxRunes])
+	}
+	return strings.TrimSpace(string(runes[:maxRunes-3])) + "..."
+}
+
+func reportFontCandidates() []string {
+	return []string{
+		`C:\Windows\Fonts\ARIALUNI.ttf`,
+		`C:\Windows\Fonts\NotoSansTC-VF.ttf`,
+		`C:\Windows\Fonts\NotoSansHK-VF.ttf`,
+		`C:\Windows\Fonts\msjh.ttc`,
+		`/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc`,
+		`/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc`,
+		`/usr/share/fonts/truetype/arphic/uming.ttc`,
+	}
+}
+
+var reportI18N = map[string]map[string]string{
+	"zh-TW": {
+		"title.device_list":      "設備清單報表",
+		"title.system_logs":      "系統日誌報表",
+		"title.top_traffic":      "Top %d 介面流量排行報表",
+		"title.device_health":    "設備健康度報表（CPU 排行）",
+		"title.availability":     "設備可用性報表",
+		"title.inventory":        "網路資產清單",
+		"title.interfaces":       "介面 / PoE / 流量報表",
+		"title.health_trend":     "設備健康趨勢報表",
+		"title.sla":              "可用性 / SLA 佐證報表",
+		"title.audit":            "稽核 / 變更報表",
+		"title.license_capacity": "授權容量報表",
+		"title.cameras":          "攝影機模組報表",
+		"title.pdu":              "PDU / UPS 模組報表",
+		"title.access_control":   "門禁模組報表",
+		"col.id":                 "ID",
+		"col.name":               "名稱",
+		"col.device":             "設備",
+		"col.device_name":        "設備名稱",
+		"col.sys_name":           "系統名稱",
+		"col.ip":                 "IP",
+		"col.ip_address":         "IP 位址",
+		"col.mac_address":        "MAC 位址",
+		"col.type":               "類型",
+		"col.vendor":             "廠牌",
+		"col.maker":              "製造商",
+		"col.model":              "型號",
+		"col.firmware":           "韌體",
+		"col.location":           "位置",
+		"col.snmp_uptime":        "SNMP 運行時間",
+		"col.status":             "狀態",
+		"col.last_seen":          "最後連線",
+		"col.interface_count":    "介面數",
+		"col.up_interfaces":      "啟用介面",
+		"col.poe_ports":          "PoE 埠數",
+		"col.total_in_bps":       "總流入 (bps)",
+		"col.total_out_bps":      "總流出 (bps)",
+		"col.total_bps":          "總計 (bps)",
+		"col.created_at":         "建立時間",
+		"col.updated_at":         "更新時間",
+		"col.source_type":        "來源 / 類型",
+		"col.severity":           "嚴重度",
+		"col.message":            "訊息",
+		"col.time":               "時間",
+		"col.interface":          "介面",
+		"col.description":        "描述",
+		"col.speed":              "速率",
+		"col.oper":               "運作狀態",
+		"col.admin":              "管理狀態",
+		"col.in_bps":             "流入 bps",
+		"col.out_bps":            "流出 bps",
+		"col.in_err":             "流入錯誤",
+		"col.out_err":            "流出錯誤",
+		"col.poe":                "PoE",
+		"col.updated":            "更新時間",
+		"col.samples":            "樣本數",
+		"col.avg_cpu":            "平均 CPU",
+		"col.max_cpu":            "最高 CPU",
+		"col.avg_mem":            "平均記憶體",
+		"col.max_mem":            "最高記憶體",
+		"col.avg_disk":           "平均磁碟",
+		"col.max_disk":           "最高磁碟",
+		"col.alert_samples":      "告警樣本",
+		"col.last_sample":        "最後樣本",
+		"col.current":            "目前狀態",
+		"col.down_events":        "離線事件",
+		"col.up_events":          "上線事件",
+		"col.last_down":          "最後離線",
+		"col.last_up":            "最後上線",
+		"col.current_estimate":   "目前估算",
+		"col.user":               "使用者",
+		"col.source_ip":          "來源 IP",
+		"col.module":             "模組",
+		"col.action":             "動作",
+		"col.resource_type":      "資源類型",
+		"col.resource":           "資源",
+		"col.resource_ip":        "資源 IP",
+		"col.review":             "覆核狀態",
+		"col.license":            "授權",
+		"col.active":             "啟用",
+		"col.devices":            "設備數",
+		"col.used_devices":       "已用設備",
+		"col.device_remain":      "設備剩餘",
+		"col.cameras":            "攝影機數",
+		"col.used_cameras":       "已用攝影機",
+		"col.camera_remain":      "攝影機剩餘",
+		"col.features":           "功能",
+		"col.valid_from":         "有效起始",
+		"col.valid_until":        "有效期限",
+		"col.port":               "連接埠",
+		"col.ptz":                "PTZ",
+		"col.enabled":            "啟用",
+		"col.stream":             "串流",
+		"col.created":            "建立時間",
+		"col.last_poll":          "最後輪詢",
+		"col.door":               "門禁點",
+		"col.protocol":           "協定",
+		"col.cpu_percent":        "CPU (%)",
+		"col.mem_percent":        "記憶體 (%)",
+		"col.disk_percent":       "磁碟 (%)",
+		"col.last_check":         "最後檢查",
+		"col.uptime_estimation":  "可用性估算",
+		"col.added_date":         "加入日期",
+		"col.ifindex":            "IfIndex",
+		"value.online":           "線上",
+		"value.offline":          "離線",
+		"value.up":               "啟用",
+		"value.down":             "停用",
+		"value.unknown":          "未知",
+		"value.enabled":          "啟用",
+		"value.disabled":         "停用",
+		"value.active":           "有效",
+		"value.inactive":         "停用",
+		"value.yes":              "是",
+		"value.no":               "否",
+		"value.system":           "系統",
+		"value.never":            "從未",
+		"value.online_now":       "目前線上",
+	},
+	"en-US": {
+		"title.device_list":      "Device List Report",
+		"title.system_logs":      "System Log Report",
+		"title.top_traffic":      "Top %d Interface Traffic Report",
+		"title.device_health":    "Device Health Report (Top CPU)",
+		"title.availability":     "Device Availability Report",
+		"title.inventory":        "Network Asset Inventory",
+		"title.interfaces":       "Interface / PoE / Traffic Report",
+		"title.health_trend":     "Device Health Trend Report",
+		"title.sla":              "Availability / SLA Evidence Report",
+		"title.audit":            "Audit / Change Report",
+		"title.license_capacity": "License Capacity Report",
+		"title.cameras":          "Camera Module Report",
+		"title.pdu":              "PDU / UPS Module Report",
+		"title.access_control":   "Access Control Module Report",
+		"col.id":                 "ID",
+		"col.name":               "Name",
+		"col.device":             "Device",
+		"col.device_name":        "Device Name",
+		"col.sys_name":           "Sys Name",
+		"col.ip":                 "IP",
+		"col.ip_address":         "IP Address",
+		"col.mac_address":        "MAC Address",
+		"col.type":               "Type",
+		"col.vendor":             "Vendor",
+		"col.maker":              "Maker",
+		"col.model":              "Model",
+		"col.firmware":           "Firmware",
+		"col.location":           "Location",
+		"col.snmp_uptime":        "SNMP Uptime",
+		"col.status":             "Status",
+		"col.last_seen":          "Last Seen",
+		"col.interface_count":    "Interface Count",
+		"col.up_interfaces":      "Up Interfaces",
+		"col.poe_ports":          "PoE Ports",
+		"col.total_in_bps":       "Total In (bps)",
+		"col.total_out_bps":      "Total Out (bps)",
+		"col.total_bps":          "Total (bps)",
+		"col.created_at":         "Created At",
+		"col.updated_at":         "Updated At",
+		"col.source_type":        "Source/Type",
+		"col.severity":           "Severity",
+		"col.message":            "Message",
+		"col.time":               "Time",
+		"col.interface":          "Interface",
+		"col.description":        "Description",
+		"col.speed":              "Speed",
+		"col.oper":               "Oper",
+		"col.admin":              "Admin",
+		"col.in_bps":             "In bps",
+		"col.out_bps":            "Out bps",
+		"col.in_err":             "In Err",
+		"col.out_err":            "Out Err",
+		"col.poe":                "PoE",
+		"col.updated":            "Updated",
+		"col.samples":            "Samples",
+		"col.avg_cpu":            "Avg CPU",
+		"col.max_cpu":            "Max CPU",
+		"col.avg_mem":            "Avg Mem",
+		"col.max_mem":            "Max Mem",
+		"col.avg_disk":           "Avg Disk",
+		"col.max_disk":           "Max Disk",
+		"col.alert_samples":      "Alert Samples",
+		"col.last_sample":        "Last Sample",
+		"col.current":            "Current",
+		"col.down_events":        "Down Events",
+		"col.up_events":          "Up Events",
+		"col.last_down":          "Last Down",
+		"col.last_up":            "Last Up",
+		"col.current_estimate":   "Current Estimate",
+		"col.user":               "User",
+		"col.source_ip":          "Source IP",
+		"col.module":             "Module",
+		"col.action":             "Action",
+		"col.resource_type":      "Resource Type",
+		"col.resource":           "Resource",
+		"col.resource_ip":        "Resource IP",
+		"col.review":             "Review",
+		"col.license":            "License",
+		"col.active":             "Active",
+		"col.devices":            "Devices",
+		"col.used_devices":       "Used Devices",
+		"col.device_remain":      "Device Remain",
+		"col.cameras":            "Cameras",
+		"col.used_cameras":       "Used Cameras",
+		"col.camera_remain":      "Camera Remain",
+		"col.features":           "Features",
+		"col.valid_from":         "Valid From",
+		"col.valid_until":        "Valid Until",
+		"col.port":               "Port",
+		"col.ptz":                "PTZ",
+		"col.enabled":            "Enabled",
+		"col.stream":             "Stream",
+		"col.created":            "Created",
+		"col.last_poll":          "Last Poll",
+		"col.door":               "Door",
+		"col.protocol":           "Protocol",
+		"col.cpu_percent":        "CPU (%)",
+		"col.mem_percent":        "Mem (%)",
+		"col.disk_percent":       "Disk (%)",
+		"col.last_check":         "Last Check",
+		"col.uptime_estimation":  "Uptime Estimation",
+		"col.added_date":         "Added Date",
+		"col.ifindex":            "IfIndex",
+		"value.online":           "Online",
+		"value.offline":          "Offline",
+		"value.up":               "Up",
+		"value.down":             "Down",
+		"value.unknown":          "Unknown",
+		"value.enabled":          "Enabled",
+		"value.disabled":         "Disabled",
+		"value.active":           "Active",
+		"value.inactive":         "Inactive",
+		"value.yes":              "Yes",
+		"value.no":               "No",
+		"value.system":           "System",
+		"value.never":            "Never",
+		"value.online_now":       "online now",
+	},
+}
+
+func mergeReportLocale(base string, overrides map[string]string) map[string]string {
+	merged := make(map[string]string, len(reportI18N[base])+len(overrides))
+	for key, value := range reportI18N[base] {
+		merged[key] = value
+	}
+	for key, value := range overrides {
+		merged[key] = value
+	}
+	return merged
+}
+
+func init() {
+	reportI18N["zh-CN"] = mergeReportLocale("zh-TW", map[string]string{
+		"title.device_list":      "设备清单报表",
+		"title.system_logs":      "系统日志报表",
+		"title.top_traffic":      "Top %d 接口流量排行报表",
+		"title.device_health":    "设备健康度报表（CPU 排行）",
+		"title.availability":     "设备可用性报表",
+		"title.inventory":        "网络资产清单",
+		"title.interfaces":       "接口 / PoE / 流量报表",
+		"title.health_trend":     "设备健康趋势报表",
+		"title.sla":              "可用性 / SLA 佐证报表",
+		"title.audit":            "审计 / 变更报表",
+		"title.license_capacity": "授权容量报表",
+		"title.cameras":          "摄像机模块报表",
+		"title.pdu":              "PDU / UPS 模块报表",
+		"title.access_control":   "门禁模块报表",
+		"col.name":               "名称",
+		"col.device":             "设备",
+		"col.device_name":        "设备名称",
+		"col.sys_name":           "系统名称",
+		"col.ip_address":         "IP 地址",
+		"col.mac_address":        "MAC 地址",
+		"col.type":               "类型",
+		"col.vendor":             "厂牌",
+		"col.maker":              "制造商",
+		"col.firmware":           "固件",
+		"col.location":           "位置",
+		"col.snmp_uptime":        "SNMP 运行时间",
+		"col.status":             "状态",
+		"col.last_seen":          "最后连接",
+		"col.interface_count":    "接口数",
+		"col.up_interfaces":      "启用接口",
+		"col.poe_ports":          "PoE 端口数",
+		"col.total_in_bps":       "总流入 (bps)",
+		"col.total_out_bps":      "总流出 (bps)",
+		"col.total_bps":          "总计 (bps)",
+		"col.created_at":         "创建时间",
+		"col.updated_at":         "更新时间",
+		"col.source_type":        "来源 / 类型",
+		"col.severity":           "严重度",
+		"col.message":            "消息",
+		"col.time":               "时间",
+		"col.interface":          "接口",
+		"col.description":        "描述",
+		"col.speed":              "速率",
+		"col.oper":               "运行状态",
+		"col.admin":              "管理状态",
+		"col.in_err":             "流入错误",
+		"col.out_err":            "流出错误",
+		"col.updated":            "更新时间",
+		"col.samples":            "样本数",
+		"col.avg_mem":            "平均内存",
+		"col.max_mem":            "最高内存",
+		"col.avg_disk":           "平均磁盘",
+		"col.max_disk":           "最高磁盘",
+		"col.alert_samples":      "告警样本",
+		"col.last_sample":        "最后样本",
+		"col.current":            "当前状态",
+		"col.down_events":        "离线事件",
+		"col.up_events":          "上线事件",
+		"col.last_down":          "最后离线",
+		"col.last_up":            "最后上线",
+		"col.current_estimate":   "当前估算",
+		"col.user":               "用户",
+		"col.source_ip":          "来源 IP",
+		"col.module":             "模块",
+		"col.action":             "动作",
+		"col.resource_type":      "资源类型",
+		"col.resource":           "资源",
+		"col.resource_ip":        "资源 IP",
+		"col.review":             "复核状态",
+		"col.license":            "授权",
+		"col.active":             "启用",
+		"col.devices":            "设备数",
+		"col.used_devices":       "已用设备",
+		"col.device_remain":      "设备剩余",
+		"col.cameras":            "摄像机数",
+		"col.used_cameras":       "已用摄像机",
+		"col.camera_remain":      "摄像机剩余",
+		"col.features":           "功能",
+		"col.valid_from":         "有效起始",
+		"col.valid_until":        "有效期限",
+		"col.port":               "端口",
+		"col.enabled":            "启用",
+		"col.stream":             "串流",
+		"col.created":            "创建时间",
+		"col.last_poll":          "最后轮询",
+		"col.door":               "门禁点",
+		"col.protocol":           "协议",
+		"col.mem_percent":        "内存 (%)",
+		"col.disk_percent":       "磁盘 (%)",
+		"col.last_check":         "最后检查",
+		"col.uptime_estimation":  "可用性估算",
+		"col.added_date":         "加入日期",
+		"value.online":           "在线",
+		"value.offline":          "离线",
+		"value.up":               "启用",
+		"value.down":             "停用",
+		"value.unknown":          "未知",
+		"value.enabled":          "启用",
+		"value.disabled":         "停用",
+		"value.active":           "有效",
+		"value.inactive":         "停用",
+		"value.yes":              "是",
+		"value.no":               "否",
+		"value.system":           "系统",
+		"value.never":            "从未",
+		"value.online_now":       "当前在线",
+	})
+	reportI18N["ja-JP"] = mergeReportLocale("en-US", map[string]string{
+		"title.device_list":      "デバイス一覧レポート",
+		"title.system_logs":      "システムログレポート",
+		"title.top_traffic":      "Top %d インターフェーストラフィックレポート",
+		"title.device_health":    "デバイスヘルスレポート（CPU 上位）",
+		"title.availability":     "デバイス可用性レポート",
+		"title.inventory":        "ネットワーク資産インベントリ",
+		"title.interfaces":       "インターフェース / PoE / トラフィックレポート",
+		"title.health_trend":     "デバイスヘルストレンドレポート",
+		"title.sla":              "可用性 / SLA 証跡レポート",
+		"title.audit":            "監査 / 変更レポート",
+		"title.license_capacity": "ライセンス容量レポート",
+		"title.cameras":          "カメラモジュールレポート",
+		"title.pdu":              "PDU / UPS モジュールレポート",
+		"title.access_control":   "アクセス制御モジュールレポート",
+		"col.name":               "名前",
+		"col.device":             "デバイス",
+		"col.device_name":        "デバイス名",
+		"col.sys_name":           "システム名",
+		"col.ip_address":         "IP アドレス",
+		"col.mac_address":        "MAC アドレス",
+		"col.type":               "種類",
+		"col.vendor":             "ベンダー",
+		"col.maker":              "メーカー",
+		"col.model":              "モデル",
+		"col.firmware":           "ファームウェア",
+		"col.location":           "場所",
+		"col.snmp_uptime":        "SNMP 稼働時間",
+		"col.status":             "状態",
+		"col.last_seen":          "最終接続",
+		"col.interface_count":    "インターフェース数",
+		"col.up_interfaces":      "稼働中インターフェース",
+		"col.poe_ports":          "PoE ポート数",
+		"col.created_at":         "作成日時",
+		"col.updated_at":         "更新日時",
+		"col.source_type":        "ソース / 種類",
+		"col.severity":           "重要度",
+		"col.message":            "メッセージ",
+		"col.time":               "時刻",
+		"col.interface":          "インターフェース",
+		"col.description":        "説明",
+		"col.speed":              "速度",
+		"col.oper":               "運用状態",
+		"col.admin":              "管理状態",
+		"col.updated":            "更新日時",
+		"col.samples":            "サンプル数",
+		"col.alert_samples":      "アラートサンプル",
+		"col.last_sample":        "最終サンプル",
+		"col.current":            "現在",
+		"col.down_events":        "ダウンイベント",
+		"col.up_events":          "アップイベント",
+		"col.last_down":          "最終ダウン",
+		"col.last_up":            "最終アップ",
+		"col.current_estimate":   "現在の推定",
+		"col.user":               "ユーザー",
+		"col.source_ip":          "送信元 IP",
+		"col.module":             "モジュール",
+		"col.action":             "操作",
+		"col.resource_type":      "リソース種別",
+		"col.resource":           "リソース",
+		"col.resource_ip":        "リソース IP",
+		"col.review":             "レビュー状態",
+		"col.license":            "ライセンス",
+		"col.active":             "有効",
+		"col.devices":            "デバイス数",
+		"col.used_devices":       "使用中デバイス",
+		"col.device_remain":      "残りデバイス",
+		"col.cameras":            "カメラ数",
+		"col.used_cameras":       "使用中カメラ",
+		"col.camera_remain":      "残りカメラ",
+		"col.features":           "機能",
+		"col.valid_from":         "有効開始",
+		"col.valid_until":        "有効期限",
+		"col.port":               "ポート",
+		"col.enabled":            "有効",
+		"col.stream":             "ストリーム",
+		"col.created":            "作成日時",
+		"col.last_poll":          "最終ポーリング",
+		"col.door":               "ドア",
+		"col.protocol":           "プロトコル",
+		"col.last_check":         "最終確認",
+		"col.uptime_estimation":  "可用性推定",
+		"col.added_date":         "追加日",
+		"value.online":           "オンライン",
+		"value.offline":          "オフライン",
+		"value.up":               "アップ",
+		"value.down":             "ダウン",
+		"value.unknown":          "不明",
+		"value.enabled":          "有効",
+		"value.disabled":         "無効",
+		"value.active":           "有効",
+		"value.inactive":         "無効",
+		"value.yes":              "はい",
+		"value.no":               "いいえ",
+		"value.system":           "システム",
+		"value.never":            "なし",
+		"value.online_now":       "現在オンライン",
+	})
+	reportI18N["ko-KR"] = mergeReportLocale("en-US", map[string]string{
+		"title.device_list":      "장비 목록 보고서",
+		"title.system_logs":      "시스템 로그 보고서",
+		"title.top_traffic":      "Top %d 인터페이스 트래픽 보고서",
+		"title.device_health":    "장비 상태 보고서 (CPU 상위)",
+		"title.availability":     "장비 가용성 보고서",
+		"title.inventory":        "네트워크 자산 목록",
+		"title.interfaces":       "인터페이스 / PoE / 트래픽 보고서",
+		"title.health_trend":     "장비 상태 추세 보고서",
+		"title.sla":              "가용성 / SLA 증빙 보고서",
+		"title.audit":            "감사 / 변경 보고서",
+		"title.license_capacity": "라이선스 용량 보고서",
+		"title.cameras":          "카메라 모듈 보고서",
+		"title.pdu":              "PDU / UPS 모듈 보고서",
+		"title.access_control":   "출입 통제 모듈 보고서",
+		"col.name":               "이름",
+		"col.device":             "장비",
+		"col.device_name":        "장비 이름",
+		"col.sys_name":           "시스템 이름",
+		"col.ip_address":         "IP 주소",
+		"col.mac_address":        "MAC 주소",
+		"col.type":               "유형",
+		"col.vendor":             "벤더",
+		"col.maker":              "제조사",
+		"col.model":              "모델",
+		"col.firmware":           "펌웨어",
+		"col.location":           "위치",
+		"col.snmp_uptime":        "SNMP 가동 시간",
+		"col.status":             "상태",
+		"col.last_seen":          "마지막 연결",
+		"col.interface_count":    "인터페이스 수",
+		"col.up_interfaces":      "활성 인터페이스",
+		"col.poe_ports":          "PoE 포트 수",
+		"col.created_at":         "생성 시간",
+		"col.updated_at":         "업데이트 시간",
+		"col.source_type":        "소스 / 유형",
+		"col.severity":           "심각도",
+		"col.message":            "메시지",
+		"col.time":               "시간",
+		"col.interface":          "인터페이스",
+		"col.description":        "설명",
+		"col.speed":              "속도",
+		"col.oper":               "운영상태",
+		"col.admin":              "관리상태",
+		"col.updated":            "업데이트 시간",
+		"col.samples":            "샘플 수",
+		"col.alert_samples":      "알림 샘플",
+		"col.last_sample":        "마지막 샘플",
+		"col.current":            "현재",
+		"col.down_events":        "다운 이벤트",
+		"col.up_events":          "업 이벤트",
+		"col.last_down":          "마지막 다운",
+		"col.last_up":            "마지막 업",
+		"col.current_estimate":   "현재 추정",
+		"col.user":               "사용자",
+		"col.source_ip":          "소스 IP",
+		"col.module":             "모듈",
+		"col.action":             "작업",
+		"col.resource_type":      "리소스 유형",
+		"col.resource":           "리소스",
+		"col.resource_ip":        "리소스 IP",
+		"col.review":             "검토 상태",
+		"col.license":            "라이선스",
+		"col.active":             "활성",
+		"col.devices":            "장비 수",
+		"col.used_devices":       "사용 장비",
+		"col.device_remain":      "남은 장비",
+		"col.cameras":            "카메라 수",
+		"col.used_cameras":       "사용 카메라",
+		"col.camera_remain":      "남은 카메라",
+		"col.features":           "기능",
+		"col.valid_from":         "유효 시작",
+		"col.valid_until":        "유효 기한",
+		"col.port":               "포트",
+		"col.enabled":            "활성",
+		"col.stream":             "스트림",
+		"col.created":            "생성 시간",
+		"col.last_poll":          "마지막 폴링",
+		"col.door":               "도어",
+		"col.protocol":           "프로토콜",
+		"col.last_check":         "마지막 확인",
+		"col.uptime_estimation":  "가용성 추정",
+		"col.added_date":         "추가 날짜",
+		"value.online":           "온라인",
+		"value.offline":          "오프라인",
+		"value.up":               "업",
+		"value.down":             "다운",
+		"value.unknown":          "알 수 없음",
+		"value.enabled":          "활성",
+		"value.disabled":         "비활성",
+		"value.active":           "활성",
+		"value.inactive":         "비활성",
+		"value.yes":              "예",
+		"value.no":               "아니요",
+		"value.system":           "시스템",
+		"value.never":            "없음",
+		"value.online_now":       "현재 온라인",
+	})
+}

@@ -421,3 +421,548 @@
         display: none !important;
     }
 }
+
+/* ===== Handheld command-view layout ===== */
+@media (max-width: 1024px) {
+    html,
+    body {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden;
+    }
+
+    .global-header {
+        right: 0;
+        min-width: 0;
+    }
+
+    .global-header-right,
+    .header-user-section,
+    .header-user-actions {
+        min-width: 0;
+    }
+
+    .demo-mode-btn {
+        max-width: 36vw;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .mobile-bottom-nav {
+        justify-content: flex-start;
+        overflow-x: auto;
+        overflow-y: hidden;
+        overscroll-behavior-x: contain;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+
+    .mobile-bottom-nav::-webkit-scrollbar {
+        display: none;
+    }
+
+    .bottom-nav-item {
+        flex: 0 0 76px;
+        min-width: 76px;
+        max-width: 86px;
+    }
+
+    .bottom-nav-label {
+        width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        text-align: center;
+    }
+
+    .page-header {
+        min-width: 0;
+    }
+
+    .page-header > h1 {
+        min-width: 0;
+        overflow-wrap: anywhere;
+    }
+
+    .page-header > .header-actions,
+    .page-header > div[style*="display:flex"] {
+        width: 100%;
+        min-width: 0;
+        flex-wrap: wrap !important;
+        align-items: stretch !important;
+    }
+
+    .page-header > .header-actions > *,
+    .page-header > div[style*="display:flex"] > * {
+        min-width: 0;
+    }
+
+    .page-header .btn,
+    .section-actions .btn,
+    #camera-page-actions .btn {
+        white-space: normal;
+        line-height: 1.25;
+    }
+
+    .notif-panel {
+        position: fixed;
+        top: 58px;
+        left: 12px;
+        right: 12px;
+        width: auto;
+        max-height: min(70vh, 520px);
+    }
+}
+
+@media (min-width: 768px) and (max-width: 1024px) {
+    .main-content {
+        padding: 18px !important;
+        padding-top: 74px !important;
+        padding-bottom: 84px !important;
+    }
+
+    .topology-wrapper {
+        height: calc(100dvh - 220px);
+        min-height: 460px;
+    }
+
+    .topology-sidebar {
+        width: 210px;
+        min-width: 210px;
+    }
+
+    #cameras.page.active {
+        height: auto;
+        min-height: calc(100dvh - 158px);
+        overflow: visible;
+    }
+
+    .nvr-container,
+    .split-view-container {
+        height: calc(100dvh - 245px);
+        min-height: 420px;
+    }
+
+    #cam-panel-nvr > div {
+        height: calc(100dvh - 260px) !important;
+        min-height: 420px !important;
+    }
+}
+
+@media (max-width: 767px) {
+    .global-header {
+        padding: 0 max(10px, var(--safe-area-left)) 0 10px;
+    }
+
+    .global-header-right {
+        width: 100%;
+        justify-content: flex-end;
+        gap: 8px;
+    }
+
+    .demo-mode-btn {
+        max-width: 34vw;
+        padding: 6px 10px;
+    }
+
+    .header-user-section {
+        gap: 8px;
+    }
+
+    .header-user-actions {
+        gap: 6px;
+    }
+
+    .header-action-btn {
+        width: 38px;
+        height: 38px;
+        flex: 0 0 38px;
+    }
+
+    .main-content {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .page.active {
+        min-width: 0;
+    }
+
+    .page-header > .header-actions,
+    .page-header > div[style*="display:flex"] {
+        gap: 8px !important;
+    }
+
+    .page-header .search-input,
+    .page-header .select-input,
+    .page-header .btn,
+    .section-actions .btn,
+    #camera-page-actions .btn {
+        flex: 1 1 100%;
+        width: 100%;
+        justify-content: center;
+    }
+
+    .topology-view-toggle,
+    .cam-tab-bar,
+    .ac-tab-bar,
+    .admin-tabs {
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+
+    .topology-view-toggle::-webkit-scrollbar,
+    .cam-tab-bar::-webkit-scrollbar,
+    .ac-tab-bar::-webkit-scrollbar,
+    .admin-tabs::-webkit-scrollbar {
+        display: none;
+    }
+
+    .topology-view-toggle,
+    .cam-tab-bar {
+        flex-wrap: nowrap !important;
+        width: 100%;
+    }
+
+    .topo-view-btn,
+    .topo-set-default-btn,
+    .cam-main-tab-btn,
+    .ac-tab-btn,
+    .tab-btn {
+        flex: 0 0 auto;
+        white-space: nowrap;
+    }
+
+    .dashboard-section,
+    .status-card,
+    .port-matrix-section {
+        padding: 14px;
+        border-radius: var(--radius-md);
+    }
+
+    .device-types-chart {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .device-type-item,
+    .top-item-row,
+    .event-item {
+        min-width: 0;
+    }
+
+    .top-name-ip,
+    .top-secondary-values {
+        flex-wrap: wrap;
+    }
+
+    .top-value-group {
+        min-width: 72px;
+    }
+
+    .devices-table-container,
+    .logs-container,
+    .embed-table-wrap,
+    .ac-table-wrap,
+    .switch-rack {
+        max-width: 100%;
+        min-width: 0;
+        overflow-x: auto !important;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .admin-tab-content,
+    .status-card,
+    .card,
+    .embed-card {
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    .data-table,
+    .ac-table {
+        min-width: 620px;
+    }
+
+    #logs-table {
+        min-width: 760px;
+    }
+
+    #audit-table {
+        min-width: 860px;
+    }
+
+    #users-table {
+        min-width: 680px;
+    }
+
+    #licenses-table,
+    #embed-tokens-table {
+        min-width: 760px;
+    }
+
+    #iot-devices-table,
+    #iot-measurements-table {
+        min-width: 720px;
+    }
+
+    #logs-table th,
+    #logs-table td,
+    #audit-table th,
+    #audit-table td,
+    #users-table th,
+    #users-table td,
+    #licenses-table th,
+    #licenses-table td,
+    #embed-tokens-table th,
+    #embed-tokens-table td,
+    #iot-devices-table th,
+    #iot-devices-table td,
+    #iot-measurements-table th,
+    #iot-measurements-table td {
+        display: table-cell;
+    }
+
+    .modal-overlay {
+        align-items: flex-start;
+        padding: 8px;
+        overflow-y: auto;
+    }
+
+    .modal {
+        width: 100%;
+        max-height: calc(100dvh - 16px);
+        margin: 0;
+    }
+
+    .form-actions,
+    .door-card-actions,
+    .pdu-card-actions,
+    .tooltip-actions {
+        flex-wrap: wrap;
+    }
+
+    .form-actions .btn,
+    .door-card-actions > *,
+    .pdu-card-actions > *,
+    .tooltip-actions > * {
+        flex: 1 1 120px;
+    }
+
+    .topology-wrapper {
+        flex-direction: column;
+        height: auto;
+        min-height: 0;
+        gap: 10px;
+    }
+
+    .topology-sidebar {
+        display: flex;
+        width: 100%;
+        max-height: 132px;
+        min-height: 0;
+        border-radius: var(--radius-md);
+    }
+
+    .topology-sidebar.collapsed {
+        width: 100%;
+        min-width: 0;
+        max-height: 46px;
+    }
+
+    .topology-sidebar .pending-list {
+        flex-direction: row;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding: 8px;
+    }
+
+    .pending-device {
+        min-width: 180px;
+        flex-shrink: 0;
+    }
+
+    .topology-container {
+        height: min(62dvh, 560px);
+        min-height: 360px;
+        border-radius: var(--radius-md);
+    }
+
+    #cameras.page.active {
+        display: block;
+        height: auto;
+        min-height: 0;
+        overflow: visible;
+    }
+
+    #camera-page-actions {
+        width: 100%;
+        flex-wrap: wrap !important;
+        align-items: stretch !important;
+    }
+
+    #cam-layout-btns {
+        width: 100%;
+        justify-content: stretch;
+    }
+
+    #cam-layout-btns .cam-grid-btn {
+        flex: 1 1 0;
+        min-height: 40px;
+    }
+
+    #cam-gpu-hint {
+        width: 100%;
+        text-align: center;
+    }
+
+    .camera-license-notice,
+    .ac-license-notice,
+    #pdu-license-notice {
+        align-items: flex-start;
+        flex-wrap: wrap;
+    }
+
+    .camera-license-notice .btn,
+    .ac-license-notice .btn,
+    #pdu-license-notice .btn {
+        margin-left: 0 !important;
+        width: 100%;
+        justify-content: center;
+    }
+
+    .nvr-container,
+    .split-view-container {
+        height: auto;
+        min-height: 0;
+        overflow: visible;
+    }
+
+    .cam-sidebar,
+    .split-view-sidebar {
+        max-height: 136px;
+    }
+
+    .cam-main,
+    .split-view-main {
+        min-height: 0;
+    }
+
+    .cam-grid,
+    .split-grid {
+        height: auto;
+        min-height: 320px;
+        grid-auto-rows: minmax(150px, 1fr);
+    }
+
+    .cam-grid.grid-4,
+    .cam-grid.grid-9,
+    .cam-grid.grid-16,
+    .split-grid.split-2x2,
+    .split-grid.split-3x3,
+    .split-grid.split-4x4 {
+        grid-template-columns: 1fr;
+        grid-template-rows: none;
+    }
+
+    .cam-cell,
+    .split-cell {
+        min-height: 180px;
+        aspect-ratio: 16 / 9;
+    }
+
+    #cam-panel-nvr > div {
+        display: flex !important;
+        flex-direction: column !important;
+        height: auto !important;
+        min-height: 0 !important;
+        gap: 12px !important;
+    }
+
+    #cam-panel-nvr > div > div:first-child {
+        max-height: 160px;
+    }
+
+    #nvr-cam-list {
+        display: flex;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        min-height: 78px;
+    }
+
+    #nvr-list-header {
+        display: none !important;
+    }
+
+    #nvr-recording-list {
+        min-height: 260px;
+        border-top: 1px solid var(--border-color) !important;
+        border-radius: 8px !important;
+    }
+
+    #nvr-pagination {
+        flex-wrap: wrap;
+    }
+
+    #nvr-player-wrap {
+        padding: max(10px, var(--safe-area-top)) max(10px, var(--safe-area-right)) max(10px, var(--safe-area-bottom)) max(10px, var(--safe-area-left)) !important;
+    }
+
+    #nvr-player-wrap > div {
+        max-height: calc(100dvh - 20px);
+        border-radius: 8px !important;
+    }
+
+    #nvr-player-wrap > div > div:first-child {
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 12px !important;
+    }
+
+    #nvr-player-video {
+        height: min(56dvh, 420px) !important;
+    }
+
+    .ac-search-input,
+    .ac-events-filter {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .door-grid,
+    .pdu-grid,
+    .reports-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    #notif-toast-container {
+        left: 12px;
+        right: 12px;
+        bottom: calc(76px + var(--safe-area-bottom));
+        max-width: none;
+    }
+}
+
+@media (max-width: 420px) {
+    .demo-mode-btn {
+        max-width: 30vw;
+    }
+
+    #lang-switcher-container {
+        display: none;
+    }
+
+    .bottom-nav-item {
+        flex-basis: 70px;
+        min-width: 70px;
+    }
+
+    .data-table,
+    .ac-table {
+        min-width: 560px;
+    }
+}

@@ -122,9 +122,6 @@ func (s *Service) GetBrandingSettings() (BrandingSettings, error) {
 	_ = s.db.QueryRow(`SELECT config_value FROM system_config WHERE config_key = 'company_name_font_color'`).Scan(&result.FontColor)
 	_ = s.db.QueryRow(`SELECT config_value FROM system_config WHERE config_key = 'company_name_position'`).Scan(&result.NamePosition)
 
-	if strings.TrimSpace(result.CompanyName) == "" {
-		result.CompanyName = "Management Server"
-	}
 	if strings.TrimSpace(result.NamePosition) == "" {
 		result.NamePosition = "right"
 	}

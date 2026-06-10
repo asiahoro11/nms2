@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os/exec"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -16,24 +17,47 @@ import (
 
 const (
 	formalSecretSeed = "NMS-LICENSE-"
-	pocSecretSeed    = "NMS-POC-LICENSE-v1.2.1-PoC"
+	// Keep the PoC seed stable so existing generated keys remain compatible.
+	pocSecretSeed  = "NMS-POC-LICENSE-v1.2.1-PoC"
+	productVersion = "v1.2.4.2"
 )
 
 var port = flag.String("port", "8092", "Port to run the PoC license generator on")
 
+type featureOption struct {
+	Key         string
+	Label       string
+	Description string
+}
+
+var generatorFeatures = []featureOption{
+	{Key: "device_management", Label: "Device Management", Description: "Enable device management and consume device_count."},
+	{Key: "camera_viewer", Label: "Camera Viewer", Description: "Enable camera monitor pages and consume camera_count."},
+	{Key: "camera_recording", Label: "Camera Recording", Description: "Enable NVR recording flow and consume camera_count."},
+	{Key: "access_control", Label: "Access Control", Description: "Enable access control module."},
+	{Key: "pdu", Label: "PDU / UPS", Description: "Enable PDU and UPS monitoring module."},
+	{Key: "line", Label: "LINE Notify", Description: "Enable LINE alert delivery."},
+	{Key: "telegram", Label: "Telegram", Description: "Enable Telegram alert delivery."},
+	{Key: "whatsapp", Label: "WhatsApp", Description: "Enable WhatsApp alert delivery."},
+	{Key: "discord", Label: "Discord", Description: "Enable Discord alert delivery."},
+	{Key: "slack", Label: "Slack", Description: "Enable Slack alert delivery."},
+}
+
 type pageData struct {
 	ActiveTab string
 
+	FeatureOptions []featureOption
+
 	FormalMachineID   string
-	FormalType        string
 	FormalDeviceCount int
 	FormalCameraCount int
 	FormalYears       int
+	FormalFeatures    []string
 
-	PoCType        string
-	PoCDeviceCount int
-	PoCCameraCount int
-	PoCValidUntil  string
+	PoCDeviceCount  int
+	PoCCameraCount  int
+	PoCDurationDays int
+	PoCFeatures     []string
 
 	ResultTitle       string
 	ResultDescription string
@@ -45,7 +69,7 @@ type licenseProfile struct {
 	Features    []string
 	DeviceCount int
 	CameraCount int
-	Label       string
+	Labels      []string
 }
 
 func main() {
@@ -56,7 +80,7 @@ func main() {
 	http.HandleFunc("/generate/poc", handlePoCGenerate)
 
 	url := fmt.Sprintf("http://127.0.0.1:%s", *port)
-	fmt.Printf("Starting Management System v1.2.1-PoC License Generator at %s\n", url)
+	fmt.Printf("Starting Management System %s License Generator at %s\n", productVersion, url)
 	openBrowser(url)
 
 	if err := http.ListenAndServe(":"+*port, nil); err != nil {
@@ -67,14 +91,15 @@ func main() {
 func defaultPageData() pageData {
 	return pageData{
 		ActiveTab:         "formal",
-		FormalType:        "device",
+		FeatureOptions:    generatorFeatures,
 		FormalDeviceCount: 10,
 		FormalCameraCount: 4,
 		FormalYears:       1,
-		PoCType:           "device",
+		FormalFeatures:    []string{"device_management"},
 		PoCDeviceCount:    10,
 		PoCCameraCount:    4,
-		PoCValidUntil:     time.Now().Add(72 * time.Hour).Format("2006-01-02T15:04"),
+		PoCDurationDays:   14,
+		PoCFeatures:       []string{"device_management"},
 	}
 }
 
@@ -91,13 +116,14 @@ func handleFormalGenerate(w http.ResponseWriter, r *http.Request) {
 	data := defaultPageData()
 	data.ActiveTab = "formal"
 	data.FormalMachineID = strings.TrimSpace(r.FormValue("machine_id"))
-	data.FormalType = strings.TrimSpace(r.FormValue("license_type"))
-	fmt.Sscanf(r.FormValue("device_count"), "%d", &data.FormalDeviceCount)
-	fmt.Sscanf(r.FormValue("camera_count"), "%d", &data.FormalCameraCount)
-	fmt.Sscanf(r.FormValue("years"), "%d", &data.FormalYears)
+	data.FormalDeviceCount = parseIntOrDefault(r.FormValue("device_count"), data.FormalDeviceCount)
+	data.FormalCameraCount = parseIntOrDefault(r.FormValue("camera_count"), data.FormalCameraCount)
+	data.FormalYears = parseIntOrDefault(r.FormValue("years"), data.FormalYears)
+	data.FormalFeatures = normalizeSelectedFeatures(r.Form["features"])
+	data.PoCFeatures = defaultPageData().PoCFeatures
 
 	if data.FormalMachineID == "" {
-		data.ErrorMessage = "正式授權必須填入 Machine ID。"
+		data.ErrorMessage = "machine_id is required for formal licenses"
 		renderPage(w, data)
 		return
 	}
@@ -105,11 +131,11 @@ func handleFormalGenerate(w http.ResponseWriter, r *http.Request) {
 	key, description, err := generateLicense(
 		license.FormalLicenseMode,
 		data.FormalMachineID,
-		data.FormalType,
+		data.FormalFeatures,
 		data.FormalDeviceCount,
 		data.FormalCameraCount,
 		data.FormalYears,
-		"",
+		0,
 	)
 	if err != nil {
 		data.ErrorMessage = err.Error()
@@ -117,7 +143,7 @@ func handleFormalGenerate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data.ResultTitle = "正式授權產生完成"
+	data.ResultTitle = "Formal license generated"
 	data.ResultDescription = description
 	data.GeneratedKey = key
 	renderPage(w, data)
@@ -131,13 +157,14 @@ func handlePoCGenerate(w http.ResponseWriter, r *http.Request) {
 
 	data := defaultPageData()
 	data.ActiveTab = "poc"
-	data.PoCType = strings.TrimSpace(r.FormValue("license_type"))
-	fmt.Sscanf(r.FormValue("device_count"), "%d", &data.PoCDeviceCount)
-	fmt.Sscanf(r.FormValue("camera_count"), "%d", &data.PoCCameraCount)
-	data.PoCValidUntil = strings.TrimSpace(r.FormValue("valid_until"))
+	data.PoCDeviceCount = parseIntOrDefault(r.FormValue("device_count"), data.PoCDeviceCount)
+	data.PoCCameraCount = parseIntOrDefault(r.FormValue("camera_count"), data.PoCCameraCount)
+	data.PoCDurationDays = parseIntOrDefault(r.FormValue("duration_days"), 0)
+	data.PoCFeatures = normalizeSelectedFeatures(r.Form["features"])
+	data.FormalFeatures = defaultPageData().FormalFeatures
 
-	if data.PoCValidUntil == "" {
-		data.ErrorMessage = "PoC 授權必須指定到期時間。"
+	if err := license.ValidatePoCDurationDays(data.PoCDurationDays); err != nil {
+		data.ErrorMessage = err.Error()
 		renderPage(w, data)
 		return
 	}
@@ -145,11 +172,11 @@ func handlePoCGenerate(w http.ResponseWriter, r *http.Request) {
 	key, description, err := generateLicense(
 		license.PoCLicenseMode,
 		"",
-		data.PoCType,
+		data.PoCFeatures,
 		data.PoCDeviceCount,
 		data.PoCCameraCount,
 		0,
-		data.PoCValidUntil,
+		data.PoCDurationDays,
 	)
 	if err != nil {
 		data.ErrorMessage = err.Error()
@@ -157,30 +184,111 @@ func handlePoCGenerate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data.ResultTitle = "PoC 授權產生完成"
+	data.ResultTitle = "PoC license generated"
 	data.ResultDescription = description
 	data.GeneratedKey = key
 	renderPage(w, data)
 }
 
-func generateLicense(mode, machineID, licenseType string, deviceCount, cameraCount, years int, validUntil string) (string, string, error) {
-	licenseType = strings.ToLower(strings.TrimSpace(licenseType))
-	if licenseType == "" {
-		licenseType = "device"
+func normalizeSelectedFeatures(raw []string) []string {
+	if len(raw) == 0 {
+		return nil
 	}
 
+	selected := make(map[string]struct{}, len(raw))
+	for _, item := range raw {
+		key := strings.ToLower(strings.TrimSpace(item))
+		if key != "" {
+			selected[key] = struct{}{}
+		}
+	}
+
+	result := make([]string, 0, len(selected))
+	for _, option := range generatorFeatures {
+		if _, ok := selected[option.Key]; ok {
+			result = append(result, option.Key)
+		}
+	}
+	return result
+}
+
+func containsFeature(slice []string, item string) bool {
+	for _, value := range slice {
+		if value == item {
+			return true
+		}
+	}
+	return false
+}
+
+func buildLicenseProfile(selectedFeatures []string, deviceCount, cameraCount int) (licenseProfile, error) {
+	if len(selectedFeatures) == 0 {
+		return licenseProfile{}, fmt.Errorf("select at least one feature")
+	}
+
+	selected := make(map[string]featureOption, len(selectedFeatures))
+	for _, option := range generatorFeatures {
+		if containsFeature(selectedFeatures, option.Key) {
+			selected[option.Key] = option
+		}
+	}
+
+	if len(selected) == 0 {
+		return licenseProfile{}, fmt.Errorf("select at least one supported feature")
+	}
+
+	profile := licenseProfile{
+		Features: make([]string, 0, len(selected)),
+		Labels:   make([]string, 0, len(selected)),
+	}
+
+	needsDeviceCount := false
+	needsCameraCount := false
+	for _, option := range generatorFeatures {
+		if _, ok := selected[option.Key]; !ok {
+			continue
+		}
+		profile.Features = append(profile.Features, option.Key)
+		profile.Labels = append(profile.Labels, option.Label)
+		if option.Key == "device_management" {
+			needsDeviceCount = true
+		}
+		if option.Key == "camera_viewer" || option.Key == "camera_recording" {
+			needsCameraCount = true
+		}
+	}
+
+	if needsDeviceCount {
+		if deviceCount <= 0 {
+			return licenseProfile{}, fmt.Errorf("device_count must be greater than 0 when device management is selected")
+		}
+		profile.DeviceCount = deviceCount
+	}
+
+	if needsCameraCount {
+		if cameraCount <= 0 {
+			return licenseProfile{}, fmt.Errorf("camera_count must be greater than 0 when camera features are selected")
+		}
+		profile.CameraCount = cameraCount
+	}
+
+	return profile, nil
+}
+
+func generateLicense(mode, machineID string, selectedFeatures []string, deviceCount, cameraCount, years, durationDays int) (string, string, error) {
 	if mode == license.FormalLicenseMode && years < 1 {
 		years = 1
 	}
 
-	profile, err := resolveLicenseType(licenseType, deviceCount, cameraCount)
+	profile, err := buildLicenseProfile(selectedFeatures, deviceCount, cameraCount)
 	if err != nil {
 		return "", "", err
 	}
 
+	validUntil := ""
 	if mode == license.PoCLicenseMode {
-		if _, err := license.ParseLicenseTime(validUntil); err != nil {
-			return "", "", fmt.Errorf("PoC 到期時間格式無效，請使用合法日期時間")
+		if err := license.ValidatePoCDurationDays(durationDays); err != nil {
+			return "", "", err
 		}
 	} else {
 		if license.IsPermanentYears(years) {
@@ -188,6 +296,7 @@ func generateLicense(mode, machineID, licenseType string, deviceCount, cameraCou
 		} else {
 			validUntil = time.Now().AddDate(years, 0, 0).Format("2006-01-02")
 		}
+		durationDays = 0
 	}
 
 	secretKey := license.DeriveKey(formalSecretSeed + strings.ToLower(strings.TrimSpace(machineID)))
@@ -195,106 +304,58 @@ func generateLicense(mode, machineID, licenseType string, deviceCount, cameraCou
 		secretKey = license.DeriveKey(pocSecretSeed)
 	}
 
-	key, err := license.GenerateLicenseKeyAdvanced(
+	key, err := license.GenerateLicenseKeyAdvancedWithDuration(
 		mode,
 		machineID,
 		profile.DeviceCount,
 		profile.CameraCount,
 		profile.Features,
 		validUntil,
+		durationDays,
 		secretKey,
 	)
 	if err != nil {
 		return "", "", err
 	}
 
-	modeLabel := "正式授權"
+	modeLabel := "Formal"
 	if mode == license.PoCLicenseMode {
-		modeLabel = "PoC 授權"
+		modeLabel = "PoC"
 	}
 
 	description := fmt.Sprintf(
-		"%s | 類型：%s | 設備數：%d | 攝影機數：%d | 到期：%s",
+		"%s | features: %s | devices: %d | cameras: %d | validity: %s",
 		modeLabel,
-		profile.Label,
+		strings.Join(profile.Labels, ", "),
 		profile.DeviceCount,
 		profile.CameraCount,
-		displayExpiry(validUntil),
+		displayValidity(mode, validUntil, durationDays),
 	)
 	return key, description, nil
 }
 
-func resolveLicenseType(licenseType string, deviceCount, cameraCount int) (licenseProfile, error) {
-	switch licenseType {
-	case "device":
-		if deviceCount <= 0 {
-			return licenseProfile{}, fmt.Errorf("設備管理授權的設備數量必須大於 0")
-		}
-		return licenseProfile{
-			Features:    []string{"device_management"},
-			DeviceCount: deviceCount,
-			Label:       "設備管理",
-		}, nil
-	case "alert":
-		return licenseProfile{
-			Features: []string{"line", "telegram", "whatsapp", "discord", "slack"},
-			Label:    "告警通報",
-		}, nil
-	case "camera":
-		if cameraCount <= 0 {
-			return licenseProfile{}, fmt.Errorf("攝影機授權的攝影機數量必須大於 0")
-		}
-		return licenseProfile{
-			Features:    []string{"camera_viewer"},
-			CameraCount: cameraCount,
-			Label:       "攝影機監控",
-		}, nil
-	case "access_control":
-		return licenseProfile{
-			Features: []string{"access_control"},
-			Label:    "門禁管理",
-		}, nil
-	case "pdu":
-		return licenseProfile{
-			Features: []string{"pdu"},
-			Label:    "PDU/UPS",
-		}, nil
-	case "combined":
-		if deviceCount <= 0 {
-			return licenseProfile{}, fmt.Errorf("設備加告警授權的設備數量必須大於 0")
-		}
-		return licenseProfile{
-			Features:    []string{"device_management", "line", "telegram", "whatsapp", "discord", "slack"},
-			DeviceCount: deviceCount,
-			Label:       "設備管理 + 告警通報",
-		}, nil
-	case "full":
-		if deviceCount <= 0 {
-			return licenseProfile{}, fmt.Errorf("完整授權的設備數量必須大於 0")
-		}
-		if cameraCount <= 0 {
-			return licenseProfile{}, fmt.Errorf("完整授權的攝影機數量必須大於 0")
-		}
-		return licenseProfile{
-			Features:    []string{"device_management", "line", "telegram", "whatsapp", "discord", "slack", "camera_viewer", "access_control", "pdu"},
-			DeviceCount: deviceCount,
-			CameraCount: cameraCount,
-			Label:       "完整授權",
-		}, nil
-	default:
-		return licenseProfile{}, fmt.Errorf("不支援的授權類型：%s", licenseType)
+func displayValidity(mode string, validUntil string, durationDays int) string {
+	if mode == license.PoCLicenseMode {
+		return fmt.Sprintf("starts on first activation, %d day(s)", durationDays)
 	}
-}
-
-func displayExpiry(validUntil string) string {
 	if strings.TrimSpace(validUntil) == "" {
-		return "永久"
+		return "permanent"
 	}
 	return validUntil
 }
 
+func parseIntOrDefault(raw string, fallback int) int {
+	value, err := strconv.Atoi(strings.TrimSpace(raw))
+	if err != nil {
+		return fallback
+	}
+	return value
+}
+
 func renderPage(w http.ResponseWriter, data pageData) {
-	tpl := template.Must(template.New("generator").Parse(pageTemplate))
+	tpl := template.Must(template.New("generator").Funcs(template.FuncMap{
+		"containsFeature": containsFeature,
+	}).Parse(pageTemplate))
 	if err := tpl.Execute(w, data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -320,44 +381,44 @@ const pageTemplate = `<!DOCTYPE html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Management System v1.2.1-PoC License Generator</title>
+    <title>Management System ` + productVersion + ` License Generator</title>
     <style>
         :root {
-            --bg: #0b1220;
-            --panel: #121c2f;
-            --panel-2: #1a2740;
+            --bg: #09101d;
+            --panel: #111a2b;
+            --panel-2: #18243a;
             --border: rgba(255, 255, 255, 0.10);
-            --text: #e8eefc;
-            --muted: #9cacd0;
-            --accent: #7c5cff;
-            --accent-2: #ff8a4c;
-            --danger: #ff6b6b;
+            --text: #edf2ff;
+            --muted: #99a9cc;
+            --accent: #5fb3ff;
+            --accent-2: #ff9d57;
+            --danger: #ff7676;
         }
         * { box-sizing: border-box; }
         body {
             margin: 0;
             min-height: 100vh;
             padding: 28px;
-            background:
-                radial-gradient(circle at top left, rgba(124, 92, 255, 0.22), transparent 30%),
-                radial-gradient(circle at bottom right, rgba(255, 138, 76, 0.16), transparent 28%),
-                linear-gradient(180deg, #09101c 0%, #0b1220 100%);
             color: var(--text);
+            background:
+                radial-gradient(circle at top left, rgba(95, 179, 255, 0.20), transparent 32%),
+                radial-gradient(circle at bottom right, rgba(255, 157, 87, 0.16), transparent 28%),
+                linear-gradient(180deg, #08111f 0%, #09101d 100%);
             font-family: "Segoe UI", "Microsoft JhengHei", sans-serif;
         }
         .shell {
-            max-width: 1220px;
+            max-width: 1240px;
             margin: 0 auto;
             border-radius: 28px;
             overflow: hidden;
             border: 1px solid rgba(255,255,255,0.08);
-            background: rgba(10, 16, 28, 0.92);
-            box-shadow: 0 28px 80px rgba(0,0,0,0.45);
+            background: rgba(8, 14, 24, 0.94);
+            box-shadow: 0 30px 90px rgba(0,0,0,0.45);
         }
         .hero {
             padding: 36px 40px 24px;
             border-bottom: 1px solid rgba(255,255,255,0.08);
-            background: linear-gradient(135deg, rgba(124, 92, 255, 0.18), rgba(255, 138, 76, 0.10));
+            background: linear-gradient(135deg, rgba(95, 179, 255, 0.18), rgba(255, 157, 87, 0.10));
         }
         .hero h1 {
             margin: 0 0 12px;
@@ -372,7 +433,7 @@ const pageTemplate = `<!DOCTYPE html>
         }
         .content {
             display: grid;
-            grid-template-columns: 1.08fr 0.92fr;
+            grid-template-columns: 1.15fr 0.85fr;
         }
         .forms {
             padding: 28px 32px 32px;
@@ -380,7 +441,7 @@ const pageTemplate = `<!DOCTYPE html>
         .side {
             padding: 28px 32px 32px;
             border-left: 1px solid rgba(255,255,255,0.08);
-            background: rgba(18, 28, 47, 0.46);
+            background: rgba(17, 26, 43, 0.54);
         }
         .tabs {
             display: inline-flex;
@@ -418,7 +479,7 @@ const pageTemplate = `<!DOCTYPE html>
             color: var(--muted);
             font-size: 14px;
         }
-        input, select, button {
+        input, button {
             width: 100%;
             border-radius: 14px;
             border: 1px solid var(--border);
@@ -427,10 +488,10 @@ const pageTemplate = `<!DOCTYPE html>
             padding: 14px 16px;
             font-size: 15px;
         }
-        input:focus, select:focus {
+        input:focus {
             outline: none;
-            border-color: rgba(124, 92, 255, 0.8);
-            box-shadow: 0 0 0 3px rgba(124, 92, 255, 0.16);
+            border-color: rgba(95, 179, 255, 0.85);
+            box-shadow: 0 0 0 3px rgba(95, 179, 255, 0.18);
         }
         .hint {
             margin-top: 8px;
@@ -439,7 +500,7 @@ const pageTemplate = `<!DOCTYPE html>
             line-height: 1.6;
         }
         .submit {
-            background: linear-gradient(135deg, var(--accent), #9f6bff);
+            background: linear-gradient(135deg, var(--accent), #5bd4f5);
             border: 0;
             font-weight: 700;
             margin-top: 20px;
@@ -447,6 +508,45 @@ const pageTemplate = `<!DOCTYPE html>
         }
         .submit.poc {
             background: linear-gradient(135deg, var(--accent-2), #ff5f7b);
+        }
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+        .feature-option {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            margin: 0;
+            padding: 14px;
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(255,255,255,0.03);
+            cursor: pointer;
+        }
+        .feature-option input[type="checkbox"] {
+            width: 18px;
+            min-width: 18px;
+            height: 18px;
+            margin: 2px 0 0;
+            padding: 0;
+            accent-color: #5fb3ff;
+        }
+        .feature-option-body {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .feature-option-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text);
+        }
+        .feature-option-desc {
+            font-size: 12px;
+            color: var(--muted);
+            line-height: 1.5;
         }
         .card {
             background: var(--panel);
@@ -466,7 +566,7 @@ const pageTemplate = `<!DOCTYPE html>
         }
         .keybox {
             background: #0c1220;
-            border: 1px dashed rgba(124,92,255,0.45);
+            border: 1px dashed rgba(95, 179, 255, 0.45);
             border-radius: 14px;
             padding: 16px;
             font-family: Consolas, monospace;
@@ -479,8 +579,8 @@ const pageTemplate = `<!DOCTYPE html>
             gap: 8px;
             border-radius: 999px;
             padding: 8px 12px;
-            background: rgba(124,92,255,0.12);
-            color: #c9bcff;
+            background: rgba(95, 179, 255, 0.12);
+            color: #bbe0ff;
             font-size: 12px;
             font-weight: 700;
             text-transform: uppercase;
@@ -499,7 +599,7 @@ const pageTemplate = `<!DOCTYPE html>
                 border-left: 0;
                 border-top: 1px solid rgba(255,255,255,0.08);
             }
-            .grid { grid-template-columns: 1fr; }
+            .grid, .feature-grid { grid-template-columns: 1fr; }
         }
     </style>
     <script>
@@ -518,14 +618,14 @@ const pageTemplate = `<!DOCTYPE html>
 <body>
     <div class="shell">
         <div class="hero">
-            <h1>Management System v1.2.1-PoC License Generator</h1>
-            <p>正式授權會綁定 Machine ID。PoC 授權不綁定 UUID，可自由指定設備數量、攝影機數量與到期時間，時間到了之後系統會自動鎖定授權能力。</p>
+            <h1>Management System ` + productVersion + ` License Generator</h1>
+            <p>Choose features by checkbox so formal and PoC licenses can be combined freely. Formal licenses stay UUID-bound. PoC licenses start counting down only after the customer activates them.</p>
         </div>
         <div class="content">
             <div class="forms">
                 <div class="tabs">
-                    <button class="tab {{if eq .ActiveTab "formal"}}active{{end}}" data-tab="formal" type="button" onclick="switchTab('formal')">正式授權</button>
-                    <button class="tab {{if eq .ActiveTab "poc"}}active{{end}}" data-tab="poc" type="button" onclick="switchTab('poc')">PoC 授權</button>
+                    <button class="tab {{if eq .ActiveTab "formal"}}active{{end}}" data-tab="formal" type="button" onclick="switchTab('formal')">Formal</button>
+                    <button class="tab {{if eq .ActiveTab "poc"}}active{{end}}" data-tab="poc" type="button" onclick="switchTab('poc')">PoC</button>
                 </div>
 
                 <div id="panel-formal" class="panel {{if eq .ActiveTab "formal"}}active{{end}}">
@@ -533,35 +633,39 @@ const pageTemplate = `<!DOCTYPE html>
                         <div class="grid">
                             <div class="full">
                                 <label>Machine ID</label>
-                                <input name="machine_id" value="{{.FormalMachineID}}" placeholder="請輸入正式授權要綁定的 Machine ID" required>
+                                <input name="machine_id" value="{{.FormalMachineID}}" placeholder="Paste the target system UUID / machine ID" required>
                             </div>
                             <div>
-                                <label>授權類型</label>
-                                <select name="license_type">
-                                    <option value="device" {{if eq .FormalType "device"}}selected{{end}}>設備管理</option>
-                                    <option value="alert" {{if eq .FormalType "alert"}}selected{{end}}>告警通報</option>
-                                    <option value="camera" {{if eq .FormalType "camera"}}selected{{end}}>攝影機監控</option>
-                                    <option value="access_control" {{if eq .FormalType "access_control"}}selected{{end}}>門禁管理</option>
-                                    <option value="pdu" {{if eq .FormalType "pdu"}}selected{{end}}>PDU/UPS</option>
-                                    <option value="combined" {{if eq .FormalType "combined"}}selected{{end}}>設備管理 + 告警通報</option>
-                                    <option value="full" {{if eq .FormalType "full"}}selected{{end}}>完整授權</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label>年限</label>
+                                <label>Years</label>
                                 <input type="number" min="1" max="999" name="years" value="{{.FormalYears}}">
-                                <div class="hint">1 到 5 年為一般正式授權；50 年以上自動視為永久授權。</div>
+                                <div class="hint">Use 1-5 for annual licenses. Use 50 or above for permanent.</div>
                             </div>
                             <div>
-                                <label>設備數量</label>
+                                <label>Device Count</label>
                                 <input type="number" min="0" name="device_count" value="{{.FormalDeviceCount}}">
+                                <div class="hint">Required only when Device Management is selected.</div>
                             </div>
                             <div>
-                                <label>攝影機數量</label>
+                                <label>Camera Count</label>
                                 <input type="number" min="0" name="camera_count" value="{{.FormalCameraCount}}">
+                                <div class="hint">Required when Camera Viewer or Camera Recording is selected.</div>
+                            </div>
+                            <div class="full">
+                                <label>Features</label>
+                                <div class="feature-grid">
+                                    {{range .FeatureOptions}}
+                                    <label class="feature-option">
+                                        <input type="checkbox" name="features" value="{{.Key}}" {{if containsFeature $.FormalFeatures .Key}}checked{{end}}>
+                                        <span class="feature-option-body">
+                                            <span class="feature-option-title">{{.Label}}</span>
+                                            <span class="feature-option-desc">{{.Description}}</span>
+                                        </span>
+                                    </label>
+                                    {{end}}
+                                </div>
                             </div>
                         </div>
-                        <button class="submit" type="submit">產生正式授權</button>
+                        <button class="submit" type="submit">Generate Formal License</button>
                     </form>
                 </div>
 
@@ -569,52 +673,56 @@ const pageTemplate = `<!DOCTYPE html>
                     <form method="post" action="/generate/poc">
                         <div class="grid">
                             <div>
-                                <label>授權類型</label>
-                                <select name="license_type">
-                                    <option value="device" {{if eq .PoCType "device"}}selected{{end}}>設備管理</option>
-                                    <option value="alert" {{if eq .PoCType "alert"}}selected{{end}}>告警通報</option>
-                                    <option value="camera" {{if eq .PoCType "camera"}}selected{{end}}>攝影機監控</option>
-                                    <option value="access_control" {{if eq .PoCType "access_control"}}selected{{end}}>門禁管理</option>
-                                    <option value="pdu" {{if eq .PoCType "pdu"}}selected{{end}}>PDU/UPS</option>
-                                    <option value="combined" {{if eq .PoCType "combined"}}selected{{end}}>設備管理 + 告警通報</option>
-                                    <option value="full" {{if eq .PoCType "full"}}selected{{end}}>完整授權</option>
-                                </select>
+                                <label>Duration Days</label>
+                                <input type="number" min="1" max="3650" name="duration_days" value="{{.PoCDurationDays}}" required>
+                                <div class="hint">The PoC timer starts when the customer activates this key, not when you generate it.</div>
                             </div>
                             <div>
-                                <label>到期時間</label>
-                                <input type="datetime-local" name="valid_until" value="{{.PoCValidUntil}}" required>
-                                <div class="hint">PoC 授權不需要 Machine ID。時間到後會自動失效。</div>
-                            </div>
-                            <div>
-                                <label>設備數量</label>
+                                <label>Device Count</label>
                                 <input type="number" min="0" name="device_count" value="{{.PoCDeviceCount}}">
+                                <div class="hint">Required only when Device Management is selected.</div>
                             </div>
                             <div>
-                                <label>攝影機數量</label>
+                                <label>Camera Count</label>
                                 <input type="number" min="0" name="camera_count" value="{{.PoCCameraCount}}">
+                                <div class="hint">Required when Camera Viewer or Camera Recording is selected.</div>
+                            </div>
+                            <div class="full">
+                                <label>Features</label>
+                                <div class="feature-grid">
+                                    {{range .FeatureOptions}}
+                                    <label class="feature-option">
+                                        <input type="checkbox" name="features" value="{{.Key}}" {{if containsFeature $.PoCFeatures .Key}}checked{{end}}>
+                                        <span class="feature-option-body">
+                                            <span class="feature-option-title">{{.Label}}</span>
+                                            <span class="feature-option-desc">{{.Description}}</span>
+                                        </span>
+                                    </label>
+                                    {{end}}
+                                </div>
                             </div>
                         </div>
-                        <button class="submit poc" type="submit">產生 PoC 授權</button>
+                        <button class="submit poc" type="submit">Generate PoC License</button>
                     </form>
                 </div>
             </div>
 
             <aside class="side">
                 <div class="card">
-                    <span class="pill">v1.2.1-PoC</span>
-                    <h2>授權規則</h2>
+                    <span class="pill">` + productVersion + `</span>
+                    <h2>Rules</h2>
                     <ul>
-                        <li>正式授權會綁定 Machine ID，適合正式交付與長期使用。</li>
-                        <li>PoC 授權不綁定 UUID，適合展示、驗證與限期測試。</li>
-                        <li>PoC 可以自訂設備數量、攝影機數量與到期時間。</li>
-                        <li>PoC 到期後，系統會依授權檢查結果自動鎖定功能。</li>
-                        <li>v1.2.1-PoC 預設不開放設備管理權限，需透過授權啟用。</li>
+                        <li>Formal licenses are bound to the machine UUID that you paste into the form.</li>
+                        <li>PoC licenses are generated without a fixed expiry timestamp inside the key.</li>
+                        <li>PoC expiry is written to the system database on first activation and then enforced from that point.</li>
+                        <li>If the same PoC key is activated again on the same system before expiry, the original countdown is preserved.</li>
+                        <li>Device count applies only to ` + "`device_management`" + `, and camera count applies to ` + "`camera_viewer`" + ` or ` + "`camera_recording`" + `.</li>
                     </ul>
                 </div>
 
                 {{if .ErrorMessage}}
                 <div class="card error">
-                    <h2>產生失敗</h2>
+                    <h2>Error</h2>
                     <div>{{.ErrorMessage}}</div>
                 </div>
                 {{end}}

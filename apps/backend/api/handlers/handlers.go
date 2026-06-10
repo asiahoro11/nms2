@@ -10,6 +10,7 @@ import (
 	cameramodule "management-server/modules/camera"
 	dashboardmodule "management-server/modules/dashboard"
 	devicesmodule "management-server/modules/devices"
+	iotmodule "management-server/modules/iot"
 	licensemodule "management-server/modules/license"
 	logsmodule "management-server/modules/logs"
 	notificationsmodule "management-server/modules/notifications"
@@ -33,6 +34,7 @@ type Handler struct {
 	camera        *cameramodule.Service
 	dashboard     *dashboardmodule.Service
 	devices       *devicesmodule.Service
+	iot           *iotmodule.Service
 	license       *licensemodule.Service
 	logs          *logsmodule.Service
 	notifications *notificationsmodule.Service
@@ -55,6 +57,7 @@ func New(cfg *config.Config, db *sql.DB, collector *snmp.Collector) *Handler {
 		backup:        backupmodule.NewService(db, cfg, collector),
 		dashboard:     dashboardmodule.NewService(db, cfg.System.Version, cfg.System.Name),
 		devices:       devicesmodule.NewService(db),
+		iot:           iotmodule.NewService(db),
 		license:       licensemodule.NewService(db, cfg),
 		logs:          logsmodule.NewService(db),
 		notifications: notificationsmodule.NewService(db, cfg),

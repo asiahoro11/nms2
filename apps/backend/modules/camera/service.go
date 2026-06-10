@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -18,8 +19,12 @@ type Service struct {
 	db          *sql.DB
 	secret      string
 	hooks       RuntimeHooks
+	go2rtcMu    sync.Mutex
+	go2rtcCmd   *exec.Cmd
 	mjpegPoolMu sync.Mutex
 	mjpegPool   map[string]*mjpegStream
+	hlsPoolMu   sync.Mutex
+	hlsPool     map[string]*hlsStream
 	nvrMu       sync.Mutex
 	nvrSessions map[int]*nvrSession
 }
@@ -30,8 +35,53 @@ func NewService(db *sql.DB, secret string, hooks RuntimeHooks) *Service {
 		secret:      secret,
 		hooks:       hooks,
 		mjpegPool:   make(map[string]*mjpegStream),
+		hlsPool:     make(map[string]*hlsStream),
 		nvrSessions: make(map[int]*nvrSession),
 	}
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
+}
+
+func normalizeCameraInput(input CameraInput) CameraInput {
+	input.RTSPUrl = strings.TrimSpace(input.RTSPUrl)
+	input.PreviewRTSPUrl = strings.TrimSpace(input.PreviewRTSPUrl)
+	input.RecordingRTSPUrl = strings.TrimSpace(input.RecordingRTSPUrl)
+	input.RTSPTransport = normalizeRTSPTransportPreference(input.RTSPTransport)
+	normalizedRuntime := normalizeRTSPRuntimeOptions(rtspRuntimeOptions{
+		Transport:  input.RTSPTransport,
+		UDPMinPort: input.RTSPUDPMinPort,
+		UDPMaxPort: input.RTSPUDPMaxPort,
+	})
+	input.RTSPTransport = normalizedRuntime.Transport
+	input.RTSPUDPMinPort = normalizedRuntime.UDPMinPort
+	input.RTSPUDPMaxPort = normalizedRuntime.UDPMaxPort
+	if input.PreviewRTSPUrl == "" {
+		input.PreviewRTSPUrl = input.RTSPUrl
+	}
+	if input.RTSPUrl == "" {
+		input.RTSPUrl = input.PreviewRTSPUrl
+	}
+	return input
+}
+
+func sanitizeCameraResponse(cam Camera) Camera {
+	cam.RTSPUrl = RedactSensitiveText(cam.RTSPUrl)
+	cam.PreviewRTSPUrl = RedactSensitiveText(cam.PreviewRTSPUrl)
+	cam.RecordingRTSPUrl = RedactSensitiveText(cam.RecordingRTSPUrl)
+	return cam
+}
+
+func sanitizeMonitorCameraResponse(cam MonitorCamera) MonitorCamera {
+	cam.RTSPUrl = RedactSensitiveText(cam.RTSPUrl)
+	cam.PreviewRTSPUrl = RedactSensitiveText(cam.PreviewRTSPUrl)
+	return cam
 }
 
 func (s *Service) writeDeviceLog(deviceID int, severity, facility, eventCode, message string, detail map[string]interface{}) {
@@ -56,6 +106,11 @@ func (s *Service) EnsureSchema() error {
 		"ALTER TABLE cameras ADD COLUMN monitor_order INTEGER DEFAULT 0",
 		"ALTER TABLE cameras ADD COLUMN recording_source TEXT DEFAULT 'rtsp'",
 		"ALTER TABLE cameras ADD COLUMN recording_bitrate_kbps INTEGER DEFAULT 0",
+		"ALTER TABLE cameras ADD COLUMN preview_rtsp_url TEXT DEFAULT ''",
+		"ALTER TABLE cameras ADD COLUMN recording_rtsp_url TEXT DEFAULT ''",
+		"ALTER TABLE cameras ADD COLUMN rtsp_transport TEXT DEFAULT 'tcp'",
+		"ALTER TABLE cameras ADD COLUMN rtsp_udp_min_port INTEGER DEFAULT 0",
+		"ALTER TABLE cameras ADD COLUMN rtsp_udp_max_port INTEGER DEFAULT 0",
 	}
 	for _, stmt := range stmts {
 		if _, err := s.db.Exec(stmt); err != nil && !strings.Contains(strings.ToLower(err.Error()), "duplicate column name") {
@@ -74,6 +129,19 @@ func (s *Service) EnsureSchema() error {
 		`)
 		_, _ = s.db.Exec(`INSERT OR REPLACE INTO system_config (config_key, config_value) VALUES ('cam_bitrate_migrated', '1')`)
 	}
+	_, _ = s.db.Exec(`
+		UPDATE cameras
+		SET preview_rtsp_url = COALESCE(NULLIF(preview_rtsp_url, ''), rtsp_url, '')
+		WHERE COALESCE(preview_rtsp_url, '') = ''
+		  AND COALESCE(rtsp_url, '') <> ''
+	`)
+	_, _ = s.db.Exec(`
+		UPDATE cameras
+		SET rtsp_transport = 'tcp'
+		WHERE (COALESCE(rtsp_transport, '') = '' OR COALESCE(rtsp_transport, 'auto') = 'auto')
+		  AND COALESCE(rtsp_udp_min_port, 0) = 0
+		  AND COALESCE(rtsp_udp_max_port, 0) = 0
+	`)
 
 	return nil
 }
@@ -104,6 +172,10 @@ func (s *Service) ListCameras() ([]Camera, error) {
 	rows, err := s.db.Query(`
 		SELECT id, COALESCE(name,''), COALESCE(location,''), COALESCE(ip_address,''),
 		       COALESCE(port,554), COALESCE(username,''), COALESCE(rtsp_url,''),
+		       COALESCE(NULLIF(preview_rtsp_url,''), rtsp_url, ''),
+		       COALESCE(recording_rtsp_url,''),
+		       COALESCE(rtsp_transport,'auto'), COALESCE(rtsp_udp_min_port,0),
+		       COALESCE(rtsp_udp_max_port,0),
 		       COALESCE(onvif_url,''), COALESCE(manufacturer,''), COALESCE(model,''),
 		       COALESCE(firmware,''), COALESCE(supports_ptz,0), COALESCE(is_enabled,1),
 		       COALESCE(status,'unknown'), COALESCE(stream_type,'mjpeg'),
@@ -122,14 +194,16 @@ func (s *Service) ListCameras() ([]Camera, error) {
 		var cam Camera
 		if err := rows.Scan(
 			&cam.ID, &cam.Name, &cam.Location, &cam.IPAddress, &cam.Port, &cam.Username,
-			&cam.RTSPUrl, &cam.ONVIFUrl, &cam.Manufacturer, &cam.Model, &cam.Firmware,
+			&cam.RTSPUrl, &cam.PreviewRTSPUrl, &cam.RecordingRTSPUrl,
+			&cam.RTSPTransport, &cam.RTSPUDPMinPort, &cam.RTSPUDPMaxPort,
+			&cam.ONVIFUrl, &cam.Manufacturer, &cam.Model, &cam.Firmware,
 			&cam.SupportsPTZ, &cam.IsEnabled, &cam.Status, &cam.StreamType,
 			&cam.MonitorDisplay, &cam.MonitorOrder, &cam.RecordingSource,
 			&cam.RecordingBitrateKbps, &cam.LastSeen, &cam.CreatedAt,
 		); err != nil {
 			continue
 		}
-		cameras = append(cameras, cam)
+		cameras = append(cameras, sanitizeCameraResponse(cam))
 	}
 
 	return cameras, nil
@@ -140,6 +214,10 @@ func (s *Service) GetCamera(id string) (Camera, error) {
 	err := s.db.QueryRow(`
 		SELECT id, COALESCE(name,''), COALESCE(location,''), COALESCE(ip_address,''),
 		       COALESCE(port,554), COALESCE(username,''), COALESCE(rtsp_url,''),
+		       COALESCE(NULLIF(preview_rtsp_url,''), rtsp_url, ''),
+		       COALESCE(recording_rtsp_url,''),
+		       COALESCE(rtsp_transport,'auto'), COALESCE(rtsp_udp_min_port,0),
+		       COALESCE(rtsp_udp_max_port,0),
 		       COALESCE(onvif_url,''), COALESCE(manufacturer,''), COALESCE(model,''),
 		       COALESCE(firmware,''), COALESCE(supports_ptz,0), COALESCE(is_enabled,1),
 		       COALESCE(status,'unknown'), COALESCE(stream_type,'mjpeg'),
@@ -149,24 +227,34 @@ func (s *Service) GetCamera(id string) (Camera, error) {
 		FROM cameras WHERE id = ?
 	`, id).Scan(
 		&cam.ID, &cam.Name, &cam.Location, &cam.IPAddress, &cam.Port, &cam.Username,
-		&cam.RTSPUrl, &cam.ONVIFUrl, &cam.Manufacturer, &cam.Model, &cam.Firmware,
+		&cam.RTSPUrl, &cam.PreviewRTSPUrl, &cam.RecordingRTSPUrl,
+		&cam.RTSPTransport, &cam.RTSPUDPMinPort, &cam.RTSPUDPMaxPort,
+		&cam.ONVIFUrl, &cam.Manufacturer, &cam.Model, &cam.Firmware,
 		&cam.SupportsPTZ, &cam.IsEnabled, &cam.Status, &cam.StreamType,
 		&cam.MonitorDisplay, &cam.MonitorOrder, &cam.RecordingSource,
 		&cam.RecordingBitrateKbps, &cam.LastSeen, &cam.CreatedAt,
 	)
-	return cam, err
+	if err != nil {
+		return cam, err
+	}
+	return sanitizeCameraResponse(cam), nil
 }
 
 func (s *Service) CreateCamera(input CameraInput) (int64, error) {
+	input = normalizeCameraInput(input)
 	result, err := s.db.Exec(`
 		INSERT INTO cameras (
-			name, location, ip_address, port, rtsp_url, onvif_url, username, password_encrypted,
+			name, location, ip_address, port, rtsp_url, preview_rtsp_url, recording_rtsp_url,
+			rtsp_transport, rtsp_udp_min_port, rtsp_udp_max_port,
+			onvif_url, username, password_encrypted,
 			manufacturer, model, supports_ptz, is_enabled, status, stream_type,
 			monitor_display, monitor_order, recording_source, recording_bitrate_kbps
 		)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 'unknown', ?, ?, ?, ?, ?)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 'unknown', ?, ?, ?, ?, ?)
 	`,
-		input.Name, input.Location, input.IPAddress, input.Port, input.RTSPUrl, input.ONVIFUrl,
+		input.Name, input.Location, input.IPAddress, input.Port, input.RTSPUrl,
+		input.PreviewRTSPUrl, input.RecordingRTSPUrl, input.RTSPTransport,
+		input.RTSPUDPMinPort, input.RTSPUDPMaxPort, input.ONVIFUrl,
 		input.Username, nullableString(input.PasswordEncrypted), input.Manufacturer, input.Model,
 		input.SupportsPTZ, input.StreamType, input.MonitorDisplay, input.MonitorOrder,
 		input.RecordingSource, input.RecordingBitrateKbps,
@@ -178,6 +266,7 @@ func (s *Service) CreateCamera(input CameraInput) (int64, error) {
 }
 
 func (s *Service) UpdateCamera(id string, input CameraInput) (bool, error) {
+	input = normalizeCameraInput(input)
 	var (
 		result sql.Result
 		err    error
@@ -186,10 +275,14 @@ func (s *Service) UpdateCamera(id string, input CameraInput) (bool, error) {
 	if input.PasswordEncrypted != nil {
 		result, err = s.db.Exec(`
 			UPDATE cameras SET name=?, location=?, ip_address=?,
-				port=?, rtsp_url=?, onvif_url=?, username=?, password_encrypted=?,
+				port=?, rtsp_url=?, preview_rtsp_url=?, recording_rtsp_url=?,
+				rtsp_transport=?, rtsp_udp_min_port=?, rtsp_udp_max_port=?,
+				onvif_url=?, username=?, password_encrypted=?,
 				manufacturer=?, model=?, supports_ptz=?, stream_type=?,
 				monitor_display=?, monitor_order=?, recording_source=?, recording_bitrate_kbps=? WHERE id=?`,
-			input.Name, input.Location, input.IPAddress, input.Port, input.RTSPUrl, input.ONVIFUrl,
+			input.Name, input.Location, input.IPAddress, input.Port, input.RTSPUrl,
+			input.PreviewRTSPUrl, input.RecordingRTSPUrl, input.RTSPTransport,
+			input.RTSPUDPMinPort, input.RTSPUDPMaxPort, input.ONVIFUrl,
 			input.Username, *input.PasswordEncrypted, input.Manufacturer, input.Model,
 			input.SupportsPTZ, input.StreamType, input.MonitorDisplay, input.MonitorOrder,
 			input.RecordingSource, input.RecordingBitrateKbps, id,
@@ -197,9 +290,13 @@ func (s *Service) UpdateCamera(id string, input CameraInput) (bool, error) {
 	} else {
 		result, err = s.db.Exec(`
 			UPDATE cameras SET name=?, location=?, ip_address=?,
-				port=?, rtsp_url=?, onvif_url=?, username=?, manufacturer=?, model=?,
+				port=?, rtsp_url=?, preview_rtsp_url=?, recording_rtsp_url=?,
+				rtsp_transport=?, rtsp_udp_min_port=?, rtsp_udp_max_port=?,
+				onvif_url=?, username=?, manufacturer=?, model=?,
 				supports_ptz=?, stream_type=?, monitor_display=?, monitor_order=?, recording_source=?, recording_bitrate_kbps=? WHERE id=?`,
-			input.Name, input.Location, input.IPAddress, input.Port, input.RTSPUrl, input.ONVIFUrl,
+			input.Name, input.Location, input.IPAddress, input.Port, input.RTSPUrl,
+			input.PreviewRTSPUrl, input.RecordingRTSPUrl, input.RTSPTransport,
+			input.RTSPUDPMinPort, input.RTSPUDPMaxPort, input.ONVIFUrl,
 			input.Username, input.Manufacturer, input.Model, input.SupportsPTZ, input.StreamType,
 			input.MonitorDisplay, input.MonitorOrder, input.RecordingSource, input.RecordingBitrateKbps, id,
 		)
@@ -228,7 +325,9 @@ func (s *Service) DeleteCamera(id string) (bool, error) {
 
 func (s *Service) ListMonitorCameras() ([]MonitorCamera, error) {
 	rows, err := s.db.Query(`
-		SELECT id, COALESCE(name,''), COALESCE(rtsp_url,''), COALESCE(username,''),
+		SELECT id, COALESCE(name,''), COALESCE(rtsp_url,''),
+		       COALESCE(NULLIF(preview_rtsp_url,''), rtsp_url, ''), COALESCE(username,''),
+		       COALESCE(rtsp_transport,'auto'),
 		       COALESCE(stream_type,'mjpeg'), COALESCE(monitor_display,0),
 		       COALESCE(monitor_order,0), COALESCE(status,'unknown')
 		FROM cameras
@@ -247,7 +346,9 @@ func (s *Service) ListMonitorCameras() ([]MonitorCamera, error) {
 			&cam.ID,
 			&cam.Name,
 			&cam.RTSPUrl,
+			&cam.PreviewRTSPUrl,
 			&cam.Username,
+			&cam.RTSPTransport,
 			&cam.StreamType,
 			&cam.MonitorDisplay,
 			&cam.MonitorOrder,
@@ -255,7 +356,7 @@ func (s *Service) ListMonitorCameras() ([]MonitorCamera, error) {
 		); err != nil {
 			return nil, err
 		}
-		cams = append(cams, cam)
+		cams = append(cams, sanitizeMonitorCameraResponse(cam))
 	}
 
 	return cams, rows.Err()
@@ -483,13 +584,17 @@ func (s *Service) GetRecordingExport(id string) (RecordingExport, error) {
 	if baseName == "" {
 		baseName = fmt.Sprintf("camera_%d", cameraID)
 	}
+	ext := strings.ToLower(filepath.Ext(filePath))
+	if ext == "" {
+		ext = ".mp4"
+	}
 	safeBase := strings.Map(func(r rune) rune {
 		if unicode.IsLetter(r) || unicode.IsDigit(r) || r == '-' || r == '_' {
 			return r
 		}
 		return '_'
 	}, baseName)
-	fileName := fmt.Sprintf("%s_%s.mp4", safeBase, timestamp)
+	fileName := fmt.Sprintf("%s_%s%s", safeBase, timestamp, ext)
 	if label != "" {
 		safeLabel := strings.Map(func(r rune) rune {
 			if unicode.IsLetter(r) || unicode.IsDigit(r) || r == '-' || r == '_' {
@@ -497,7 +602,7 @@ func (s *Service) GetRecordingExport(id string) (RecordingExport, error) {
 			}
 			return '_'
 		}, label)
-		fileName = fmt.Sprintf("%s_%s_%s.mp4", safeBase, timestamp, safeLabel)
+		fileName = fmt.Sprintf("%s_%s_%s%s", safeBase, timestamp, safeLabel, ext)
 	}
 	return RecordingExport{FilePath: filePath, FileName: fileName}, nil
 }
@@ -565,10 +670,13 @@ func (s *Service) BatchUpdateCredentials(input BatchCredentialUpdateInput) (Batc
 
 	result.Total = len(ids)
 	for _, id := range ids {
-		var oldRTSP, oldUser string
+		var oldRTSP, oldPreviewRTSP, oldRecordingRTSP, oldUser string
 		var oldPort int
-		if err := s.db.QueryRow(`SELECT rtsp_url, username, COALESCE(port,554) FROM cameras WHERE id=?`, id).
-			Scan(&oldRTSP, &oldUser, &oldPort); err != nil {
+		if err := s.db.QueryRow(`
+			SELECT COALESCE(rtsp_url,''), COALESCE(preview_rtsp_url,''), COALESCE(recording_rtsp_url,''),
+			       COALESCE(username,''), COALESCE(port,554)
+			FROM cameras WHERE id=?`, id).
+			Scan(&oldRTSP, &oldPreviewRTSP, &oldRecordingRTSP, &oldUser, &oldPort); err != nil {
 			result.Failed++
 			continue
 		}
@@ -583,17 +691,27 @@ func (s *Service) BatchUpdateCredentials(input BatchCredentialUpdateInput) (Batc
 		}
 
 		newRTSP := oldRTSP
+		newPreviewRTSP := oldPreviewRTSP
+		newRecordingRTSP := oldRecordingRTSP
 		if input.UpdateRTSP {
 			newRTSP = rebuildRTSPURL(oldRTSP, newUser, input.Password, port)
+			newPreviewRTSP = rebuildRTSPURL(oldPreviewRTSP, newUser, input.Password, port)
+			newRecordingRTSP = rebuildRTSPURL(oldRecordingRTSP, newUser, input.Password, port)
+			if strings.TrimSpace(newPreviewRTSP) == "" {
+				newPreviewRTSP = newRTSP
+			}
+			if strings.TrimSpace(newRTSP) == "" {
+				newRTSP = newPreviewRTSP
+			}
 		}
 
 		var err error
 		if input.PasswordEncrypted != nil {
-			_, err = s.db.Exec(`UPDATE cameras SET username=?, password_encrypted=?, port=?, rtsp_url=? WHERE id=?`,
-				newUser, *input.PasswordEncrypted, port, newRTSP, id)
+			_, err = s.db.Exec(`UPDATE cameras SET username=?, password_encrypted=?, port=?, rtsp_url=?, preview_rtsp_url=?, recording_rtsp_url=? WHERE id=?`,
+				newUser, *input.PasswordEncrypted, port, newRTSP, newPreviewRTSP, newRecordingRTSP, id)
 		} else {
-			_, err = s.db.Exec(`UPDATE cameras SET username=?, port=?, rtsp_url=? WHERE id=?`,
-				newUser, port, newRTSP, id)
+			_, err = s.db.Exec(`UPDATE cameras SET username=?, port=?, rtsp_url=?, preview_rtsp_url=?, recording_rtsp_url=? WHERE id=?`,
+				newUser, port, newRTSP, newPreviewRTSP, newRecordingRTSP, id)
 		}
 		if err != nil {
 			result.Failed++
@@ -713,14 +831,19 @@ func (s *Service) ProbeHealth(id string, timeout time.Duration) (CameraHealthRes
 	conn, dialErr := net.DialTimeout("tcp", net.JoinHostPort(result.IPAddress, fmt.Sprintf("%d", result.Port)), timeout)
 	result.LatencyMS = time.Since(start).Milliseconds()
 	if dialErr == nil {
-		result.Status = "online"
 		conn.Close()
+		s.syncDevicesByCameraIP(result.IPAddress, true)
+		if _, err := s.CaptureSnapshot(strconv.Itoa(result.CameraID), 8*time.Second); err == nil {
+			result.Status = "online"
+			return result, nil
+		}
+	} else {
+		s.syncDevicesByCameraIP(result.IPAddress, false)
 	}
 	_, err := s.db.Exec("UPDATE cameras SET status=?, last_seen=? WHERE id=?", result.Status, time.Now(), id)
 	if err != nil {
 		return result, err
 	}
-	s.syncDevicesByCameraIP(result.IPAddress, result.Status == "online")
 	return result, nil
 }
 
@@ -749,13 +872,9 @@ func (s *Service) RecoverOfflineCameras(timeout time.Duration) ([]CameraHealthRe
 			continue
 		}
 		conn.Close()
-
-		result.Status = "online"
-		result.LatencyMS = time.Since(start).Milliseconds()
-		if _, err := s.db.Exec("UPDATE cameras SET status='online', last_seen=? WHERE id=?", time.Now(), result.CameraID); err != nil {
-			return nil, err
-		}
 		s.syncDevicesByCameraIP(result.IPAddress, true)
+		result.LatencyMS = time.Since(start).Milliseconds()
+		result.Status = "reachable"
 		results = append(results, result)
 	}
 	return results, rows.Err()

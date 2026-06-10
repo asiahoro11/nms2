@@ -67,6 +67,7 @@ type SecurityConfig struct {
 	CertFile       string   `yaml:"cert_file"`
 	KeyFile        string   `yaml:"key_file"`
 	AllowedOrigins []string `yaml:"allowed_origins"`
+	FrameAncestors []string `yaml:"frame_ancestors"`
 }
 
 type LoggingConfig struct {
@@ -79,7 +80,7 @@ type LoggingConfig struct {
 }
 
 // Version variable can be overridden by ldflags
-var Version = "v1.2.4-PoC"
+var Version = "v1.2.4.8"
 
 func Load() (*Config, error) {
 
@@ -112,6 +113,7 @@ func Load() (*Config, error) {
 			JWTSecret:      "system-secret-key-2026-CHANGE-ME", // Default secret
 			EnableTLS:      false,
 			AllowedOrigins: []string{"*"},
+			FrameAncestors: []string{"'self'", "http:", "https:"},
 		},
 		Logging: LoggingConfig{
 			Level:      "info",
@@ -138,7 +140,7 @@ func Load() (*Config, error) {
 		}
 	}
 
-	// ????謅????????????蟡???⊿豲??瞏???秧???(?頦???config.yaml ?謘餉爸)
+	// ????謅???蟡???⊿豲??瞏秧???(?頦config.yaml ?謘餉爸)
 	// Version is injected via ldflags, fallback to default
 	cfg.System.Version = Version
 

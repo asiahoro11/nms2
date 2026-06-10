@@ -104,7 +104,15 @@ func (s *Service) CreateDevice(req DeviceRequest) (int64, error) {
 }
 
 func (s *Service) UpdateDevice(id string, req DeviceRequest) error {
+	communityProvided := strings.TrimSpace(req.SNMPCommunity) != ""
 	normalizeDeviceRequest(&req)
+	if !communityProvided {
+		current, err := s.loadDevice(id)
+		if err != nil {
+			return err
+		}
+		req.SNMPCommunity = current.SNMPCommunity
+	}
 	res, err := s.db.Exec(`
 		UPDATE pdu_devices SET name=?, location=?, ip_address=?, port=?, snmp_community=?,
 		    snmp_version=?, device_type=?, manufacturer=?, model=?, is_enabled=?

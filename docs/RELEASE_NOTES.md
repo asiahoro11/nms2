@@ -1,6 +1,290 @@
 ﻿# Management Server Release Notes
 
 ---
+## v1.2.4.8 | 2026-06-10
+
+**Build purpose:** Customer integration stable release for API, iframe embed, and IoT gateway integration.
+
+### Customer Integration Stable Contract
+- Promoted the customer integration documentation to `v1.2.4.8` as the current stable contract.
+- Clarified integration readiness statuses as `Ready`, `Bridge Ready`, and `Planned` so customer-facing API scope is explicit.
+- Kept `/api/v1/integrations/network-snapshot` as the preferred customer dashboard bootstrap API for dashboard summary, device inventory, and topology data.
+- Kept iframe embed integration based on scoped embed tokens, server-side token revocation, and runtime `frame-ancestors` allowlist management.
+- Kept IoT direct Modbus TCP polling and REST ingest as `Ready` integration paths.
+- Marked MQTT, OPC-UA, and BACnet gateway ingest as `Bridge Ready`, with native protocol clients reserved as `Planned`.
+
+### IoT Edge Buffer Update
+- Kept the product version at `v1.2.4.8` while adding Modbus TCP background collection.
+- Enabled automatic polling for configured `modbus_tcp` signal points with FC03 Holding Register and FC04 Input Register support.
+- Added metric, polling interval, scale, offset, byte order, and word order fields for Modbus TCP points.
+- Added durable local SQLite store-and-forward behavior for Modbus TCP readings and REST ingest measurements.
+- Added HTTP forwarder settings and queue APIs so customer systems can receive NMS-normalized IoT values without connecting to each Modbus TCP device.
+- Added offline retry with backoff. Failed forwards stay on the NMS host until the customer endpoint is reachable again.
+- Added post-success retention: forwarded IoT records are marked `sent`, kept locally for 10 minutes, then dropped by cleanup.
+- Added queue visibility for pending, failed, and sent-hold records.
+
+### Security Hardening
+- Redacted device and PDU SNMP community values from normal API JSON responses while preserving internal polling behavior.
+- Device and PDU updates now preserve the stored SNMP community when the update request leaves the community field blank.
+- Camera API responses redact credentials and sensitive query parameters from RTSP URLs.
+- Expanded audit and log detail redaction for password, token, API key, secret, authorization, and SNMP community fields.
+- iframe and IoT integration UI now shows security guidance for scoped tokens, HTTPS, allowlists, short token lifetime, and OT network isolation.
+
+### UI and Layout
+- Hardened audit, admin, embed, and IoT table layouts against long JSON, token, URL, IP, and identifier strings.
+- Mobile and tablet table containers now keep content inside the page boundary with controlled horizontal scrolling.
+- Confirmed monitor mode naming remains `電視牆模式`.
+
+### Release Packaging
+- Added a dedicated Linux ARM64 packaging path for customer delivery when the standard Linux build already emitted `nms_server_linux_arm64`.
+- The dedicated ARM64 package is intended to contain only the ARM64 server binary, ARM64 go2rtc helper, Linux start script, release notes, API manual, and a package manifest.
+
+### Documentation
+- Updated `docs/API_MANUAL.md` for `v1.2.4.8` customer integration readiness.
+- Added customer security validation gates for credential redaction, iframe token handling, OT network segmentation, and gateway ingest controls.
+- Added smart-building 2016 / 2024 alignment notes with official Ministry of the Interior / Architecture and Building Research Institute reference links.
+- Updated `docs/STABLE_RELEASE_ACCEPTANCE_CHECKLIST.md` to track the current `v1.2.4.8` acceptance state.
+- Bumped backend runtime version, frontend app version, static asset version, and service-worker cache to `v1.2.4.8`.
+
+---
+## v1.2.4.7 | 2026-05-31
+
+**Build purpose:** Harden customer iframe integration management and expand IoT gateway integration readiness.
+
+### Customer Integration
+- Added server-side embed token records so admins can list and revoke iframe tokens after issuing them.
+- Embed snapshot requests now reject revoked or expired embed tokens through the token `jti` record.
+- Added runtime iframe `frame-ancestors` allowlist settings through `/api/v1/integrations/settings`; CSP reads the DB-backed allowlist on each request and does not require restart.
+- Added admin UI controls on the IoT / Modbus page for iframe allowlist management and embed token revocation.
+- Added IoT protocol capability profiles for direct Modbus TCP plus REST, MQTT bridge, OPC-UA gateway, and BACnet gateway ingest paths.
+
+### Documentation and Versioning
+- Updated `docs/API_MANUAL.md` to `v1.2.4.7`, including embed token management, iframe allowlist management, and IoT protocol profile guidance.
+- Bumped backend, frontend app version, static asset version, and service-worker cache to `v1.2.4.7`.
+
+---
+## v1.2.4.6 | 2026-05-25
+
+**Build purpose:** Add customer integration API optimization and publish the API manual.
+
+### API Integration
+- Added `GET /api/v1/integrations/network-snapshot` as a customer-facing read API that combines dashboard summary, device inventory, and topology into one response.
+- Added `include`, `page`, `limit`, `search`, `type`, and `status` query support so clients can trim payload size without returning to multiple bootstrap calls.
+- The integration payload uses schema version `nms.integration.network_snapshot.v1` and omits sensitive fields such as SNMP communities, passwords, license keys, and RTSP URLs.
+- The endpoint stays behind the existing JWT, license lock, and `device_management` gates.
+- Added scoped iframe embed tokens and the read-only `/embed.html` shell for customer portals that need dashboard, topology, inventory, alerts, or IoT views inside an iframe.
+- Added IoT/Modbus integration APIs for Modbus TCP polling and REST/webhook ingest, with device and measurement status surfaced in both API and UI.
+
+### Documentation and Versioning
+- Added `docs/API_MANUAL.md` for customer integration, including authentication, 2FA, the optimized snapshot API, iframe embed, IoT/Modbus APIs, existing read APIs, write API boundaries, status codes, and integration recommendations.
+- Bumped backend, frontend, static asset, and service-worker versions to `v1.2.4.6`.
+- Renamed the Traditional Chinese monitor page label from `監控畫面` / `監控模式` to `電視牆模式`, and bumped the static asset cache to `v1.2.4.6-api2`.
+
+---
+## v1.2.4.5 | 2026-05-15
+
+**Build purpose:** Fix report export format handling and expand compliance/operations export coverage.
+
+### Reports and Exports
+- Fixed report export format handling so CSV/PDF requests no longer fall back to JSON output.
+- Added richer device and inventory export fields, including sys name, firmware, location, SNMP uptime, interface counts, PoE count, and aggregate traffic counters.
+- Added disk usage to the device health report and SNMP uptime to the availability report.
+- Added new export reports for interfaces/PoE/traffic, health trend summaries, SLA evidence, audit/change records, license capacity, camera inventory, PDU/UPS inventory, and access-control inventory.
+- Standardized report UI labels and CSV/PDF export titles, headers, and common status values through the report i18n path, defaulting to Traditional Chinese and honoring the selected UI language.
+- Added CSV/PDF buttons for the new reports and synced frontend assets into both backend static trees.
+
+### Security and Data Handling
+- Report exports intentionally omit sensitive values such as passwords, SNMP communities, full license keys, and RTSP URLs.
+- License capacity export masks license keys to a short prefix.
+
+### Build and Versioning
+- Bumped backend, frontend, static asset, and service-worker versions to `v1.2.4.5`.
+- Added `duration_days` binding to the license generation input so the modular license generator compiles cleanly.
+- Added report-module tests covering PDF format routing, expanded CSV fields, and the new report SQL paths.
+
+---
+## v1.2.4.3 | 2026-04-28
+
+**Build purpose:** Promote the validated encoder-camera preview and recording fixes to an obfuscated release build.
+
+### Camera Streaming
+- MJPEG remains the default low-latency preview path for both management mode and monitor mode.
+- WebRTC/MSE remains opt-in through `localStorage.nms-camera-preview-transport = "webrtc"`.
+- Failed WebRTC sessions in monitor mode now fall back to MJPEG instead of leaving black camera tiles.
+- Preview defaults keep high-quality MJPEG output with `NMS_CAMERA_PREVIEW_QUALITY=2`.
+- Camera debug logging is disabled by default in this release; set `NMS_CAMERA_DEBUG=1` only when field diagnostics are needed.
+
+### Recording
+- Recording uses FFmpeg direct RTSP by default.
+- Recording no longer passes the unsupported `-rw_timeout` input option, fixing FFmpeg startup failures on affected builds.
+- Recording writes MPEG-TS first and remuxes after FFmpeg exits, preserving the `.ts` file if MP4 remux fails.
+
+### UI
+- Restored local SVG icon rendering for legacy icon placeholders.
+- Service worker monitor-page fallback now returns a valid response instead of surfacing `Failed to convert value to 'Response'`.
+
+---
+## v1.2.4.4.1-debug1 | 2026-04-27
+
+**Build purpose:** Add camera latency debug logging for encoder RTSP preview tuning.
+
+### Camera Streaming
+- Camera debug logging is enabled by default for this debug build and can be disabled with `NMS_CAMERA_DEBUG=0`.
+- Added MJPEG pipeline timing logs for subscription setup, FFmpeg start, first frame arrival, frame interval, HTTP flush timing, client count, and stream source.
+- MJPEG preview now defaults to direct RTSP -> FFmpeg to remove the extra go2rtc preview hop; set `NMS_CAMERA_PREVIEW_SOURCE=go2rtc` or `auto` to re-enable go2rtc fanout.
+- Preview FPS can be tuned without rebuilding through `NMS_CAMERA_PREVIEW_FPS`; this debug build defaults to 15 FPS and clamps values to 1-30.
+- Preview MJPEG quality can be tuned through `NMS_CAMERA_PREVIEW_QUALITY`; this debug build defaults to high quality `2` and clamps values to 2-15 (lower is better).
+- The default MJPEG path no longer forces the 1200 kbps preview cap when the camera row does not set a bandwidth limit.
+- Bitrate-limited preview profiles now use less aggressive JPEG compression, improving image clarity when a camera row still has a bandwidth limit.
+- Added optional HLS preview endpoint and frontend switch path through `localStorage.nms-camera-preview-transport = "hls"`; MJPEG remains the default low-latency split-window player.
+- New viewers only receive cached MJPEG frames when the cache is fresh, reducing the chance of starting playback from a stale frame.
+
+### Recording
+- Recording now defaults to direct RTSP -> FFmpeg instead of first routing through go2rtc local RTSP; set `NMS_CAMERA_RECORDING_SOURCE=go2rtc` or `auto` to re-enable fanout.
+- Recording now maps video only by default and skips the separate audio probe to avoid extra RTSP sessions against encoder sources; set `NMS_CAMERA_RECORD_AUDIO=1` to include audio.
+- Recording writes to a temporary MPEG-TS file first and remuxes to MP4 after FFmpeg exits; if remux fails, NMS keeps the `.ts` file and serves it with the correct media type instead of saving TS data as a fake MP4.
+- Removed the unsupported `-rw_timeout` input option from the NVR recording FFmpeg command after field logs showed this FFmpeg build rejects it with `Option rw_timeout not found`.
+
+### UI
+- Restored local SVG icon rendering for legacy `fas fa-*` and `icon-*` placeholders, and made inline SVG icons self-contained so they do not render as black filled labels when cached CSS is stale.
+- Monitor mode now follows the same preview default as the management camera page: MJPEG is the default, WebRTC is opt-in through `localStorage.nms-camera-preview-transport = "webrtc"`, and failed WebRTC sessions fall back to MJPEG instead of leaving black tiles.
+- Service worker navigation fallback now always returns a valid response for monitor pages, avoiding `Failed to convert value to 'Response'` console errors when a cached page is missing.
+
+---
+## v1.2.4.4.1 | 2026-04-27
+
+**Build purpose:** Test low-latency FFmpeg/MJPEG preview with go2rtc RTSP fanout.
+
+### Camera Streaming
+- Default browser preview is back to the FFmpeg/MJPEG low-latency path because field testing showed it is currently faster than WebRTC on the encoder stream.
+- WebRTC/MSE remains available as an opt-in test path through `localStorage.nms-camera-preview-transport = "webrtc"`.
+- MJPEG preview first tries to pull from go2rtc's local RTSP fanout, then falls back to direct RTSP if go2rtc is unavailable.
+- Recording continues to use FFmpeg and can pull from the same go2rtc local RTSP stream, reducing duplicate upstream pulls against encoder sources.
+
+---
+## v1.2.4.8-camera-timeout-test | 2026-04-27
+
+**Build purpose:** Avoid premature MSE preview shutdown for slow-starting RTSP encoder streams.
+
+### Camera Streaming
+- Increased the initial MSE preview startup timeout from 7 seconds to 20 seconds.
+- After go2rtc returns the MSE codec/MIME response, the browser now waits up to 30 seconds for the first media fragment before closing the WebSocket.
+- This keeps preview behavior simple: MSE remains the default preview player, while FFmpeg remains reserved for recording and legacy snapshot/MJPEG paths.
+- This is intended for public/NAT encoder streams where go2rtc registration succeeds but the first live media segment arrives slower than local camera streams.
+
+---
+## v1.2.4.6 | 2026-04-27
+
+**Build purpose:** Restore go2rtc MSE preview after v1.2.4.6 registration and MIME negotiation issues.
+
+### Camera Streaming
+- Fixed go2rtc dynamic stream registration to use `PUT /api/streams?name=...&src=...`, matching the go2rtc 1.9.x Web UI API.
+- Fixed the MSE client to consume go2rtc's full `video/mp4; codecs="..."` MIME response instead of wrapping it as a codec string.
+- MSE codec negotiation now sends only browser-supported MP4 codecs, reducing blank previews when the source offers unsupported tracks.
+- Added server-side logging when go2rtc stream preparation fails before WebSocket upgrade, so future 503 failures include the upstream reason in `server.log`.
+
+---
+## v1.2.4.6 | 2026-04-27
+
+**Build purpose:** Simplify camera preview by separating live playback from FFmpeg recording.
+
+### Camera Streaming
+- Browser preview now uses go2rtc MSE direct playback as the default path.
+- Automatic preview probing no longer tries WebRTC first and no longer falls through to FFmpeg-backed preview transcode.
+- go2rtc preview config no longer attaches an FFmpeg binary, preventing preview startup from triggering FFmpeg lookup or download.
+- FFmpeg remains reserved for the existing recording pipeline and legacy MJPEG/snapshot compatibility paths.
+- If an encoder sends H.265 and the browser cannot decode it through MSE, set the preview/substream to H.264 while keeping the recording stream on the desired quality/codec.
+
+---
+## v1.2.4.5 | 2026-04-27
+
+**Build purpose:** Lower-latency encoder preview path when WebRTC cannot establish clean playback.
+
+### Camera Streaming
+- Live preview now tries direct WebRTC first, then go2rtc MSE over the existing authenticated WebSocket route, then go2rtc FFmpeg H.264 transcode over MSE, and only then falls back to MJPEG.
+- MSE fallback avoids the browser ICE/8555 path, which helps encoder streams that play quickly in VLC but drift when the UI falls back to MJPEG.
+- The transcode fallback is used only when direct playback codecs are not accepted by the browser, for example H.265 sources on clients without HEVC browser support.
+- Direct go2rtc RTSP registration no longer forces TCP or UDP in the source URL, letting go2rtc negotiate the RTSP transport itself while the existing FFmpeg MJPEG/recording paths still honor configured TCP/UDP and UDP port range settings.
+- MSE playback keeps the browser close to the live edge by dropping queued fragments and correcting playback lag.
+
+---
+## v1.2.4.4 | 2026-04-27
+
+**Build purpose:** Optional go2rtc/WebRTC live-preview integration for lower-latency camera monitoring.
+
+### Camera Streaming
+- Added a go2rtc-backed WebRTC preview path for camera live view, monitor mode, and dashboard camera tiles.
+- NMS starts go2rtc on demand, keeps the go2rtc HTTP API bound to `127.0.0.1`, and proxies WebRTC signaling through authenticated NMS routes.
+- Browser playback now prefers WebRTC `<video>` and automatically falls back to the existing MJPEG stream when WebRTC/go2rtc is unavailable.
+- RTSP URLs and credentials remain managed by NMS; the browser does not receive direct RTSP credentials.
+- Request logging now redacts sensitive query parameters such as `token`, `password`, `username`, and `auth`.
+- Windows packages include `go2rtc.exe`; Linux packages include both `go2rtc_linux_amd64` and `go2rtc_linux_arm64`.
+- Existing FFmpeg recording, RTSP preview/recording split, TCP/UDP transport settings, UDP port ranges, DB, and License behavior are preserved.
+
+---
+## v1.2.4.3.3 | 2026-04-27
+
+**Build purpose:** More aggressive low-latency MJPEG preview tuning.
+
+### Camera Streaming
+- Live-preview FFmpeg now reduces RTSP input buffering, packet reordering, probe delay, and output mux delay more aggressively.
+- Preview FPS limiting is now handled in the video filter chain instead of output frame-rate synchronization, reducing frame scheduling delay.
+- MJPEG HTTP responses now send `X-Accel-Buffering: no` and stricter no-cache headers so reverse proxies are less likely to buffer live frames.
+- This remains an MJPEG compatibility path; sub-second latency depends on the source encoder GOP/B-frame settings and network/proxy path.
+
+---
+## v1.2.4.3.2 | 2026-04-27
+
+**Build purpose:** Low-latency live-preview hotfix for RTSP encoder/camera streams.
+
+### Camera Streaming
+- MJPEG preview now keeps only the newest frame per browser client, preventing slow viewers from accumulating old frames and drifting behind real time.
+- FFmpeg live-preview input now uses a tighter low-latency probe/buffer profile and disables audio handling for preview-only MJPEG output.
+- No database migration is required; existing preview/recording RTSP URLs, transport settings, UDP port ranges, and license state are preserved.
+
+---
+## v1.2.4.3.1 | 2026-04-27
+
+**Build purpose:** Hotfix for slow/unstable camera preview after v1.2.4.3 encoder compatibility changes.
+
+### Camera Streaming
+- New and migrated cameras now default RTSP transport to `TCP`; `Auto (TCP -> UDP)` remains available only when the site needs fallback probing.
+- Live preview now applies a default 720p-class MJPEG preview profile when no preview bitrate limit is configured, reducing browser and CPU load.
+- Hardware decode fallback timeout was shortened so unsupported GPU decode switches to CPU faster.
+- Background offline-camera recovery no longer opens FFmpeg snapshot probes; cameras are marked online only after an actual snapshot or live preview frame succeeds.
+- MJPEG FFmpeg input now uses low-latency flags to reduce buffering delay.
+
+---
+## v1.2.4.3 | 2026-04-27
+
+**Build purpose:** Camera/encoder RTSP compatibility build for PoC sites using mixed camera sources.
+
+### Camera Streaming
+- Preview and snapshot decoding keep GPU-first behavior and fall back to CPU when hardware decode fails, times out, or produces no first frame.
+- RTSP preview and recording remain separate fields so low-bitrate substreams can be used for preview while recording uses the main stream.
+- RTSP transport can now be set per camera: `Auto`, `TCP`, or `UDP`.
+- `Auto` tries TCP first and falls back to UDP for encoder/NAT/firewall cases where RTP media does not arrive over TCP.
+- UDP RTP port range can be configured per camera, for example `30000-30200` for encoder deployments.
+- The same transport settings are applied to snapshots, live MJPEG preview, and NVR recording.
+- Multiple channels from one encoder IP are supported as separate camera rows when their RTSP URLs differ.
+
+### Operations
+- Anonymous RTSP URLs such as `rtsp://host:port/stream1` stay credential-free when username is blank.
+- If a camera is saved without a username, stale encrypted camera passwords are cleared to avoid misleading credential state in diagnostics.
+- Stream logs and audit/config-change details redact URL credentials, password fields, tokens, and SNMP/CLI secrets.
+
+---
+## v1.2.4.1 | 2026-04-26
+
+**Build purpose:** Inspection build for validating corrected translations and stable local SVG icons.
+
+### Frontend
+- Corrected Logs & Audit translations across zh-TW, zh-CN, ja-JP, and ko-KR.
+- Added a local SVG icon layer for navigation, status cards, header actions, and mobile navigation.
+- Bumped static cache version to v1.2.4.1-i18n-icons1.
+
+
+---
 ## v1.2.4-PoC | 2026-04-24
 
 **本次版本定位:** 可直接交付客戶測試的 PoC 版，並保留同套程式轉正式 UUID 授權的出貨路徑。  

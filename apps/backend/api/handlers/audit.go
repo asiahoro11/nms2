@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	cameramodule "management-server/modules/camera"
 	logsmodule "management-server/modules/logs"
 	"net/http"
 	"strconv"
@@ -40,6 +41,7 @@ type AuditEntry struct {
 }
 
 func (h *Handler) WriteAudit(username, sourceIP, sourceMac, action, resource, status string, details map[string]interface{}) {
+	details = redactAuditDetails(details)
 	logging.AuditLog(username, sourceIP, action, resource, status, details)
 
 	module := inferAuditModule(action, resource, details)
@@ -137,11 +139,69 @@ func marshalAuditDetails(details map[string]interface{}) string {
 	if len(details) == 0 {
 		return ""
 	}
-	b, err := json.Marshal(details)
+	b, err := json.Marshal(redactAuditDetails(details))
 	if err != nil {
 		return ""
 	}
 	return string(b)
+}
+
+func redactAuditDetails(details map[string]interface{}) map[string]interface{} {
+	if details == nil {
+		return nil
+	}
+	redacted := make(map[string]interface{}, len(details))
+	for key, value := range details {
+		redacted[key] = redactSensitiveValue(key, value)
+	}
+	return redacted
+}
+
+func redactSensitiveValue(key string, value interface{}) interface{} {
+	if value == nil {
+		return nil
+	}
+	if isSensitiveAuditKey(key) {
+		return "<redacted>"
+	}
+	switch v := value.(type) {
+	case string:
+		return cameramodule.RedactSensitiveText(v)
+	case map[string]interface{}:
+		return redactAuditDetails(v)
+	case []interface{}:
+		out := make([]interface{}, len(v))
+		for i, item := range v {
+			out[i] = redactSensitiveValue(key, item)
+		}
+		return out
+	case []map[string]interface{}:
+		out := make([]map[string]interface{}, len(v))
+		for i, item := range v {
+			out[i] = redactAuditDetails(item)
+		}
+		return out
+	default:
+		return value
+	}
+}
+
+func isSensitiveAuditKey(key string) bool {
+	key = strings.ToLower(strings.TrimSpace(key))
+	switch key {
+	case "password", "pass", "passwd", "pwd", "password_encrypted",
+		"cli_password", "community", "snmp_ro_community", "snmp_rw_community", "snmp_community",
+		"snmpv3_auth_password", "snmpv3_priv_password",
+		"token", "access_token", "refresh_token", "auth_token", "api_key",
+		"secret", "client_secret", "private_key", "authorization":
+		return true
+	}
+	return strings.HasSuffix(key, "_password") ||
+		strings.HasSuffix(key, "_token") ||
+		strings.HasSuffix(key, "_secret") ||
+		strings.HasSuffix(key, "_community") ||
+		strings.Contains(key, "password_encrypted") ||
+		strings.Contains(key, "snmp_community")
 }
 
 func mapDetail(details map[string]interface{}, key string) map[string]interface{} {

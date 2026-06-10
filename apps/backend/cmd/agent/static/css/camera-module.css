@@ -241,12 +241,13 @@
 .cam-cell.drag-over { border-color: var(--primary-color) !important; background: rgba(99,102,241,0.1); }
 .cam-cell.empty { cursor: default; }
 
-/* stream image fills the cell */
+/* Keep the split preview proportional, matching fullscreen framing. */
 .cam-stream-img {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
     display: block;
+    background: #000;
 }
 .cam-media-container {
     position: absolute;
@@ -698,8 +699,9 @@ body.cam-fullscreen-active {
 .split-cell-img {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
     display: block;
+    background: #000;
 }
 
 .split-empty-hint {

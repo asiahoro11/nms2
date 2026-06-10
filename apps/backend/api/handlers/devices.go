@@ -183,7 +183,7 @@ func (h *Handler) CreateDevice(c *gin.Context) {
 	if input.SNMPCommunity != "" {
 		method = "SNMP"
 	}
-	msg := fmt.Sprintf("?輯撒???'%s' ??? %s ????謘踐???澈??'%s'", username, method, input.Name)
+	msg := fmt.Sprintf("?輯撒'%s'  %s ?謘踐澈??'%s'", username, method, input.Name)
 
 	h.db.Exec(`
 		INSERT INTO events (device_id, event_type, severity, message)
@@ -375,7 +375,7 @@ func (h *Handler) DeleteDevice(c *gin.Context) {
 	}
 
 	go func(n, u string) {
-		msg := fmt.Sprintf("?輯撒???'%s' ??畸??桀?? '%s'", u, n)
+		msg := fmt.Sprintf("?輯撒'%s' ??畸??桀?? '%s'", u, n)
 		h.db.Exec(`
 			INSERT INTO events (event_type, severity, message) 
 			VALUES ('device_removed', 'info', ?)
@@ -549,7 +549,7 @@ func (h *Handler) getDeviceInterfacesLegacy(c *gin.Context) {
 		if err := rows.Scan(&id, &deviceID, &ifIndex, &ifName, &ifDesc, &ifSpeed, &ifMac, &ifStatus, &ifAdminStatus,
 			&inOctets, &outOctets, &bandwidthIn, &bandwidthOut, &updatedAt); err == nil {
 
-			// ?嚙?嚙賭誨蝣潘蕭???
+			// ?嚙?嚙賭誨蝣潘蕭
 			statusText := "unknown"
 			if ifStatus.Valid {
 				switch ifStatus.Int64 {
