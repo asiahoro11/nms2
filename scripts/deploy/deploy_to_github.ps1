@@ -1,6 +1,6 @@
 # Made by YTSworks
 # YTS工作室製作
-# UTF-8 編碼設�?
+# UTF-8 編碼設�?
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $OutputEncoding = [System.Text.Encoding]::UTF8
 $OutputEncoding = [System.Text.Encoding]::UTF8
@@ -14,9 +14,13 @@ $LinuxHost = "10.100.100.11"
 $LinuxUser = "ubuntu"
 $NMSPath = "/opt/nms"
 $DeployPath = "`$HOME/nms-deploy"
-$GitHubRepo = "https://github.com/asiahoro11/Management Server.git"
+$GitHubRepo = "https://github.com/asiahoro11/nms2.git"
 $GitHubUser = "asiahoro11"
-$GitHubToken = "REDACTED-TOKEN-SCRUBBED-FROM-HISTORY"
+# Never hardcode a token here. Set the GITHUB_TOKEN environment variable before running this script.
+if ([string]::IsNullOrWhiteSpace($env:GITHUB_TOKEN)) {
+    throw "GITHUB_TOKEN environment variable must be set"
+}
+$GitHubToken = $env:GITHUB_TOKEN
 
 Write-Host "==========================================" -ForegroundColor Cyan
 Write-Host "NMS GitHub Deployment Automation" -ForegroundColor Cyan
@@ -61,7 +65,7 @@ Production deployment package for NMS Lite.
 ## Quick Deploy
 
 ```bash
-git clone https://github.com/asiahoro11/Management Server.git /opt/nms
+git clone https://github.com/asiahoro11/nms2.git /opt/nms
 cd /opt/nms
 chmod +x nms-server
 ./nms-server
@@ -129,7 +133,7 @@ Write-Host "??.gitignore created" -ForegroundColor Green
 Write-Host ""
 Write-Host "[6/6] Pushing to GitHub..." -ForegroundColor Yellow
 
-$gitUrl = "https://${GitHubUser}:${GitHubToken}@github.com/asiahoro11/Management Server.git"
+$gitUrl = "https://${GitHubUser}:${GitHubToken}@github.com/asiahoro11/nms2.git"
 $gitCommands = "cd $DeployPath && git init && git branch -M main && git config user.name '$GitHubUser' && git config user.email '${GitHubUser}@users.noreply.github.com' && git remote add origin '$gitUrl' && git add . && git commit -m 'Deploy NMS Lite - Production Build' && git push -u origin main --force && echo 'PUSH_SUCCESS'"
 
 ssh "$LinuxUser@$LinuxHost" $gitCommands
@@ -139,10 +143,10 @@ Write-Host "==========================================" -ForegroundColor Green
 Write-Host "??Deployment Complete!" -ForegroundColor Green
 Write-Host "==========================================" -ForegroundColor Green
 Write-Host ""
-Write-Host "?�� Repository: https://github.com/asiahoro11/Management Server" -ForegroundColor Cyan
+Write-Host "?�� Repository: https://github.com/asiahoro11/nms2" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "To deploy on a new server:" -ForegroundColor Yellow
-Write-Host "  git clone https://github.com/asiahoro11/Management Server.git /opt/nms" -ForegroundColor White
+Write-Host "  git clone https://github.com/asiahoro11/nms2.git /opt/nms" -ForegroundColor White
 Write-Host "  cd /opt/nms" -ForegroundColor White
 Write-Host "  chmod +x nms-server" -ForegroundColor White
 Write-Host "  ./nms-server" -ForegroundColor White

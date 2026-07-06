@@ -21,8 +21,9 @@ $LinuxPassword = "ji394Tiffany"
 $NMSPath = "/opt/nms"
 $DeployPath = '$HOME/nms-deploy'
 $GitHubUser = "asiahoro11"
-$GitHubToken = "REDACTED-TOKEN-SCRUBBED-FROM-HISTORY"
-$GitHubRepo = "https://github.com/asiahoro11/Management Server.git"
+if ([string]::IsNullOrWhiteSpace($env:GITHUB_TOKEN)) { throw "GITHUB_TOKEN environment variable must be set" }
+$GitHubToken = $env:GITHUB_TOKEN
+$GitHubRepo = "https://github.com/asiahoro11/nms2.git"
 
 Write-Host "==========================================" -ForegroundColor Cyan
 Write-Host "NMS GitHub Deployment (via plink)" -ForegroundColor Cyan
@@ -125,7 +126,7 @@ Production deployment package for NMS Lite.
 ## Quick Deploy
 
 ```bash
-git clone https://github.com/asiahoro11/Management Server.git /opt/nms
+git clone https://github.com/asiahoro11/nms2.git /opt/nms
 cd /opt/nms
 chmod +x nms-server
 ./nms-server
@@ -194,7 +195,7 @@ Write-Host "??Documentation created" -ForegroundColor Green
 Write-Host ""
 Write-Host "[7/7] Pushing to GitHub..." -ForegroundColor Cyan
 
-$gitUrl = "https://${GitHubUser}:${GitHubToken}@github.com/asiahoro11/Management Server.git"
+$gitUrl = "https://${GitHubUser}:${GitHubToken}@github.com/asiahoro11/nms2.git"
 $gitCommands = @"
 cd $DeployPath && \
 git init && \
@@ -224,10 +225,10 @@ else {
 
 Write-Host ""
 Write-Host "?“¦ Repository: $GitHubRepo" -ForegroundColor Cyan
-Write-Host "?? View at: https://github.com/asiahoro11/Management Server" -ForegroundColor Cyan
+Write-Host "?? View at: https://github.com/asiahoro11/nms2" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "To deploy on a new server:" -ForegroundColor Yellow
-Write-Host "  git clone https://github.com/asiahoro11/Management Server.git /opt/nms" -ForegroundColor White
+Write-Host "  git clone https://github.com/asiahoro11/nms2.git /opt/nms" -ForegroundColor White
 Write-Host "  cd /opt/nms && chmod +x nms-server && ./nms-server" -ForegroundColor White
 Write-Host ""
 

@@ -9,9 +9,10 @@ set -e
 # Configuration
 NMS_SOURCE_PATH="/opt/nms"
 DEPLOY_PATH="$HOME/nms-deploy"
-GITHUB_REPO="https://github.com/asiahoro11/Management Server.git"
+GITHUB_REPO="https://github.com/asiahoro11/nms2.git"
 GITHUB_USER="asiahoro11"
-GITHUB_TOKEN="REDACTED-TOKEN-SCRUBBED-FROM-HISTORY"
+# Never hardcode a token here. Export GITHUB_TOKEN in the environment before running this script.
+: "${GITHUB_TOKEN:?GITHUB_TOKEN environment variable must be set}"
 
 echo "========================================="
 echo "NMS Automated GitHub Deployment"
@@ -79,7 +80,7 @@ Production-ready deployment package for NMS Lite.
 
 ```bash
 # Clone repository
-git clone https://github.com/asiahoro11/Management Server.git /opt/nms
+git clone https://github.com/asiahoro11/nms2.git /opt/nms
 cd /opt/nms
 
 # Make executable
@@ -132,23 +133,23 @@ sudo systemctl restart nms
 
 ```
 /opt/nms/
-?œâ??€ nms-server       # Executable (Linux amd64)
-?œâ??€ frontend/        # Web UI (minified)
-?œâ??€ data/           # Database (auto-created)
-?”â??€ README.md
+?ï¿½ï¿½??ï¿½ nms-server       # Executable (Linux amd64)
+?ï¿½ï¿½??ï¿½ frontend/        # Web UI (minified)
+?ï¿½ï¿½??ï¿½ data/           # Database (auto-created)
+?ï¿½ï¿½??ï¿½ README.md
 ```
 
 ## ??Features
 
 - ?? SNMP Device Monitoring
-- ?—ºï¸?Network Topology (LLDP/MAC)
+- ?ï¿½ï¿½ï¿½?Network Topology (LLDP/MAC)
 - ?? Real-time Interface Statistics
 - ?? Syslog/Event Collection
 - ?? Multi-channel Alerts
 - ?? License Management
-- ?‘¥ Role-based Access Control
+- ?ï¿½ï¿½ Role-based Access Control
 
-## ?’» Requirements
+## ?ï¿½ï¿½ Requirements
 
 - Linux (amd64)
 - 512MB+ RAM
@@ -168,7 +169,7 @@ curl http://localhost:8080
 ```
 
 ---
-?“¦ Pre-compiled deployment package
+?ï¿½ï¿½ Pre-compiled deployment package
 EOF
 
 echo "??README.md created"
@@ -208,7 +209,7 @@ fi
 
 # Set remote with token
 git remote remove origin 2>/dev/null || true
-git remote add origin "https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/asiahoro11/Management Server.git"
+git remote add origin "https://${GITHUB_USER}:${GITHUB_TOKEN}@github.com/asiahoro11/nms2.git"
 echo "??Remote configured"
 
 # 8. Commit and push
@@ -227,14 +228,14 @@ echo "========================================="
 echo "??Deployment Complete!"
 echo "========================================="
 echo ""
-echo "?“¦ Repository: https://github.com/asiahoro11/Management Server"
+echo "?ï¿½ï¿½ Repository: https://github.com/asiahoro11/nms2"
 echo "?? Local path: $DEPLOY_PATH"
 echo ""
 echo "Binary size: $(du -h $DEPLOY_PATH/nms-server | cut -f1)"
 echo "Frontend files: $(find $DEPLOY_PATH/frontend -type f | wc -l)"
 echo ""
 echo "?? Next steps:"
-echo "   - Clone on target server: git clone https://github.com/asiahoro11/Management Server.git"
-echo "   - Run: cd Management Server && chmod +x nms-server && ./nms-server"
+echo "   - Clone on target server: git clone https://github.com/asiahoro11/nms2.git"
+echo "   - Run: cd nms2 && chmod +x nms-server && ./nms-server"
 echo ""
 echo "========================================="

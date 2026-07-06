@@ -17,7 +17,7 @@ Production deployment package.
 ## Quick Deploy
 
 ```bash
-git clone https://github.com/asiahoro11/Management Server.git /opt/nms
+git clone https://github.com/asiahoro11/nms2.git /opt/nms
 cd /opt/nms
 chmod +x nms-server
 ./nms-server
@@ -71,16 +71,19 @@ data/*.db-wal
 EOF
 
 # Git setup and push
+# Never hardcode a token here. Export GITHUB_TOKEN in the environment before running this script.
+: "${GITHUB_TOKEN:?GITHUB_TOKEN environment variable must be set}"
+
 git init
 git branch -M main
 git config user.name "asiahoro11"
 git config user.email "asiahoro11@users.noreply.github.com"
-git remote add origin https://asiahoro11:REDACTED-TOKEN-SCRUBBED-FROM-HISTORY@github.com/asiahoro11/Management Server.git
+git remote add origin "https://asiahoro11:${GITHUB_TOKEN}@github.com/asiahoro11/nms2.git"
 git add .
 git commit -m "Deploy NMS Lite - Production Package"
 git push -u origin main --force
 
 echo "========================================="
 echo "Deployment Complete!"
-echo "Repository: https://github.com/asiahoro11/Management Server"
+echo "Repository: https://github.com/asiahoro11/nms2"
 echo "========================================="
