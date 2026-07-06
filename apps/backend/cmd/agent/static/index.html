@@ -1,4 +1,6 @@
 <!DOCTYPE html>
+<!-- Made by YTSworks -->
+<!-- YTS工作室製作 -->
 <html lang="zh-TW">
 
 <head>
@@ -72,20 +74,21 @@
                 <a href="#cameras" class="nav-item" id="nav-cameras" data-page="cameras" data-permission="editor,admin">
                     <span class="nav-icon">📷</span>
                     <span class="nav-text" data-i18n="nav.cameras">攝影機監控</span>
-                    <span class="nav-badge-lock" id="camera-nav-lock" title="需要攝影機授權" style="display:none;">🔒</span>
+                    <span class="nav-badge-lock" id="camera-nav-lock" title="Camera License required" style="display:none;">&#128274;</span>
                 </a>
                 <a href="#access-control" class="nav-item" id="nav-access-control" data-page="access-control" data-permission="editor,admin">
                     <span class="nav-icon">🔐</span>
                     <span class="nav-text" data-i18n="nav.access_control">門禁管理</span>
-                    <span class="nav-badge-lock" id="ac-nav-lock" title="需要門禁授權" style="display:none;">🔒</span>
+                    <span class="nav-badge-lock" id="ac-nav-lock" title="Access Control License required" style="display:none;">&#128274;</span>
                 </a>
                 <a href="#pdu" class="nav-item" id="nav-pdu" data-page="pdu" data-permission="editor,admin">
                     <span class="nav-icon">🔋</span>
                     <span class="nav-text" data-i18n="nav.pdu">PDU/UPS 監控</span>
                 </a>
                 <a href="#iot" class="nav-item" id="nav-iot" data-page="iot" data-permission="editor,admin">
-                    <span class="nav-icon">IoT</span>
-                    <span class="nav-text">IoT / Modbus</span>
+                    <span class="nav-icon">📟</span>
+                    <span class="nav-text" data-i18n="nav.iot">IoT / Modbus</span>
+                    <span class="nav-badge-lock" id="iot-nav-lock" title="IoT License required" style="display:none;">&#128274;</span>
                 </a>
                 <a href="#logs" class="nav-item" data-page="logs" data-permission="editor,admin">
                     <span class="nav-icon">📋</span>
@@ -268,15 +271,15 @@
                         </select>
                         <div class="section-actions">
                             <button class="btn btn-secondary" id="btn-subnet-group" onclick="toggleSubnetGroupMode()" title="依 /24 網段分群顯示">
-                                <span>⬡</span> 網段分群
+                                <span>⬡</span> <span data-i18n="devices.subnet_group">網段分群</span>
                             </button>
                             <button class="btn btn-secondary" id="btn-bulk-edit" onclick="showBulkEditModal()"
                                 style="display: none; margin-right: 8px;" data-permission="editor,admin">
-                                <span>✏️</span> 批量編輯
+                                <span>✏️</span> <span data-i18n="devices.bulk_edit">批量編輯</span>
                             </button>
                             <button class="btn btn-danger" id="btn-bulk-delete" onclick="bulkDeleteDevices()"
                                 style="display: none;" data-permission="editor,admin">
-                                <span>🗑️</span> 批量刪除
+                                <span>🗑️</span> <span data-i18n="devices.bulk_delete">批量刪除</span>
                             </button>
                             <button class="btn btn-secondary" onclick="showBulkAddModal()" data-permission="editor,admin">
                                 <span>📡</span> <span data-i18n="devices.bulk_scan">批量掃描</span>
@@ -328,10 +331,10 @@
                                 🌳 <span data-i18n="topology.view_tree">樹狀圖</span>
                             </button>
                             <button class="btn btn-secondary topo-set-default-btn" id="topo-set-default-force" onclick="switchTopologyView('force', true)" title="設網狀圖為預設" style="font-size:0.78rem;padding:4px 8px;opacity:0.7;">
-                                ★ 設為預設
+                                ★ <span data-i18n="topology.set_default">設為預設</span>
                             </button>
                             <button class="btn btn-secondary topo-set-default-btn" id="topo-set-default-tree" onclick="switchTopologyView('tree', true)" title="設樹狀圖為預設" style="font-size:0.78rem;padding:4px 8px;opacity:0.7;">
-                                ★ 設為預設
+                                ★ <span data-i18n="topology.set_default">設為預設</span>
                             </button>
                         </div>
                         <button class="btn btn-secondary" onclick="startLinkCreateMode()" title="手動建立連線" data-permission="editor,admin"><i
@@ -425,13 +428,13 @@
                     <h1 data-i18n="nav.logs">日誌與稽核</h1>
                     <div class="header-actions">
                         <select id="log-type-select" class="select-input">
-                            <option value="system_logs">系統日誌</option>
-                            <option value="device_logs">設備日誌</option>
-                            <option value="audit_logs">稽核日誌</option>
-                            <option value="config_change_logs">設定變更</option>
+                            <option value="system_logs" data-i18n="logs.types.system">系統日誌</option>
+                            <option value="device_logs" data-i18n="logs.types.device">設備日誌</option>
+                            <option value="audit_logs" data-i18n="logs.types.audit">稽核日誌</option>
+                            <option value="config_change_logs" data-i18n="logs.types.config_change">設定變更</option>
                         </select>
                         <select id="log-severity-filter" class="select-input">
-                            <option value="" data-i18n="devices.all_status">所有等級</option>
+                            <option value="" data-i18n="logs.filters.all_levels">所有等級</option>
                             <option value="emergency">Emergency</option>
                             <option value="alert">Alert</option>
                             <option value="critical">Critical</option>
@@ -472,11 +475,11 @@
                 </header>
 
                 <div class="admin-tabs">
-                    <button class="tab-btn active" data-tab="host-status"
+                    <button class="tab-btn" data-tab="host-status"
                         data-i18n="admin.tabs.host_status">目前主機狀態</button>
                     <button class="tab-btn" data-tab="users" data-i18n="admin.tabs.users">使用者管理</button>
                     <button class="tab-btn" data-tab="audit" data-i18n="admin.tabs.audit">稽核日誌</button>
-                    <button class="tab-btn" data-tab="licenses" data-i18n="admin.tabs.licenses">授權管理</button>
+                    <button class="tab-btn active" data-tab="licenses" data-i18n="admin.tabs.licenses">授權管理</button>
                     <button class="tab-btn" data-tab="reports" data-i18n="admin.tabs.reports">報表匯出</button>
                     <button class="tab-btn" data-tab="alerts"
                         data-i18n="admin.tabs.alerts">告警設定</button>
@@ -513,46 +516,46 @@
                 <!-- 稽核日誌 -->
                 <div class="admin-tab-content" id="audit-tab">
                     <div class="section-header">
-                        <h2>稽核日誌</h2>
-                        <button class="btn btn-secondary" onclick="exportAuditCSV()">⬇ 匯出 CSV</button>
+                        <h2 data-i18n="admin.tabs.audit">稽核日誌</h2>
+                        <button class="btn btn-secondary" onclick="exportAuditCSV()">⬇ <span data-i18n="admin.audit.export_csv">匯出 CSV</span></button>
                     </div>
 
                     <!-- 篩選列 -->
                     <div class="audit-filters">
-                        <input type="text" id="audit-filter-username" placeholder="使用者" class="form-input" style="width:120px;" oninput="loadAuditLogs(1)">
+                        <input type="text" id="audit-filter-username" placeholder="使用者" data-i18n="[placeholder]admin.audit.filter_user" class="form-input" style="width:120px;" oninput="loadAuditLogs(1)">
                         <select id="audit-filter-status" class="form-input" style="width:110px;" onchange="loadAuditLogs(1)">
-                            <option value="">全部狀態</option>
-                            <option value="success">成功</option>
-                            <option value="failed">失敗</option>
-                            <option value="warning">警告</option>
+                            <option value="" data-i18n="admin.audit.status_all">全部狀態</option>
+                            <option value="success" data-i18n="common.success">成功</option>
+                            <option value="failed" data-i18n="common.failed">失敗</option>
+                            <option value="warning" data-i18n="admin.audit.status_warning">警告</option>
                         </select>
                         <input type="date" id="audit-filter-from" class="form-input" style="width:140px;" onchange="loadAuditLogs(1)">
-                        <span style="color:var(--text-muted)">至</span>
+                        <span style="color:var(--text-muted)" data-i18n="admin.audit.to">至</span>
                         <input type="date" id="audit-filter-to" class="form-input" style="width:140px;" onchange="loadAuditLogs(1)">
-                        <button class="btn btn-secondary" onclick="clearAuditFilters()">清除篩選</button>
+                        <button class="btn btn-secondary" onclick="clearAuditFilters()" data-i18n="logs.filters.clear">清除篩選</button>
                     </div>
 
                     <table class="data-table" id="audit-table">
                         <thead>
                             <tr>
-                                <th style="width:150px;">時間</th>
-                                <th style="width:100px;">使用者</th>
-                                <th style="width:120px;">來源 IP</th>
-                                <th style="width:130px;">來源 MAC</th>
-                                <th>操作項目</th>
-                                <th style="width:80px;">狀態</th>
-                                <th>詳細資訊</th>
+                                <th style="width:150px;" data-i18n="admin.audit.col_time">時間</th>
+                                <th style="width:100px;" data-i18n="admin.audit.col_user">使用者</th>
+                                <th style="width:120px;" data-i18n="admin.audit.col_source_ip">來源 IP</th>
+                                <th style="width:130px;" data-i18n="admin.audit.col_source_mac">來源 MAC</th>
+                                <th data-i18n="admin.audit.col_action">操作項目</th>
+                                <th style="width:80px;" data-i18n="common.status">狀態</th>
+                                <th data-i18n="admin.audit.col_details">詳細資訊</th>
                             </tr>
                         </thead>
                         <tbody id="audit-tbody">
-                            <tr><td colspan="7" class="empty-message">載入中...</td></tr>
+                            <tr><td colspan="7" class="empty-message" data-i18n="common.loading">載入中...</td></tr>
                         </tbody>
                     </table>
                     <div id="audit-pagination" class="pagination-container"></div>
                 </div>
 
                 <!-- 授權管理 -->
-                <div class="admin-tab-content" id="licenses-tab">
+                <div class="admin-tab-content active" id="licenses-tab">
                     <!-- 頂部卡片區 -->
                     <div class="license-top-row">
                         <div class="license-card-compact">
@@ -561,7 +564,7 @@
                                 <span class="usage-current" id="current-device-count">0</span>
                                 <span class="usage-separator">/</span>
                                 <span class="usage-max" id="max-device-count">5</span>
-                                <span class="usage-unit">台</span>
+                                <span class="usage-unit" data-i18n="admin.licenses.unit_devices">台</span>
                             </div>
                             <div class="progress-container-sm">
                                 <div class="progress-fill normal" id="device-usage-bar" style="width: 0%"></div>
@@ -777,17 +780,17 @@
 
                         <hr style="margin: 24px 0; border: 0; border-top: 1px solid var(--border-color);">
 
-                        <h3>密碼強度政策</h3>
+                        <h3 data-i18n="admin.security.policy_title">密碼強度政策</h3>
                         <div style="margin-top: 10px; padding: 16px; background: var(--bg-secondary, #f1f5f9); border-radius: 8px; font-size: 0.9rem; line-height: 1.8;">
-                            <strong>目前啟用的規則：</strong>
+                            <strong data-i18n="admin.security.policy_rules">目前啟用的規則：</strong>
                             <ul style="margin: 8px 0 0 20px; padding: 0;">
-                                <li>最少 <strong>8</strong> 個字元</li>
-                                <li>至少 1 個大寫字母 (A-Z)</li>
-                                <li>至少 1 個小寫字母 (a-z)</li>
-                                <li>至少 1 個數字 (0-9)</li>
-                                <li>至少 1 個特殊字元 (!@#$%^&* 等)</li>
-                                <li>禁止使用常見弱密碼 (如 password、admin123 等)</li>
-                                <li>新密碼不可與舊密碼相同</li>
+                                <li data-i18n="admin.security.rule_min_len">最少 8 個字元</li>
+                                <li data-i18n="admin.security.rule_upper">至少 1 個大寫字母 (A-Z)</li>
+                                <li data-i18n="admin.security.rule_lower">至少 1 個小寫字母 (a-z)</li>
+                                <li data-i18n="admin.security.rule_digit">至少 1 個數字 (0-9)</li>
+                                <li data-i18n="admin.security.rule_special">至少 1 個特殊字元 (!@#$%^&* 等)</li>
+                                <li data-i18n="admin.security.rule_weak">禁止使用常見弱密碼 (如 password、admin123 等)</li>
+                                <li data-i18n="admin.security.rule_not_same">新密碼不可與舊密碼相同</li>
                             </ul>
                         </div>
                     </div>
@@ -796,7 +799,7 @@
                 <!-- 系統品牌設定 -->
                 <div class="admin-tab-content" id="branding-tab">
                     <div class="section-header">
-                        <h2>公司品牌設定</h2>
+                        <h2 data-i18n="admin.branding.title">公司品牌設定</h2>
                     </div>
                     <div class="branding-form">
                         <div class="form-group">
@@ -808,21 +811,21 @@
                             <button class="btn btn-danger btn-sm" id="btn-delete-logo" onclick="deleteCompanyLogo()" style="display: none; margin-top: 8px;" data-i18n="admin.branding.delete_logo">刪除 Logo</button>
                         </div>
                         <div class="form-group">
-                            <label>上傳新 Logo</label>
+                            <label data-i18n="admin.branding.upload_new">上傳新 Logo</label>
                             <div class="logo-upload-area" onclick="document.getElementById('logo-file-input').click()">
                                 <input type="file" id="logo-file-input" accept="image/*" style="display:none" onchange="previewLogoFile(this)">
                                 <div class="upload-placeholder">
                                     <span>📷</span>
-                                    <p>點擊選擇圖片</p>
-                                    <small style="display:block; color:var(--text-muted); margin-top:5px;">建議解析度: 200x50 或等比例 (PNG/JPG)</small>
+                                    <p data-i18n="admin.branding.click_select">點擊選擇圖片</p>
+                                    <small style="display:block; color:var(--text-muted); margin-top:5px;" data-i18n="admin.branding.resolution_hint">建議解析度: 200x50 或等比例 (PNG/JPG)</small>
                                 </div>
                                 <img id="logo-preview-img" src="" style="max-height: 80px; display: none;">
                             </div>
-                            <button class="btn btn-primary" onclick="uploadCompanyLogo()" style="margin-top: 12px;">上傳 Logo</button>
+                            <button class="btn btn-primary" onclick="uploadCompanyLogo()" style="margin-top: 12px;" data-i18n="admin.branding.upload_btn">上傳 Logo</button>
                         </div>
                         <div class="form-group">
-                            <label>公司名稱</label>
-                            <input type="text" id="company-name-input" class="text-input" placeholder="例如: ABC 科技公司">
+                            <label data-i18n="admin.branding.company_name">公司名稱</label>
+                            <input type="text" id="company-name-input" class="text-input" placeholder="例如: ABC 科技公司" data-i18n="[placeholder]admin.branding.company_placeholder">
                         </div>
                         <div class="form-group" style="margin-top: 16px;">
                             <label data-i18n="admin.branding.company_name_color">公司名稱顏色</label>
@@ -925,7 +928,7 @@
                 </div>
 
                 <!-- 目前主機狀態 -->
-                <div class="admin-tab-content active" id="host-status-tab">
+                <div class="admin-tab-content" id="host-status-tab">
                     <div class="section-header">
                         <h2 data-i18n="admin.tabs.host_status">目前主機狀態</h2>
                         <button class="btn btn-secondary btn-sm" onclick="loadHostStatus()">
@@ -952,15 +955,15 @@
                                 <span class="info-value" id="host-uptime" data-i18n="common.loading">載入中...</span>
                             </div>
                             <div class="info-group">
-                                <span class="info-label">GPU 加速:</span>
+                                <span class="info-label" data-i18n="admin.host.gpu_accel">GPU 加速:</span>
                                 <span class="info-value" id="host-gpu-name" data-i18n="common.loading">載入中...</span>
                             </div>
                             <div class="info-group">
-                                <span class="info-label">解碼方式:</span>
+                                <span class="info-label" data-i18n="admin.host.gpu_method">解碼方式:</span>
                                 <span class="info-value" id="host-gpu-method">-</span>
                             </div>
                             <div class="info-group">
-                                <span class="info-label">建議最大串流:</span>
+                                <span class="info-label" data-i18n="admin.host.gpu_max_streams">建議最大串流:</span>
                                 <span class="info-value" id="host-gpu-maxcams">-</span>
                             </div>
                         </div>
@@ -1056,7 +1059,7 @@
                             <!-- 左：攝影機清單 + 錄影控制 -->
                             <div style="display:flex;flex-direction:column;gap:0;border:1px solid var(--border-color);border-radius:8px;overflow:hidden;">
                                 <div style="padding:10px 12px;background:var(--bg-tertiary);border-bottom:1px solid var(--border-color);font-size:0.8rem;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--text-muted);display:flex;align-items:center;justify-content:space-between;gap:4px;">
-                                    <span>攝影機清單</span>
+                                    <span data-i18n="cameras.nvr.cam_list">攝影機清單</span>
                                     <div style="display:flex;gap:4px;">
                                         <button class="btn btn-sm btn-secondary" style="padding:1px 6px;font-size:0.75rem;" onclick="window.nvrLoadStatus()" title="刷新狀態">↻</button>
                                         <button class="btn btn-sm btn-secondary" style="padding:1px 6px;font-size:0.75rem;" onclick="window.openNVRSettings()" title="NVR 設定">⚙</button>
@@ -1070,22 +1073,22 @@
                                 <!-- 日期篩選 + 批次刪除工具列 -->
                                 <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
                                     <div class="form-group" style="margin:0;">
-                                        <label style="font-size:0.8rem;">日期</label>
+                                        <label style="font-size:0.8rem;" data-i18n="cameras.nvr.date">日期</label>
                                         <select id="nvr-filter-date" class="select-input" onchange="window.nvrFilterChange()">
-                                            <option value="">全部日期</option>
+                                            <option value="" data-i18n="cameras.nvr.all_dates">全部日期</option>
                                         </select>
                                     </div>
                                     <div style="margin-top:16px;display:flex;gap:6px;align-items:center;">
-                                        <button class="btn btn-sm btn-secondary" onclick="window.nvrLoadRecordings(1)">🔍 搜尋</button>
-                                        <button class="btn btn-sm btn-secondary" id="nvr-batch-select-btn" onclick="window.nvrToggleBatchMode()" title="批次選取">☑ 批次選取</button>
-                                        <button class="btn btn-sm btn-danger" id="nvr-batch-delete-btn" onclick="window.nvrBatchDelete()" style="display:none;" title="刪除已選取">🗑 刪除已選</button>
+                                        <button class="btn btn-sm btn-secondary" onclick="window.nvrLoadRecordings(1)">🔍 <span data-i18n="cameras.nvr.search">搜尋</span></button>
+                                        <button class="btn btn-sm btn-secondary" id="nvr-batch-select-btn" onclick="window.nvrToggleBatchMode()" title="批次選取">☑ <span data-i18n="cameras.nvr.batch_select">批次選取</span></button>
+                                        <button class="btn btn-sm btn-danger" id="nvr-batch-delete-btn" onclick="window.nvrBatchDelete()" style="display:none;" title="刪除已選取">🗑 <span data-i18n="cameras.nvr.delete_selected">刪除已選</span></button>
                                         <span id="nvr-batch-count" style="display:none;font-size:0.8rem;color:var(--text-muted);"></span>
                                     </div>
                                 </div>
 
                                 <!-- 當日時間軸（選擇攝影機+日期後顯示） -->
                                 <div id="nvr-day-timeline-wrap" style="display:none;background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:8px;padding:10px 14px;">
-                                    <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:6px;">當日錄影時間軸（點擊跳至該錄影）</div>
+                                    <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:6px;" data-i18n="cameras.nvr.day_timeline_hint">當日錄影時間軸（點擊跳至該錄影）</div>
                                     <div style="position:relative;height:40px;background:#1e1e2e;border-radius:4px;overflow:hidden;cursor:crosshair;" id="nvr-day-timeline-bar" onclick="window.nvrDayTimelineClick(event)">
                                         <div id="nvr-day-timeline-ticks" style="position:absolute;width:100%;height:100%;pointer-events:none;"></div>
                                         <div id="nvr-day-timeline-blocks" style="position:absolute;width:100%;height:100%;top:0;left:0;pointer-events:none;"></div>
@@ -1099,12 +1102,12 @@
                                 <!-- 錄影清單表頭 -->
                                 <div id="nvr-list-header" style="display:none;display:grid;grid-template-columns:28px 70px 1fr 70px 60px 110px;gap:6px;padding:6px 14px;background:var(--bg-tertiary);border:1px solid var(--border-color);border-radius:8px 8px 0 0;font-size:0.75rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;">
                                     <span id="nvr-select-all-wrap" style="display:none;"><input type="checkbox" id="nvr-select-all" onchange="window.nvrSelectAll(this.checked)"></span>
-                                    <span>時間</span><span>攝影機</span><span>時長</span><span>大小</span><span>操作</span>
+                                    <span data-i18n="cameras.nvr.col_time">時間</span><span data-i18n="cameras.nvr.col_camera">攝影機</span><span data-i18n="cameras.nvr.col_duration">時長</span><span data-i18n="cameras.nvr.col_size">大小</span><span data-i18n="cameras.nvr.col_action">操作</span>
                                 </div>
 
                                 <!-- 錄影清單 -->
                                 <div id="nvr-recording-list" style="flex:1;border:1px solid var(--border-color);border-top:none;border-radius:0 0 8px 8px;overflow-y:auto;">
-                                    <div style="padding:40px;text-align:center;color:var(--text-muted);">← 點選左側攝影機查看錄影</div>
+                                    <div style="padding:40px;text-align:center;color:var(--text-muted);" data-i18n="cameras.nvr.pick_camera_hint">← 點選左側攝影機查看錄影</div>
                                 </div>
                                 <div id="nvr-pagination" style="display:flex;justify-content:center;gap:8px;"></div>
 
@@ -1116,7 +1119,7 @@
                                                 <span id="nvr-player-title" style="font-size:1.1rem;font-weight:600;"></span>
                                                 <span id="nvr-player-time" style="font-size:0.9rem;color:var(--text-muted);font-variant-numeric: tabular-nums;"></span>
                                             </div>
-                                            <button class="btn btn-secondary" onclick="window.nvrClosePlayer()" style="font-size:1.1rem;padding:4px 12px;cursor:pointer;">✕ 關閉</button>
+                                            <button class="btn btn-secondary" onclick="window.nvrClosePlayer()" style="font-size:1.1rem;padding:4px 12px;cursor:pointer;">✕ <span data-i18n="cameras.nvr.close">關閉</span></button>
                                         </div>
                                         <div style="padding:24px;display:flex;flex-direction:column;gap:16px;background:#1a1a1a;">
                                             <video id="nvr-player-video" controls style="width:100%;height:65vh;border-radius:4px;background:#000;"></video>
@@ -1216,7 +1219,7 @@
                                 <option value="rejected" data-i18n="ac.status_rejected">已拒絕</option>
                                 <option value="expired" data-i18n="ac.status_expired">已過期</option>
                             </select>
-                            <button class="btn btn-secondary btn-sm" onclick="acLoadSchedules()">↻ 重新整理</button>
+                            <button class="btn btn-secondary btn-sm" onclick="acLoadSchedules()">↻ <span data-i18n="common.refresh">重新整理</span></button>
                         </div>
                         <div class="ac-table-wrap">
                             <table class="ac-table">
@@ -1250,11 +1253,11 @@
                                 <option value="tamper" data-i18n="ac.ev_tamper">破壞警報</option>
                             </select>
                             <select class="ac-events-filter" id="ac-ev-limit" onchange="acLoadEvents()">
-                                <option value="50">50 筆</option>
-                                <option value="100" selected>100 筆</option>
-                                <option value="500">500 筆</option>
+                                <option value="50" data-i18n="ac.rows_50">50 筆</option>
+                                <option value="100" selected data-i18n="ac.rows_100">100 筆</option>
+                                <option value="500" data-i18n="ac.rows_500">500 筆</option>
                             </select>
-                            <button class="btn btn-secondary btn-sm" onclick="acLoadEvents()">↻ 重新整理</button>
+                            <button class="btn btn-secondary btn-sm" onclick="acLoadEvents()">↻ <span data-i18n="common.refresh">重新整理</span></button>
                         </div>
                         <div class="ac-table-wrap">
                             <table class="ac-table">
@@ -1299,177 +1302,286 @@
 
             <section id="iot" class="page">
                 <header class="page-header">
-                    <h1>IoT / Modbus</h1>
+                    <h1 data-i18n="nav.iot">IoT / Modbus</h1>
                     <div class="header-actions">
-                        <button class="btn btn-secondary" onclick="iotLoad()">Refresh</button>
-                        <button class="btn btn-primary" onclick="iotCreateDevice()" data-permission="admin">Add Modbus TCP</button>
+                        <button class="btn btn-secondary" id="iot-refresh-btn" onclick="iotLoad()" data-i18n="common.refresh">Refresh</button>
+                        <button class="btn btn-primary" id="iot-add-btn" onclick="iotOpenAddModal()" data-permission="admin" data-i18n="iot.modal.add">Add Device</button>
                     </div>
                 </header>
 
-                <div class="iot-grid">
-                    <div class="status-card">
-                        <h3>IoT Status</h3>
-                        <div class="iot-status-row"><span>Devices</span><strong id="iot-device-count">0</strong></div>
-                        <div class="iot-status-row"><span>Enabled</span><strong id="iot-enabled-count">0</strong></div>
-                        <div class="iot-status-row"><span>Measurements</span><strong id="iot-measurement-count">0</strong></div>
-                        <div class="iot-status-row"><span>Forward pending</span><strong id="iot-forward-pending-count">0</strong></div>
-                        <div class="iot-status-row"><span>Forward failed</span><strong id="iot-forward-failed-count">0</strong></div>
-                        <div class="iot-status-row"><span>Sent hold</span><strong id="iot-forward-sent-count">0</strong></div>
-                    </div>
+                <div id="iot-license-notice" class="camera-license-notice" style="display:none;">
+                    <span class="license-notice-icon">&#128274;</span>
+                    <span data-i18n="iot.license_notice">IoT / Modbus 模組需加購 License 方可使用。</span>
+                    <button class="btn btn-sm btn-outline-primary" onclick="loadPage('admin')">
+                        &#128273; <span data-i18n="cameras.go_license">License Management</span>
+                    </button>
+                </div>
+                <div id="iot-module-content">
 
-                    <div class="status-card">
-                        <h3>Supported Protocols</h3>
-                        <div id="iot-capabilities-list" class="iot-capabilities-list">
-                            <div class="empty-message">Loading...</div>
+                <div class="iot-nav-tabs">
+                    <button class="iot-nav-tab active" onclick="iotSwitchTab('overview', this)" data-i18n="iot.tab_overview">Function Pages</button>
+                    <button class="iot-nav-tab" onclick="iotSwitchTab('online_modules', this)" data-i18n="iot.tab_online_modules">Online Module Overview</button>
+                    <button class="iot-nav-tab" onclick="iotSwitchTab('devices', this)" data-i18n="iot.tab_devices">Devices</button>
+                    <button class="iot-nav-tab" onclick="iotSwitchTab('integration', this)" data-i18n="iot.tab_integration">Integration</button>
+                </div>
+
+                <div class="iot-tab-pane active" id="iot-tab-overview">
+                    <div class="iot-grid">
+                        <div class="status-card">
+                            <h3 data-i18n="iot.summary.title">IoT Status</h3>
+                            <div class="iot-status-row"><span data-i18n="iot.summary.total_devices">Devices</span><strong id="iot-device-count">0</strong></div>
+                            <div class="iot-status-row"><span data-i18n="iot.summary.enabled">Enabled</span><strong id="iot-enabled-count">0</strong></div>
+                            <div class="iot-status-row"><span data-i18n="iot.summary.measurements">Measurements</span><strong id="iot-measurement-count">0</strong></div>
+                            <div class="iot-status-row"><span data-i18n="iot.summary.forward_pending">Forward pending</span><strong id="iot-forward-pending-count">0</strong></div>
+                            <div class="iot-status-row"><span data-i18n="iot.summary.forward_failed">Forward failed</span><strong id="iot-forward-failed-count">0</strong></div>
+                            <div class="iot-status-row"><span data-i18n="iot.summary.sent_hold">Sent hold</span><strong id="iot-forward-sent-count">0</strong></div>
                         </div>
-                    </div>
 
-                    <div class="status-card">
-                        <h3>Modbus TCP Device</h3>
-                        <div class="iot-form-grid">
-                            <input class="text-input" id="iot-name" placeholder="Name">
-                            <input class="text-input" id="iot-host" placeholder="Host IP">
-                            <input class="text-input" id="iot-port" type="number" placeholder="Port" value="502">
-                            <input class="text-input" id="iot-unit" type="number" placeholder="Unit ID" value="1">
-                            <input class="text-input" id="iot-address" type="number" placeholder="Register address" value="0">
-                            <select class="select-input" id="iot-function-code">
-                                <option value="3">FC03 Holding Register</option>
-                                <option value="4">FC04 Input Register</option>
-                            </select>
-                            <select class="select-input" id="iot-data-type">
-                                <option value="uint16">uint16</option>
-                                <option value="int16">int16</option>
-                                <option value="uint32">uint32</option>
-                                <option value="int32">int32</option>
-                                <option value="float32">float32</option>
-                            </select>
-                            <input class="text-input" id="iot-metric" placeholder="Metric" value="temperature">
-                            <input class="text-input" id="iot-scale" type="number" step="0.001" placeholder="Scale" value="1">
-                            <input class="text-input" id="iot-offset" type="number" step="0.001" placeholder="Offset" value="0">
-                            <input class="text-input" id="iot-poll-interval" type="number" min="5" placeholder="Poll seconds" value="60">
-                            <select class="select-input" id="iot-byte-order">
-                                <option value="big">byte big endian</option>
-                                <option value="little">byte little endian</option>
-                            </select>
-                            <select class="select-input" id="iot-word-order">
-                                <option value="big">word big endian</option>
-                                <option value="little">word little endian</option>
-                            </select>
+                        <div class="status-card">
+                            <h3 data-i18n="iot.protocols.title">Supported Protocols</h3>
+                            <div id="iot-capabilities-list" class="iot-capabilities-list">
+                                <div class="empty-message" data-i18n="common.loading">Loading...</div>
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="status-card" data-permission="admin">
-                        <h3>Forward Queue</h3>
-                        <div class="iot-form-grid">
-                            <select class="select-input" id="iot-forward-enabled">
-                                <option value="false">Forward disabled</option>
-                                <option value="true">Forward enabled</option>
-                            </select>
-                            <input class="text-input" id="iot-forward-url" placeholder="Webhook URL">
-                            <input class="text-input" id="iot-forward-token" placeholder="Bearer token  leave blank to keep existing">
-                            <input class="text-input" id="iot-forward-batch" type="number" min="1" max="500" value="50">
-                            <button class="btn btn-primary" onclick="iotSaveForwarderSettings()">Save Forwarder</button>
-                            <button class="btn btn-secondary" onclick="iotFlushQueue()">Flush Now</button>
-                        </div>
-                    </div>
-
-                    <div class="status-card">
-                        <h3>Gateway Ingest Test</h3>
-                        <div class="iot-form-grid">
-                            <select class="select-input" id="iot-ingest-protocol">
-                                <option value="rest">REST / Webhook</option>
-                                <option value="mqtt">MQTT Bridge</option>
-                                <option value="opcua">OPC-UA Gateway</option>
-                                <option value="bacnet">BACnet Gateway</option>
-                            </select>
-                            <input class="text-input" id="iot-ingest-id" placeholder="External ID" value="demo-sensor-1">
-                            <input class="text-input" id="iot-ingest-name" placeholder="Name" value="Demo Sensor">
-                            <input class="text-input" id="iot-ingest-metric" placeholder="Metric" value="temperature">
-                            <input class="text-input" id="iot-ingest-value" type="number" step="0.01" placeholder="Value" value="25.5">
-                            <button class="btn btn-secondary" onclick="iotSendIngest()">Send Ingest</button>
-                        </div>
-                    </div>
-
-                    <div class="status-card">
-                        <h3>iframe Embed Token</h3>
-                        <div class="iot-form-grid">
-                            <input class="text-input" id="embed-name" placeholder="Token name" value="Customer Portal">
-                            <select class="select-input" id="embed-view">
-                                <option value="dashboard">dashboard</option>
-                                <option value="topology">topology</option>
-                                <option value="devices">devices</option>
-                                <option value="alerts">alerts</option>
-                                <option value="iot">iot</option>
-                            </select>
-                            <input class="text-input" id="embed-expiry" type="number" value="1440" min="5" max="43200">
-                            <button class="btn btn-secondary" onclick="iotCreateEmbedToken()" data-permission="admin">Generate Token</button>
-                        </div>
-                        <textarea class="text-input" id="embed-output" rows="4" readonly style="width:100%;margin-top:10px;"></textarea>
-                    </div>
-
-                    <div class="status-card" data-permission="admin">
-                        <h3>iframe Allowlist</h3>
-                        <textarea class="text-input" id="integration-frame-ancestors" rows="4" placeholder="'self'&#10;https://customer.example.com" style="width:100%;"></textarea>
-                        <div class="iot-action-row">
-                            <button class="btn btn-secondary btn-sm" onclick="integrationLoadSettings()">Reload</button>
-                            <button class="btn btn-primary btn-sm" onclick="integrationSaveSettings()">Save</button>
+                        <div class="status-card">
+                            <h3 data-i18n="iot.ingest.title">Gateway Ingest Test</h3>
+                            <div class="iot-form-grid">
+                                <select class="select-input" id="iot-ingest-protocol">
+                                    <option value="rest">REST / Webhook</option>
+                                    <option value="mqtt">MQTT Bridge</option>
+                                    <option value="opcua">OPC-UA Gateway</option>
+                                    <option value="bacnet">BACnet Gateway</option>
+                                </select>
+                                <input class="text-input" id="iot-ingest-id" placeholder="External ID" value="demo-sensor-1">
+                                <input class="text-input" id="iot-ingest-name" placeholder="Name" value="Demo Sensor">
+                                <input class="text-input" id="iot-ingest-metric" placeholder="Metric" value="temperature">
+                                <input class="text-input" id="iot-ingest-value" type="number" step="0.01" placeholder="Value" value="25.5">
+                                <button class="btn btn-secondary" onclick="iotSendIngest()" data-i18n="iot.ingest.send">Send Ingest</button>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="devices-table-container" style="margin-top:16px;" data-permission="admin">
-                    <table class="data-table" id="embed-tokens-table">
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>Views</th>
-                                <th>Expires</th>
-                                <th>Last used</th>
-                                <th>Status</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody id="embed-tokens-tbody">
-                            <tr><td colspan="6" class="empty-message">Loading...</td></tr>
-                        </tbody>
-                    </table>
+                <div class="iot-tab-pane" id="iot-tab-online_modules">
+                    <div class="iot-pane-header">
+                        <span class="iot-pane-title" data-i18n="iot.online_modules.title">Online Module Overview</span>
+                    </div>
+                    <div id="iot-sensor-cards" class="iot-sensor-grid"></div>
                 </div>
 
-                <div class="devices-table-container" style="margin-top:16px;">
-                    <table class="data-table" id="iot-devices-table">
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>Protocol</th>
-                                <th>Target</th>
-                                <th>Register</th>
-                                <th>Metric</th>
-                                <th>Last value</th>
-                                <th>Last seen</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody id="iot-devices-tbody">
-                            <tr><td colspan="8" class="empty-message">Loading...</td></tr>
-                        </tbody>
-                    </table>
+                <div class="iot-tab-pane" id="iot-tab-devices">
+                    <div class="devices-table-container">
+                        <table class="data-table" id="iot-devices-table">
+                            <thead>
+                                <tr>
+                                    <th data-i18n="iot.devices.col_name">Name</th>
+                                    <th data-i18n="iot.devices.col_type">Type</th>
+                                    <th data-i18n="iot.devices.col_protocol">Protocol</th>
+                                    <th data-i18n="iot.devices.col_target">Target</th>
+                                    <th data-i18n="iot.devices.col_register">Register</th>
+                                    <th data-i18n="iot.devices.col_metric">Metric</th>
+                                    <th data-i18n="iot.devices.col_last_value">Last value</th>
+                                    <th data-i18n="iot.devices.col_last_seen">Last seen</th>
+                                    <th data-i18n="iot.devices.col_action">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="iot-devices-tbody">
+                                <tr><td colspan="9" class="empty-message" data-i18n="common.loading">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="devices-table-container" style="margin-top:16px;">
+                        <table class="data-table" id="iot-measurements-table">
+                            <thead>
+                                <tr>
+                                    <th data-i18n="iot.measurements.col_time">Time</th>
+                                    <th data-i18n="iot.measurements.col_device">External ID</th>
+                                    <th data-i18n="iot.measurements.col_metric">Metric</th>
+                                    <th data-i18n="iot.measurements.col_value">Value</th>
+                                    <th data-i18n="iot.measurements.col_status">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="iot-measurements-tbody">
+                                <tr><td colspan="5" class="empty-message" data-i18n="iot.measurements.no_data">No data</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
 
-                <div class="devices-table-container" style="margin-top:16px;">
-                    <table class="data-table" id="iot-measurements-table">
-                        <thead>
-                            <tr>
-                                <th>Time</th>
-                                <th>External ID</th>
-                                <th>Metric</th>
-                                <th>Value</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody id="iot-measurements-tbody">
-                            <tr><td colspan="5" class="empty-message">No data</td></tr>
-                        </tbody>
-                    </table>
+                <div class="iot-tab-pane" id="iot-tab-integration">
+                    <div class="iot-grid">
+                        <div class="status-card" data-permission="admin">
+                            <h3 data-i18n="iot.forward.title">Forward Queue</h3>
+                            <div class="iot-form-grid">
+                                <select class="select-input" id="iot-forward-enabled">
+                                    <option value="false" data-i18n="iot.forward.mode_disabled">Forward disabled</option>
+                                    <option value="true" data-i18n="iot.forward.mode_enabled">Forward enabled</option>
+                                </select>
+                                <input class="text-input" id="iot-forward-url" placeholder="Webhook URL">
+                                <input class="text-input" id="iot-forward-token" placeholder="Bearer token - leave blank to keep existing">
+                                <input class="text-input" id="iot-forward-batch" type="number" min="1" max="500" value="50">
+                                <button class="btn btn-primary" onclick="iotSaveForwarderSettings()" data-i18n="iot.forward.save">Save Forwarder</button>
+                                <button class="btn btn-secondary" onclick="iotFlushQueue()" data-i18n="iot.forward.flush">Flush Now</button>
+                            </div>
+                        </div>
+
+                        <div class="status-card">
+                            <h3 data-i18n="iot.embed.title">iframe Embed Token</h3>
+                            <div class="iot-form-grid">
+                                <input class="text-input" id="embed-name" placeholder="Token name" value="Customer Portal">
+                                <select class="select-input" id="embed-view">
+                                    <option value="dashboard">dashboard</option>
+                                    <option value="topology">topology</option>
+                                    <option value="devices">devices</option>
+                                    <option value="alerts">alerts</option>
+                                    <option value="iot">iot</option>
+                                </select>
+                                <input class="text-input" id="embed-expiry" type="number" value="1440" min="5" max="43200">
+                                <button class="btn btn-secondary" onclick="iotCreateEmbedToken()" data-permission="admin" data-i18n="iot.embed.generate">Generate Token</button>
+                            </div>
+                            <textarea class="text-input" id="embed-output" rows="4" readonly style="width:100%;margin-top:10px;"></textarea>
+                        </div>
+
+                        <div class="status-card" data-permission="admin">
+                            <h3 data-i18n="iot.allowlist.title">iframe Allowlist</h3>
+                            <textarea class="text-input" id="integration-frame-ancestors" rows="4" placeholder="'self'&#10;https://customer.example.com" style="width:100%;"></textarea>
+                            <div class="iot-action-row">
+                                <button class="btn btn-secondary btn-sm" onclick="integrationLoadSettings()" data-i18n="common.refresh">Reload</button>
+                                <button class="btn btn-primary btn-sm" onclick="integrationSaveSettings()" data-i18n="common.save">Save</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="devices-table-container" style="margin-top:16px;" data-permission="admin">
+                        <table class="data-table" id="embed-tokens-table">
+                            <thead>
+                                <tr>
+                                    <th data-i18n="iot.embed.col_name">Name</th>
+                                    <th data-i18n="iot.embed.col_views">Views</th>
+                                    <th data-i18n="iot.embed.col_expires">Expires</th>
+                                    <th data-i18n="iot.embed.col_last_used">Last used</th>
+                                    <th data-i18n="iot.embed.col_status">Status</th>
+                                    <th data-i18n="iot.embed.col_action">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="embed-tokens-tbody">
+                                <tr><td colspan="6" class="empty-message" data-i18n="common.loading">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                </div>
+
+                <div class="modal-overlay" id="iot-add-modal" style="display:none;" onclick="if(event.target===this)iotCloseAddModal()">
+                    <div class="modal" style="max-width:620px;width:95%;">
+                        <button class="modal-close" onclick="iotCloseAddModal()">&times;</button>
+                        <div class="modal-body">
+                            <h3 id="iot-modal-title" style="margin:0 0 16px;" data-i18n="iot.modal.add_title">Add IoT Device</h3>
+                            <div class="iot-protocol-tabs">
+                                <button class="iot-protocol-tab active" onclick="iotSwitchProtocol('modbus_tcp',this)" data-i18n="iot.modal.tab_tcp">Modbus TCP</button>
+                                <button class="iot-protocol-tab" onclick="iotSwitchProtocol('modbus_rtu',this)" data-i18n="iot.modal.tab_rtu">Modbus RTU</button>
+                                <button class="iot-protocol-tab" onclick="iotSwitchProtocol('modbus_rs485',this)" data-i18n="iot.modal.tab_rs485">Modbus RS485</button>
+                                <button class="iot-protocol-tab" onclick="iotSwitchProtocol('modbus_rtu_tcp',this)">RTU over TCP</button>
+                            </div>
+                            <input type="hidden" id="iot-protocol" value="modbus_tcp">
+                            <div class="iot-form-grid iot-device-form" style="grid-template-columns:1fr 1fr;gap:10px;">
+                                <div class="iot-form-field span-full">
+                                    <label class="iot-form-label" data-i18n="iot.modal.device_name">Device name</label>
+                                    <input class="text-input" id="iot-name" placeholder="e.g. Temp sensor - Floor 1">
+                                </div>
+                                <div class="iot-form-field">
+                                    <label class="iot-form-label" data-i18n="iot.modal.sensor_type">Sensor type</label>
+                                    <select class="select-input" id="iot-sensor-type">
+                                        <option value="" data-i18n="iot.modal.sensor_general">General</option>
+                                        <option value="temperature" data-i18n="iot.sensor_type.temperature">Temperature</option>
+                                        <option value="humidity" data-i18n="iot.sensor_type.humidity">Humidity</option>
+                                        <option value="temperature_humidity" data-i18n="iot.sensor_type.temperature_humidity">Temperature + Humidity</option>
+                                        <option value="power" data-i18n="iot.sensor_type.power">Power</option>
+                                        <option value="voltage" data-i18n="iot.sensor_type.voltage">Voltage</option>
+                                        <option value="current" data-i18n="iot.sensor_type.current">Current</option>
+                                        <option value="pressure" data-i18n="iot.sensor_type.pressure">Pressure</option>
+                                        <option value="co2" data-i18n="iot.sensor_type.co2">CO2</option>
+                                        <option value="pm25" data-i18n="iot.sensor_type.pm25">PM2.5</option>
+                                    </select>
+                                </div>
+                                <div class="iot-form-field">
+                                    <label class="iot-form-label" data-i18n="iot.modal.metric">Metric name</label>
+                                    <input class="text-input" id="iot-metric" placeholder="temperature" value="temperature">
+                                </div>
+                                <div class="iot-form-field iot-field-group iot-field-tcp visible">
+                                    <label class="iot-form-label" data-i18n="iot.modal.host">Host / IP</label>
+                                    <input class="text-input" id="iot-host" placeholder="192.168.1.100">
+                                </div>
+                                <div class="iot-form-field iot-field-group iot-field-tcp visible">
+                                    <label class="iot-form-label" data-i18n="iot.modal.port">Port</label>
+                                    <input class="text-input" id="iot-port" type="number" value="502">
+                                </div>
+                                <div class="iot-form-field iot-field-group iot-field-rtu">
+                                    <label class="iot-form-label" data-i18n="iot.modal.serial_port">Serial port</label>
+                                    <input class="text-input" id="iot-serial-port" placeholder="COM3 or /dev/ttyUSB0">
+                                </div>
+                                <div class="iot-form-field iot-field-group iot-field-rtu">
+                                    <label class="iot-form-label" data-i18n="iot.modal.baud_rate">Baud rate</label>
+                                    <select class="select-input" id="iot-baud-rate"><option value="9600">9600</option><option value="19200">19200</option><option value="38400">38400</option><option value="57600">57600</option><option value="115200">115200</option></select>
+                                </div>
+                                <div class="iot-form-field iot-field-group iot-field-rtu">
+                                    <label class="iot-form-label" data-i18n="iot.modal.data_bits">Data bits</label>
+                                    <select class="select-input" id="iot-data-bits"><option value="8" selected>8</option><option value="7">7</option></select>
+                                </div>
+                                <div class="iot-form-field iot-field-group iot-field-rtu">
+                                    <label class="iot-form-label" data-i18n="iot.modal.parity">Parity</label>
+                                    <select class="select-input" id="iot-parity"><option value="N" data-i18n="iot.modal.parity_none">None (N)</option><option value="E" data-i18n="iot.modal.parity_even">Even (E)</option><option value="O" data-i18n="iot.modal.parity_odd">Odd (O)</option></select>
+                                </div>
+                                <div class="iot-form-field iot-field-group iot-field-rtu">
+                                    <label class="iot-form-label" data-i18n="iot.modal.stop_bits">Stop bits</label>
+                                    <select class="select-input" id="iot-stop-bits"><option value="1" selected>1</option><option value="2">2</option></select>
+                                </div>
+                                <div class="iot-form-field">
+                                    <label class="iot-form-label" data-i18n="iot.modal.unit_id">Unit ID (Slave)</label>
+                                    <input class="text-input" id="iot-unit" type="number" value="1" min="1" max="247">
+                                </div>
+                                <div class="iot-form-field">
+                                    <label class="iot-form-label" data-i18n="iot.modal.register_address">Register address</label>
+                                    <input class="text-input" id="iot-address" type="number" value="0" min="0">
+                                </div>
+                                <div class="iot-form-field">
+                                    <label class="iot-form-label" data-i18n="iot.modal.function_code">Function code</label>
+                                    <select class="select-input" id="iot-function-code"><option value="1" data-i18n="iot.modal.fc_01">FC01 Read Coil Status</option><option value="2" data-i18n="iot.modal.fc_02">FC02 Read Discrete Input</option><option value="3" data-i18n="iot.modal.fc_03" selected>FC03 Holding Register</option><option value="4" data-i18n="iot.modal.fc_04">FC04 Input Register</option></select>
+                                </div>
+                                <div class="iot-form-field">
+                                    <label class="iot-form-label" data-i18n="iot.modal.data_type">Data type</label>
+                                    <select class="select-input" id="iot-data-type"><option value="uint16">uint16</option><option value="int16">int16</option><option value="uint32">uint32</option><option value="int32">int32</option><option value="float32">float32</option></select>
+                                </div>
+                                <div class="iot-form-field">
+                                    <label class="iot-form-label" data-i18n="iot.modal.scale">Scale</label>
+                                    <input class="text-input" id="iot-scale" type="number" step="0.001" value="1">
+                                </div>
+                                <div class="iot-form-field">
+                                    <label class="iot-form-label" data-i18n="iot.modal.offset">Offset</label>
+                                    <input class="text-input" id="iot-offset" type="number" step="0.001" value="0">
+                                </div>
+                                <div class="iot-form-field">
+                                    <label class="iot-form-label" data-i18n="iot.modal.poll_interval">Poll interval (sec)</label>
+                                    <input class="text-input" id="iot-poll-interval" type="number" min="5" value="60">
+                                </div>
+                                <div class="iot-form-field">
+                                    <label class="iot-form-label" data-i18n="iot.modal.byte_order">Byte order</label>
+                                    <select class="select-input" id="iot-byte-order"><option value="big">Big endian</option><option value="little">Little endian</option></select>
+                                </div>
+                                <div class="iot-form-field">
+                                    <label class="iot-form-label" data-i18n="iot.modal.word_order">Word order</label>
+                                    <select class="select-input" id="iot-word-order"><option value="big">Big endian</option><option value="little">Little endian</option></select>
+                                </div>
+                            </div>
+                            <div class="iot-action-row" style="margin-top:16px;">
+                                <button class="btn btn-secondary" onclick="iotCloseAddModal()" data-i18n="iot.modal.cancel">Cancel</button>
+                                <button id="iot-modal-save-btn" class="btn btn-primary" onclick="iotSaveDevice()" data-i18n="iot.modal.add">Add Device</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </section>
 
@@ -1545,7 +1657,7 @@
             <span class="bottom-nav-label" data-i18n="nav.pdu">PDU/UPS</span>
         </button>
         <button class="bottom-nav-item nav-iot" id="bottom-nav-iot" data-page="iot" data-permission="editor,admin" onclick="loadPage('iot')">
-            <span class="bottom-nav-icon">IoT</span>
+            <span class="bottom-nav-icon">📟</span>
             <span class="bottom-nav-label">IoT</span>
         </button>
         <button class="bottom-nav-item nav-logs" data-page="logs" onclick="loadPage('logs')">

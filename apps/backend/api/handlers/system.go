@@ -1,3 +1,5 @@
+// Made by YTSworks
+// YTS工作室製作
 package handlers
 
 import (
@@ -18,43 +20,32 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/disk"
-	"github.com/shirou/gopsutil/v3/host"
 	"github.com/shirou/gopsutil/v3/mem"
 	cameramodule "management-server/modules/camera"
 )
 
-// ExportBackup Backs up db, config, and uploads to a zip file
 func (h *Handler) legacyExportBackup(c *gin.Context) {
-	// WAL Checkpoint: 強制將 WAL 寫回主資料庫，確保 nms.db 包含最新資料
-	// 使用 TRUNCATE 模式會清空 WAL 檔，這樣備份出的 nms.db 就是完整的
-	// 這樣即使備份包裡沒有 WAL 檔 (或 WAL 檔是空的)，還原後資料也是完整的
-
-	// 執行 checkpoint 並驗證結果
+	// TRUNCATE checkpoint flushes WAL into nms.db so the backup contains a
+	// self-consistent database even without WAL sidecars.
 	var busy, walPages, checkpointedPages int
 	row := h.db.QueryRow("PRAGMA wal_checkpoint(TRUNCATE)")
 	err := row.Scan(&busy, &walPages, &checkpointedPages)
 	if err != nil {
-		log.Printf("ERROR: WAL checkpoint failed: %v", err)
+		log.Printf("WAL checkpoint failed: %v", err)
 		c.JSON(http.StatusInternalServerError, Response{
 			Success: false,
 			Error:   "無法完成資料庫同步，請稍後再試或聯繫系統管理員",
 		})
 		return
 	}
-
-	// 記錄 checkpoint 結果
 	if walPages > 0 {
-		log.Printf("✅ WAL checkpoint completed: %d pages checkpointed out of %d", checkpointedPages, walPages)
-	} else {
-		log.Printf("✅ WAL checkpoint: No pending changes (database already synchronized)")
+		log.Printf("WAL checkpoint: %d/%d pages flushed (busy=%d)", checkpointedPages, walPages, busy)
 	}
 
-	// 二次確認：確保 WAL 檔案已清空或不存在
 	dbPath := h.config.Database.Path
 	walPath := dbPath + "-wal"
 	if info, err := os.Stat(walPath); err == nil && info.Size() > 0 {
-		log.Printf("WARNING: WAL file still exists after checkpoint (%d bytes)", info.Size())
-		// 這不應該發生，但如果發生了表示有嚴重問題
+		log.Printf("WARNING: WAL file still has %d bytes after TRUNCATE checkpoint", info.Size())
 		c.JSON(http.StatusInternalServerError, Response{
 			Success: false,
 			Error:   "資料庫同步異常，請重試或聯繫技術支援",
@@ -62,13 +53,9 @@ func (h *Handler) legacyExportBackup(c *gin.Context) {
 		return
 	}
 
-	// Determine paths
-	// dbPath is already defined above
 	configPath := "data/config.yaml"
 	uploadsPath := "data/uploads"
 
-	// Create a buffer for the zip file? No, better to stream or temp file.
-	// We'll create a temp file to avoid memory issues with large uploads
 	tempFile, err := os.CreateTemp("", "nms_backup_*.zip")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, Response{Success: false, Error: "Failed to create temp backup file"})
@@ -79,10 +66,9 @@ func (h *Handler) legacyExportBackup(c *gin.Context) {
 
 	zipWriter := zip.NewWriter(tempFile)
 
-	// Helper to add file to zip
 	addFile := func(src, dst string) error {
 		if _, err := os.Stat(src); os.IsNotExist(err) {
-			return nil // Skip missing files
+			return nil
 		}
 
 		file, err := os.Open(src)
@@ -100,21 +86,16 @@ func (h *Handler) legacyExportBackup(c *gin.Context) {
 		return err
 	}
 
-	// 1. Add DB and WAL files
 	if err := addFile(dbPath, "nms.db"); err != nil {
 		log.Printf("Failed to backup DB: %v", err)
 	}
-	// Backup WAL/SHM if they exist to ensure complete state
 	addFile(dbPath+"-wal", "nms.db-wal")
 	addFile(dbPath+"-shm", "nms.db-shm")
 
-	// 2. Add Config (Check multiple locations)
 	if err := addFile(configPath, "config.yaml"); err != nil {
-		// Try root config.yaml
 		addFile("config.yaml", "config.yaml")
 	}
 
-	// 3. Add Uploads (Recursive)
 	filepath.Walk(uploadsPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil
@@ -122,11 +103,8 @@ func (h *Handler) legacyExportBackup(c *gin.Context) {
 		if info.IsDir() {
 			return nil
 		}
-
-		relPath, _ := filepath.Rel("data", path) // uploads/file.png
-		// Use forward slashes for zip compatibility
+		relPath, _ := filepath.Rel("data", path)
 		relPath = filepath.ToSlash(relPath)
-
 		return addFile(path, relPath)
 	})
 
@@ -135,9 +113,6 @@ func (h *Handler) legacyExportBackup(c *gin.Context) {
 		return
 	}
 
-	// Re-open temp file for reading (since we closed the writer)
-	tempFile.Seek(0, 0) // Rewind? No, we closed it.
-	// Need to open read-only
 	readFile, err := os.Open(tempFile.Name())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, Response{Success: false, Error: "Failed to read backup file"})
@@ -145,10 +120,7 @@ func (h *Handler) legacyExportBackup(c *gin.Context) {
 	}
 	defer readFile.Close()
 
-	// Send file
 	timestamp := time.Now().Format("20060102_150405")
-
-	// Add OS prefix
 	prefix := "nms"
 	if runtime.GOOS == "windows" {
 		prefix = "win_nms"
@@ -165,7 +137,6 @@ func (h *Handler) legacyExportBackup(c *gin.Context) {
 	io.Copy(c.Writer, readFile)
 }
 
-// RestoreBackup restores system from uploaded zip
 func (h *Handler) legacyRestoreBackup(c *gin.Context) {
 	file, err := c.FormFile("backup_file")
 	if err != nil {
@@ -183,8 +154,7 @@ func (h *Handler) legacyRestoreBackup(c *gin.Context) {
 		"size": file.Size,
 	})
 
-	// Save uploaded file to temp
-	// Use local data dir to avoid cross-device link errors (invalid cross-device link) if /tmp is on different partition
+	// Use data/ dir to avoid cross-device rename errors when /tmp is on a different partition.
 	tempPath := filepath.Join("data", "restore_upload.zip")
 	if err := c.SaveUploadedFile(file, tempPath); err != nil {
 		h.WriteSystemLog("error", "backup", "restore_backup_save_failed", "backup restore upload save failed", map[string]interface{}{
@@ -204,7 +174,6 @@ func (h *Handler) legacyRestoreBackup(c *gin.Context) {
 	}
 	defer os.Remove(tempPath)
 
-	// Open zip
 	r, err := zip.OpenReader(tempPath)
 	if err != nil {
 		h.WriteSystemLog("warning", "backup", "restore_backup_invalid_zip", "backup restore rejected: invalid zip", map[string]interface{}{
@@ -224,11 +193,9 @@ func (h *Handler) legacyRestoreBackup(c *gin.Context) {
 	}
 	defer r.Close()
 
-	// Prepare pending directories
 	os.RemoveAll("data/uploads_pending")
 	os.MkdirAll("data/uploads_pending", 0755)
 
-	// Clean up stale pending files from previous failed restores to avoid mixing data
 	pendingFiles, _ := filepath.Glob("data/*.pending")
 	for _, f := range pendingFiles {
 		os.Remove(f)
@@ -238,10 +205,8 @@ func (h *Handler) legacyRestoreBackup(c *gin.Context) {
 	extractedUploads := 0
 	extractedConfig := false
 
-	// Iterate through files
 	for _, f := range r.File {
-		// Zip-slip protection: reject entries with path traversal
-		if strings.Contains(f.Name, "..") {
+		if strings.Contains(f.Name, "..") { // zip-slip guard
 			continue
 		}
 
@@ -251,9 +216,7 @@ func (h *Handler) legacyRestoreBackup(c *gin.Context) {
 		}
 
 		if f.Name == "nms.db" {
-			// Ensure directory exists
 			os.MkdirAll("data", 0755)
-			// Extract DB to pending
 			outFile, err := os.Create("data/nms.db.pending")
 			if err == nil {
 				io.Copy(outFile, rc)
@@ -273,27 +236,19 @@ func (h *Handler) legacyRestoreBackup(c *gin.Context) {
 				outFile.Close()
 			}
 		} else if f.Name == "config.yaml" {
-			// Ensure directory exists
 			os.MkdirAll("config", 0755)
-			// Extract Config to pending
 			outFile, err := os.Create("config/config.yaml.pending")
 			if err == nil {
 				io.Copy(outFile, rc)
 				outFile.Close()
 				extractedConfig = true
 			}
-		} else if filepath.HasPrefix(f.Name, "uploads/") || filepath.HasPrefix(f.Name, "data/uploads/") {
-			// Extract uploads
-			// Normalize path: strip 'data/' prefix if present, keep 'uploads/'
+		} else if strings.HasPrefix(f.Name, "uploads/") || strings.HasPrefix(f.Name, "data/uploads/") {
 			relPath := f.Name
-			if filepath.HasPrefix(relPath, "data/") {
+			if strings.HasPrefix(relPath, "data/") {
 				relPath = relPath[5:]
 			}
-			// Now relPath should start with "uploads/"
-			// We want to extract to data/uploads_pending/...
-			// relPath: uploads/foo.jpg -> target: data/uploads_pending/foo.jpg
-			// Strip "uploads/" from relPath for target construction
-			innerName := relPath[8:] // remove "uploads/"
+			innerName := relPath[8:] // strip "uploads/" prefix
 			if innerName == "" {
 				rc.Close()
 				continue
@@ -383,7 +338,6 @@ func (h *Handler) legacyRestoreBackup(c *gin.Context) {
 	}()
 }
 
-// CheckRestoreReadiness checks if system is ready for restore operations
 func (h *Handler) legacyCheckRestoreReadiness(c *gin.Context) {
 	issues := []string{}
 
@@ -425,13 +379,11 @@ type gpuInfo struct {
 	VMType    string `json:"vm_type"`  // "kvm", "vmware", "lxc", "hyperv", "none", etc.
 }
 
-// cachedGPUInfo is populated once at first call and reused.
 var (
 	cachedGPUOnce sync.Once
 	cachedGPU     gpuInfo
 )
 
-// runWithTimeout runs a shell command with a 3-second timeout. Returns stdout or "".
 func runWithTimeout(name string, args ...string) string {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -442,8 +394,6 @@ func runWithTimeout(name string, args ...string) string {
 	return strings.TrimSpace(string(out))
 }
 
-// lspciGPUName returns the first VGA/3D/Display line from lspci (Linux).
-// Strips the PCI address prefix so only the device description remains.
 func lspciGPUName() string {
 	out := runWithTimeout("lspci")
 	if out == "" {
@@ -463,28 +413,34 @@ func lspciGPUName() string {
 	return ""
 }
 
-// wmicGPUName returns GPU names from wmic on Windows.
 func wmicGPUName() string {
-	out := runWithTimeout("wmic", "path", "win32_VideoController", "get", "name")
-	var names []string
-	for _, l := range strings.Split(out, "\n") {
-		l = strings.TrimSpace(l)
-		if l != "" && !strings.EqualFold(l, "Name") {
-			names = append(names, l)
+	parse := func(out string) []string {
+		var names []string
+		for _, l := range strings.Split(out, "\n") {
+			l = strings.TrimSpace(strings.TrimRight(l, "\r"))
+			if l != "" && !strings.EqualFold(l, "Name") {
+				names = append(names, l)
+			}
+		}
+		return names
+	}
+	if out := runWithTimeout("wmic", "path", "win32_VideoController", "get", "name"); out != "" {
+		if names := parse(out); len(names) > 0 {
+			return strings.Join(names, " / ")
 		}
 	}
-	return strings.Join(names, " / ")
+	// PowerShell fallback for Windows 11 where wmic is deprecated
+	out := runWithTimeout("powershell", "-NoProfile", "-Command",
+		"(Get-CimInstance Win32_VideoController).Name -join ' / '")
+	return strings.TrimSpace(out)
 }
 
-// detectVMType detects if running inside a VM and returns the hypervisor type.
 func detectVMType() (bool, string) {
 	if runtime.GOOS == "linux" {
-		// systemd-detect-virt is most reliable
 		out := runWithTimeout("systemd-detect-virt")
 		if out != "" && out != "none" {
-			return true, out // "kvm", "vmware", "lxc", "openvz", etc.
+			return true, out
 		}
-		// Fallback: check DMI product name
 		dmi := runWithTimeout("sh", "-c", "cat /sys/class/dmi/id/product_name 2>/dev/null")
 		lower := strings.ToLower(dmi)
 		switch {
@@ -514,7 +470,6 @@ func detectVMType() (bool, string) {
 	return false, "none"
 }
 
-// detectGPUInfo probes GPU once and caches the result permanently.
 func detectGPUInfo(ffmpegBin string) gpuInfo {
 	cachedGPUOnce.Do(func() {
 		cachedGPU = probeGPUInfo(ffmpegBin)
@@ -524,7 +479,29 @@ func detectGPUInfo(ffmpegBin string) gpuInfo {
 	return cachedGPU
 }
 
-// probeGPUInfo does the actual one-time detection work.
+func findLocalFFmpegBin() string {
+	exe := "ffmpeg"
+	if runtime.GOOS == "windows" {
+		exe = "ffmpeg.exe"
+	}
+
+	if self, err := os.Executable(); err == nil {
+		for _, candidate := range []string{
+			filepath.Join(filepath.Dir(self), "bin", exe),
+			filepath.Join(filepath.Dir(self), exe),
+		} {
+			if _, err := os.Stat(candidate); err == nil {
+				return candidate
+			}
+		}
+	}
+
+	if path, err := exec.LookPath(exe); err == nil {
+		return path
+	}
+	return ""
+}
+
 func probeGPUInfo(ffmpegBin string) gpuInfo {
 	isVM, vmType := detectVMType()
 	info := gpuInfo{IsVM: isVM, VMType: vmType}
@@ -536,21 +513,17 @@ func probeGPUInfo(ffmpegBin string) gpuInfo {
 		return info
 	}
 
-	// Probe ffmpeg hwaccels (cached in hwAccel after first call)
 	hw := cameramodule.GetHardwareAccelState(ffmpegBin)
 
-	// --- GPU name detection ---
 	if runtime.GOOS == "linux" {
-		// Linux: lspci first (works on bare-metal, KVM, PVE LXC with passthrough)
 		gpuName := lspciGPUName()
 		lower := strings.ToLower(gpuName)
 
 		switch {
-		case hw.CUDA || strings.Contains(lower, "nvidia"):
+		case strings.Contains(lower, "nvidia"):
 			info.Method = "cuda"
-			info.Available = true
+			info.Available = hw.CUDA
 			info.MaxCams = 32
-			// Try nvidia-smi for exact model name; fall back to lspci
 			if n := runWithTimeout("nvidia-smi", "--query-gpu=name", "--format=csv,noheader"); n != "" {
 				info.Name = n
 			} else if gpuName != "" {
@@ -558,21 +531,37 @@ func probeGPUInfo(ffmpegBin string) gpuInfo {
 			} else {
 				info.Name = "NVIDIA GPU"
 			}
-		case hw.VAAPI || strings.Contains(lower, "intel"):
+		case strings.Contains(lower, "amd") || strings.Contains(lower, "radeon") || strings.Contains(lower, "advanced micro"):
 			info.Method = "vaapi"
-			info.Available = true
+			info.Available = hw.VAAPI
+			info.MaxCams = 24
+			info.Name = gpuName
+			if info.Name == "" {
+				info.Name = "AMD GPU (VAAPI)"
+			}
+		case strings.Contains(lower, "intel"):
+			info.Method = "vaapi"
+			info.Available = hw.VAAPI
 			info.MaxCams = 24
 			info.Name = gpuName
 			if info.Name == "" {
 				info.Name = "Intel GPU (VAAPI)"
 			}
-		case hw.VAAPI || strings.Contains(lower, "amd") || strings.Contains(lower, "radeon") || strings.Contains(lower, "advanced micro"):
+		case hw.CUDA:
+			info.Method = "cuda"
+			info.Available = true
+			info.MaxCams = 32
+			info.Name = gpuName
+			if info.Name == "" {
+				info.Name = "GPU (CUDA)"
+			}
+		case hw.VAAPI:
 			info.Method = "vaapi"
 			info.Available = true
 			info.MaxCams = 24
 			info.Name = gpuName
 			if info.Name == "" {
-				info.Name = "AMD GPU (VAAPI)"
+				info.Name = "GPU (VAAPI)"
 			}
 		default:
 			info.Method = "none"
@@ -585,26 +574,41 @@ func probeGPUInfo(ffmpegBin string) gpuInfo {
 			}
 		}
 	} else {
-		// Windows: wmic is fast and reliable
+		// Prefer name-based detection; ffmpeg hwaccel probes give false positives on mixed-vendor hardware.
 		gpuName := wmicGPUName()
 		lower := strings.ToLower(gpuName)
 
 		switch {
-		case hw.CUDA || strings.Contains(lower, "nvidia"):
+		case strings.Contains(lower, "nvidia"):
 			info.Method = "cuda"
 			info.Available = true
 			info.MaxCams = 32
 			if n := runWithTimeout("nvidia-smi", "--query-gpu=name", "--format=csv,noheader"); n != "" {
-				info.Name = n
+				info.Name = strings.TrimSpace(n)
 			} else {
 				info.Name = gpuName
 			}
-		case hw.QSV || strings.Contains(lower, "intel"):
+		case strings.Contains(lower, "intel") || strings.Contains(lower, "arc"):
 			info.Method = "qsv"
 			info.Available = true
 			info.MaxCams = 24
 			info.Name = gpuName
-		case hw.D3D11 || strings.Contains(lower, "amd") || strings.Contains(lower, "radeon"):
+		case strings.Contains(lower, "amd") || strings.Contains(lower, "radeon") || strings.Contains(lower, "advanced micro"):
+			info.Method = "d3d11va"
+			info.Available = true
+			info.MaxCams = 16
+			info.Name = gpuName
+		case hw.CUDA:
+			info.Method = "cuda"
+			info.Available = true
+			info.MaxCams = 32
+			info.Name = gpuName
+		case hw.QSV:
+			info.Method = "qsv"
+			info.Available = true
+			info.MaxCams = 24
+			info.Name = gpuName
+		case hw.D3D11:
 			info.Method = "d3d11va"
 			info.Available = true
 			info.MaxCams = 16
@@ -622,58 +626,90 @@ func probeGPUInfo(ffmpegBin string) gpuInfo {
 	return info
 }
 
-// GetHostStatus returns real-time system usage of the host machine
-func (h *Handler) GetHostStatus(c *gin.Context) {
-	// Host Info
-	hostInfo, _ := host.Info()
+type hostUsageMetrics struct {
+	CPUUsage         float64
+	MemTotal         uint64
+	MemUsed          uint64
+	MemUsagePercent  float64
+	DiskTotal        uint64
+	DiskUsed         uint64
+	DiskUsagePercent float64
+}
 
-	// CPU
-	percent, _ := cpu.Percent(0, false)
-	cpuUsage := 0.0
-	if len(percent) > 0 {
-		cpuUsage = percent[0]
+func collectHostUsageMetrics(timeout time.Duration) hostUsageMetrics {
+	type result struct {
+		metrics hostUsageMetrics
 	}
 
-	// Mem
-	vMem, _ := mem.VirtualMemory()
-
-	// Disk (Root)
-	dUsage, _ := disk.Usage("/")
-	if runtime.GOOS == "windows" {
-		d, err := disk.Usage("C:")
-		if err == nil {
-			dUsage = d
+	ch := make(chan result, 1)
+	go func() {
+		var metrics hostUsageMetrics
+		if values, err := cpu.Percent(200*time.Millisecond, false); err == nil && len(values) > 0 {
+			metrics.CPUUsage = values[0]
 		}
-	}
 
-	// GPU
-	gpu := detectGPUInfo(cameramodule.FindFFmpegBin())
+		if vm, err := mem.VirtualMemory(); err == nil && vm != nil {
+			metrics.MemTotal = vm.Total
+			metrics.MemUsed = vm.Used
+			metrics.MemUsagePercent = vm.UsedPercent
+		}
+
+		diskPath := "."
+		if wd, err := os.Getwd(); err == nil && wd != "" {
+			diskPath = wd
+		}
+		if usage, err := disk.Usage(diskPath); err == nil && usage != nil {
+			metrics.DiskTotal = usage.Total
+			metrics.DiskUsed = usage.Used
+			metrics.DiskUsagePercent = usage.UsedPercent
+		}
+
+		ch <- result{metrics: metrics}
+	}()
+
+	select {
+	case res := <-ch:
+		return res.metrics
+	case <-time.After(timeout):
+		log.Printf("[HostStatus] usage metrics collection timed out after %s", timeout)
+		return hostUsageMetrics{}
+	}
+}
+
+func (h *Handler) GetHostStatus(c *gin.Context) {
+	hostname, _ := os.Hostname()
+	metrics := collectHostUsageMetrics(2 * time.Second)
+
+	gpu := gpuInfo{
+		Available: false,
+		Name:      "Host GPU detection skipped for admin page stability",
+		Method:    "none",
+		MaxCams:   16,
+		IsVM:      false,
+		VMType:    "unknown",
+	}
 
 	c.JSON(http.StatusOK, Response{
 		Success: true,
 		Data: map[string]interface{}{
-			"os":                 hostInfo.OS,
-			"platform":           hostInfo.Platform,
-			"platform_version":   hostInfo.PlatformVersion,
-			"hostname":           hostInfo.Hostname,
-			"uptime":             hostInfo.Uptime,
-			"cpu_usage":          cpuUsage,
-			"mem_total":          vMem.Total,
-			"mem_used":           vMem.Used,
-			"mem_usage_percent":  vMem.UsedPercent,
-			"disk_total":         dUsage.Total,
-			"disk_used":          dUsage.Used,
-			"disk_usage_percent": dUsage.UsedPercent,
+			"os":                 runtime.GOOS,
+			"platform":           runtime.GOOS,
+			"platform_version":   runtime.GOARCH,
+			"hostname":           hostname,
+			"uptime":             uint64(time.Since(h.startTime).Seconds()),
+			"cpu_usage":          metrics.CPUUsage,
+			"mem_total":          metrics.MemTotal,
+			"mem_used":           metrics.MemUsed,
+			"mem_usage_percent":  metrics.MemUsagePercent,
+			"disk_total":         metrics.DiskTotal,
+			"disk_used":          metrics.DiskUsed,
+			"disk_usage_percent": metrics.DiskUsagePercent,
 			"gpu":                gpu,
 		},
 	})
 }
 
-// GetSystemConfig 取得系統配置
 func (h *Handler) legacyGetSystemConfig(c *gin.Context) {
-	// 在讀取配置前，檢查是否需要根據授權自動修復已啟用的功能
-	// h.repairCameraConfigFromLicense()
-
 	rows, err := h.db.Query("SELECT config_key, config_value, COALESCE(description, '') FROM system_config")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, Response{Success: false, Error: err.Error()})

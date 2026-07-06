@@ -1,3 +1,5 @@
+// Made by YTSworks
+// YTS工作室製作
 package license
 
 import (
@@ -215,8 +217,13 @@ func ValidateLicenseKey(encryptedKey string, systemMachineID string, formalSecre
 		payload.LicenseMode = PoCLicenseMode
 	}
 
-	if payload.LicenseMode != PoCLicenseMode && payload.MachineID != systemMachineID {
-		return nil, errors.New("license is bound to a different machine")
+	if payload.LicenseMode != PoCLicenseMode {
+		if payload.MachineID == "" {
+			return nil, errors.New("license has no machine binding")
+		}
+		if payload.MachineID != systemMachineID {
+			return nil, errors.New("license is bound to a different machine")
+		}
 	}
 
 	if payload.ValidUntil != "" {

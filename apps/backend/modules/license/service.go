@@ -1,3 +1,5 @@
+// Made by YTSworks
+// YTS工作室製作
 package license
 
 import (
@@ -151,8 +153,14 @@ func (s *Service) LicenseFeatureEnabled(feature string) bool {
 		if err := rows.Scan(&featuresJSON); err != nil || !featuresJSON.Valid {
 			continue
 		}
-		if strings.Contains(featuresJSON.String, feature) {
-			return true
+		var features []string
+		if err := json.Unmarshal([]byte(featuresJSON.String), &features); err != nil {
+			continue
+		}
+		for _, f := range features {
+			if f == feature {
+				return true
+			}
 		}
 	}
 
@@ -192,7 +200,6 @@ func (s *Service) FeatureFlags() map[string]bool {
 		WHERE is_active = 1 AND ` + ActiveLicenseWindowSQL + `
 	`)
 	if err == nil {
-		defer rows.Close()
 		for rows.Next() {
 			var featuresJSON sql.NullString
 			if err := rows.Scan(&featuresJSON); err == nil && featuresJSON.Valid {
@@ -204,6 +211,7 @@ func (s *Service) FeatureFlags() map[string]bool {
 				}
 			}
 		}
+		_ = rows.Close()
 	}
 
 	features["device_management"] = s.DeviceManagementEnabled()
@@ -429,6 +437,10 @@ func (s *Service) ActivateLicense(rawKey, machineID string, formalSecret, pocSec
 		_, _ = s.db.Exec(`INSERT OR REPLACE INTO system_config (config_key, config_value, description)
 			VALUES ('pdu_enabled', '1', 'PDU/UPS module enabled')`)
 	}
+	if hasFeature(payload.Features, "iot") {
+		_, _ = s.db.Exec(`INSERT OR REPLACE INTO system_config (config_key, config_value, description)
+			VALUES ('iot_enabled', '1', 'IoT / Modbus module enabled')`)
+	}
 	if hasFeature(payload.Features, "camera_recording") {
 		_, _ = s.db.Exec(`INSERT OR REPLACE INTO system_config (config_key, config_value, description)
 			VALUES ('camera_recording_enabled', '1', 'Camera NVR recording enabled')`)
@@ -491,7 +503,7 @@ func (s *Service) GenerateLicenseKey(input GenerateInput, formalSecret, pocSecre
 		return GenerateResult{}, errors.New("duration_days is only supported for poc licenses")
 	}
 
-	isAnnual := licenseType == "device" || licenseType == "combined" || licenseType == "camera" || licenseType == "access_control" || licenseType == "full"
+	isAnnual := licenseType == "device" || licenseType == "combined" || licenseType == "camera" || licenseType == "access_control" || licenseType == "iot" || licenseType == "full"
 	if isAnnual && licenseMode != licensesvc.PoCLicenseMode {
 		if input.Years < 1 || (input.Years > 5 && !licensesvc.IsPermanentYears(input.Years)) {
 			return GenerateResult{}, errors.New("years must be between 1 and 5, or 50 and above for permanent license")
@@ -551,15 +563,17 @@ func (s *Service) GenerateLicenseKey(input GenerateInput, formalSecret, pocSecre
 		features = []string{"access_control"}
 	case "pdu":
 		features = []string{"pdu"}
+	case "iot":
+		features = []string{"iot"}
 	case "combined":
 		features = []string{"device_management", "line", "telegram", "whatsapp", "discord", "slack"}
 	case "full":
-		features = []string{"device_management", "line", "telegram", "whatsapp", "discord", "slack", "camera_viewer", "access_control", "pdu"}
+		features = []string{"device_management", "line", "telegram", "whatsapp", "discord", "slack", "camera_viewer", "camera_recording", "access_control", "pdu", "iot"}
 		cameraCount = input.CameraCount
 	}
 
 	deviceCount := input.DeviceCount
-	if licenseType == "alert" || licenseType == "camera" || licenseType == "access_control" || licenseType == "pdu" {
+	if licenseType == "alert" || licenseType == "camera" || licenseType == "access_control" || licenseType == "pdu" || licenseType == "iot" {
 		deviceCount = 0
 	}
 
@@ -583,6 +597,7 @@ func (s *Service) GenerateLicenseKey(input GenerateInput, formalSecret, pocSecre
 		"camera":         "camera viewer",
 		"access_control": "access control",
 		"pdu":            "pdu",
+		"iot":            "iot",
 		"combined":       "device + alerts",
 		"full":           "full suite",
 	}[licenseType]
@@ -714,6 +729,9 @@ func activationMessage(payload *licensesvc.LicensePayload) string {
 	}
 	if hasFeature(payload.Features, "pdu") {
 		messages = append(messages, "pdu enabled")
+	}
+	if hasFeature(payload.Features, "iot") {
+		messages = append(messages, "iot enabled")
 	}
 	if hasFeature(payload.Features, "camera_recording") {
 		messages = append(messages, "camera recording enabled")

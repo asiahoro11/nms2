@@ -1,3 +1,5 @@
+# Made by YTSworks
+# YTS工作室製作
 # UTF-8 編碼設�?
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $OutputEncoding = [System.Text.Encoding]::UTF8

@@ -1,4 +1,6 @@
 #!/bin/bash
+# Made by YTSworks
+# YTS工作室製作
 pkill -f Management Server
 sleep 2
 sqlite3 /home/ubuntu/Management Server/data/nms.db < /tmp/reset_key.sql

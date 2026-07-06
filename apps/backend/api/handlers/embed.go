@@ -1,3 +1,5 @@
+// Made by YTSworks
+// YTS工作室製作
 package handlers
 
 import (
@@ -235,6 +237,13 @@ func (h *Handler) GetIntegrationEmbedSnapshot(c *gin.Context) {
 		}
 		payload["events"] = events
 	case "iot":
+		if !h.iot.LicenseEnabled() {
+			payload["iot"] = gin.H{
+				"status":  gin.H{"enabled": false},
+				"devices": []interface{}{},
+			}
+			break
+		}
 		status, err := h.iot.Status()
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, Response{Success: false, Error: err.Error()})
@@ -312,7 +321,7 @@ func (h *Handler) embedTokenActive(c *gin.Context) bool {
 	raw, _ := c.Get("jti")
 	tokenID := strings.TrimSpace(asString(raw))
 	if tokenID == "" {
-		return true
+		return false
 	}
 	if err := h.ensureEmbedTokenTable(); err != nil {
 		return false

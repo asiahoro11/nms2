@@ -1,3 +1,5 @@
+// Made by YTSworks
+// YTS工作室製作
 package middleware
 
 import (
@@ -34,7 +36,7 @@ func AuthRequired(secret []byte) gin.HandlerFunc {
 
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 			return secret, nil
-		})
+		}, jwt.WithValidMethods([]string{"HS256"}))
 
 		if err != nil || !token.Valid {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
@@ -68,23 +70,22 @@ func CORS(allowedOrigins []string) gin.HandlerFunc {
 			allowedOrigins = []string{"*"}
 		}
 
+		wildcardOnly := false
 		for _, o := range allowedOrigins {
 			if o == "*" {
-				// Allow * (but careful with Credentials)
 				c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+				wildcardOnly = true
 				break
 			}
 			if o == origin {
-
 				c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
 				break
 			}
 		}
 
-		// If no match found but we have an origin, and list didn't contain *, we don't set header
-		// But for legacy support if list is empty we defaulted to * above.
-
-		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+		if !wildcardOnly {
+			c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+		}
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With, Pragma")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE, PATCH")
 

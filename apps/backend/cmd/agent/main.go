@@ -1,3 +1,5 @@
+// Made by YTSworks
+// YTS工作室製作
 package main
 
 import (
@@ -31,17 +33,17 @@ func init() {
 }
 
 func main() {
-	// 載入設�?
+	// Load configuration
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
-	// ?��??�日�?
+	// Initialize logging
 	logging.Init(cfg.Logging)
 	log.Println("Logging system initialized")
 
-	// ?��??��??�庫
+	// 初始化資料庫
 	dbPath := cfg.Database.Path
 	log.Printf("Initializing local SQLite database at %s", dbPath)
 	db, err := database.Initialize(dbPath, "v1")
@@ -50,40 +52,40 @@ func main() {
 	}
 	defer db.Close()
 
-	// ?��??�系統�?設�?�?
+	// Initialize system defaults
 	initSystemDefaults(db)
 
-	// ?��? DB Worker (序�??�寫??
+	// Initialize DB worker (serialized writes)
 	dbWorker := dbworker.New(db)
 	dbWorker.Start()
 	defer dbWorker.Stop()
 
-	// 檢查?��??��???(Startup Check)
+	// Startup health checks
 	license.CheckCompliance(db, cfg, func(msg string) {
 		alert.DispatchToEnabledChannels(db, cfg, msg)
 	})
 
-	// ?��? Syslog ?�收??
+	// Start Syslog receiver
 	syslogReceiver := syslog.NewReceiver(cfg.Syslog.Port, db)
 	go syslogReceiver.Start()
 
-	// ?��? Pinger ?��? (�?-5�?Ping)
+	// 啟動 Pinger 心跳檢測服務
 	// Apply license limit to pinger
 	pingSvc := pinger.New(cfg, db, dbWorker)
 	pingSvc.Start()
 	defer pingSvc.Stop()
 
-	// ?��??��???
+	// 啟動排程器
 	sch := scheduler.New(cfg, db, dbWorker)
 	go sch.Start()
 
-	// ?��??��??�步?��?
+	// 啟動時間同步服務
 	timesync.Start()
 
-	// ?��? API ?��? (?�入 SNMP collector ???��?資�?)
+	// 建立 API 路由 (注入 SNMP collector 與嵌入資源)
 	router := api.SetupRouter(cfg, db, sch.GetCollector(), assets)
 
-	// ?��??��?
+	// 等待結束訊號
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
@@ -152,8 +154,8 @@ func openBrowser(url string, scheme string) {
 }
 
 func initSystemDefaults(db *sql.DB) {
-	// ?�裡?�確保�??�庫中�?必�??��?設值�??��??�端?�找不到 key ?�顯示錯誤�??�??
-	// ?�設??false，�?要使?�者�??��???
+	// 確保資料庫中有必要的預設值，避免前端因找不到 key 而顯示錯誤
+	// 預設為 false，需要使用者手動開啟
 	defaults := map[string]string{
 		"alerts_global_enabled": "false",
 		"camera_viewer_enabled": "false",

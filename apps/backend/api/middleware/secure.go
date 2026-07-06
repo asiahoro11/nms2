@@ -1,3 +1,5 @@
+// Made by YTSworks
+// YTS工作室製作
 package middleware
 
 import (
@@ -79,6 +81,21 @@ func normalizeFrameAncestors(items []string) string {
 	if len(allowed) == 0 {
 		return "'self'"
 	}
+	for _, item := range allowed {
+		if item == "'none'" {
+			return "'none'"
+		}
+	}
+	hasSelf := false
+	for _, item := range allowed {
+		if item == "'self'" {
+			hasSelf = true
+			break
+		}
+	}
+	if !hasSelf {
+		allowed = append([]string{"'self'"}, allowed...)
+	}
 	return strings.Join(allowed, " ")
 }
 
@@ -87,5 +104,8 @@ func validFrameAncestor(item string) bool {
 	case "'self'", "'none'", "http:", "https:":
 		return true
 	}
-	return strings.HasPrefix(item, "https://") || strings.HasPrefix(item, "http://")
+	if strings.HasPrefix(item, "https://") || strings.HasPrefix(item, "http://") {
+		return !strings.ContainsAny(item, " \t\r\n")
+	}
+	return false
 }

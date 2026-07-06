@@ -1,3 +1,5 @@
+// Made by YTSworks
+// YTS工作室製作
 package handlers
 
 import (
@@ -86,6 +88,7 @@ func (h *Handler) syncLicenseRuntimeState() {
 		"camera_recording_enabled":  false,
 		"access_control_enabled":    false,
 		"pdu_enabled":               false,
+		"iot_enabled":               false,
 		"device_management_enabled": false,
 	}
 
@@ -148,6 +151,9 @@ func (h *Handler) syncLicenseRuntimeState() {
 			if hasFeature(row.Features, "pdu") {
 				activeFlags["pdu_enabled"] = true
 			}
+			if hasFeature(row.Features, "iot") {
+				activeFlags["iot_enabled"] = true
+			}
 		}
 	}
 
@@ -160,6 +166,7 @@ func (h *Handler) syncLicenseRuntimeState() {
 	h.reconcileLicenseModuleFlag("camera_recording_enabled", "camera_recording", activeFlags["camera_recording_enabled"])
 	h.reconcileLicenseModuleFlag("access_control_enabled", "access_control", activeFlags["access_control_enabled"])
 	h.reconcileLicenseModuleFlag("pdu_enabled", "pdu", activeFlags["pdu_enabled"])
+	h.reconcileLicenseModuleFlag("iot_enabled", "iot", activeFlags["iot_enabled"])
 }
 
 func (h *Handler) logLicenseStatusTransition(row runtimeLicenseRow, status string, expired bool, isPermanent bool) {

@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Made by YTSworks
+# YTS工作室製作
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

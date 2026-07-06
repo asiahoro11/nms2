@@ -1,3 +1,5 @@
+// Made by YTSworks
+// YTS工作室製作
 package cloud
 
 import (
@@ -85,7 +87,7 @@ func (c *Connector) Start() error {
 		opts.SetTLSConfig(tlsConfig)
 	}
 
-	// Last Will and Testament ??cloud knows if agent disconnects unexpectedly
+	// Last Will and Testament — cloud knows if agent disconnects unexpectedly
 	lwt := HeartbeatMessage{
 		SiteID:    c.config.SiteID,
 		SiteName:  c.config.SiteName,
@@ -159,7 +161,7 @@ func (c *Connector) IsConnected() bool {
 	return c.connected
 }
 
-// subscribe sets up cloud ??agent topic subscriptions.
+// subscribe sets up cloud — agent topic subscriptions.
 func (c *Connector) subscribe(client mqtt.Client) {
 	siteID := c.config.SiteID
 

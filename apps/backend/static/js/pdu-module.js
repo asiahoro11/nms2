@@ -1,3 +1,5 @@
+// Made by YTSworks
+// YTS工作室製作
 // ============================================================
 // PDU/UPS Module  v1.2.1
 // License key: pdu_enabled in system_config
@@ -28,6 +30,9 @@ async function pduCheckStatus() {
 function pduApplyLicenseUI() {
     const notice = document.getElementById('pdu-license-notice');
     const addBtn = document.getElementById('pdu-add-btn');
+    if (typeof setModuleLock === 'function') {
+        setModuleLock('pdu', !pduLicensed);
+    }
     if (pduLicensed) {
         if (notice) notice.style.display = 'none';
         if (addBtn) { addBtn.disabled = false; addBtn.classList.remove('btn-disabled'); }

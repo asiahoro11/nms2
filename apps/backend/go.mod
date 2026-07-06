@@ -1,3 +1,5 @@
+// Made by YTSworks
+// YTS工作室製作
 module management-server
 
 go 1.25.0

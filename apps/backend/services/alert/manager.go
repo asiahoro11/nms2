@@ -1,3 +1,5 @@
+// Made by YTSworks
+// YTS工作室製作
 package alert
 
 import (
@@ -12,7 +14,7 @@ var CloudAlertHook func(message string)
 
 // DispatchToEnabledChannels sends a message to all enabled alert channels
 func DispatchToEnabledChannels(db *sql.DB, cfg *config.Config, message string) {
-	// ?��??�警?��?檢查
+	// periodic alert rule check
 	var globalEnabled string
 	err := db.QueryRow("SELECT config_value FROM system_config WHERE config_key = 'alerts_global_enabled'").Scan(&globalEnabled)
 	if err == nil && globalEnabled == "false" {

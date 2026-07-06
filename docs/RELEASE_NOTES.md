@@ -1,4 +1,133 @@
-﻿# Management Server Release Notes
+# Management Server Release Notes
+
+## v1.2.4.9 | 2026-06-26
+
+### 繁體中文
+- IoT / Modbus 模組已加入 License 授權控制，未授權時會顯示授權提示並停用操作。
+- IoT API、背景輪詢與 iframe embed 均會檢查授權狀態，避免繞過模組授權。
+- 修正 IoT 授權提示與狀態標記的編碼，避免前端顯示亂碼。
+- Windows packages include only ffmpeg.exe and go2rtc.exe; Linux amd64 packages include only ffmpeg_linux_amd64 and go2rtc_linux_amd64; Linux arm64 packages include only ffmpeg_linux_arm64 and go2rtc_linux_arm64.
+
+### 简体中文
+- IoT / Modbus module now requires a License; unavailable features show a license notice and are disabled.
+- IoT API, background polling, and iframe embed snapshots now check license status.
+- Fixed IoT license notice/status text encoding to avoid mojibake in the UI.
+- Windows packages include only ffmpeg.exe and go2rtc.exe; Linux amd64 packages include only ffmpeg_linux_amd64 and go2rtc_linux_amd64; Linux arm64 packages include only ffmpeg_linux_arm64 and go2rtc_linux_arm64.
+
+### English
+- IoT / Modbus module now requires a License; unavailable features show a license notice and are disabled.
+- IoT API, background polling, and iframe embed snapshots now check license status.
+- Fixed IoT license notice and status marker encoding to avoid mojibake in the UI.
+- Windows packages include only ffmpeg.exe and go2rtc.exe; Linux amd64 packages include only ffmpeg_linux_amd64 and go2rtc_linux_amd64; Linux arm64 packages include only ffmpeg_linux_arm64 and go2rtc_linux_arm64.
+
+### 日本語
+- IoT / Modbus module now requires a License, with disabled UI controls when not licensed.
+- IoT API, polling jobs, and iframe embed snapshots now respect license state.
+- Fixed IoT license notice encoding to avoid garbled text.
+- Windows packages include only ffmpeg.exe and go2rtc.exe; Linux amd64 packages include only ffmpeg_linux_amd64 and go2rtc_linux_amd64; Linux arm64 packages include only ffmpeg_linux_arm64 and go2rtc_linux_arm64.
+
+### 한국어
+- IoT / Modbus module now requires a License, and unlicensed controls are disabled.
+- IoT API, polling jobs, and iframe embed snapshots now validate license state.
+- Fixed IoT license notice encoding to prevent garbled UI text.
+- Windows packages include only ffmpeg.exe and go2rtc.exe; Linux amd64 packages include only ffmpeg_linux_amd64 and go2rtc_linux_amd64; Linux arm64 packages include only ffmpeg_linux_arm64 and go2rtc_linux_arm64.
+
+---
+
+## Artifact Notes
+- Version: v1.2.4.9
+- Database policy: packaged builds do not remove an existing nms.db; no backup copy is created for this test build.
+- Windows runtime binaries: ffmpeg.exe, go2rtc.exe.
+- Linux amd64 runtime binaries: ffmpeg_linux_amd64, go2rtc_linux_amd64.
+- Linux arm64 runtime binaries: ffmpeg_linux_arm64, go2rtc_linux_arm64.
+
+---
+
+---
+## v1.2.4.8sp0007 | 2026-06-24
+
+**Build purpose:** IoT Modbus temperature/humidity value decoding patch.
+
+### IoT Sensor Reading Accuracy
+- Fixed 16-bit RS485 temperature/humidity sensors that were being interpreted with the default scale instead of the manual's 0.1 resolution.
+- Temperature, humidity, and combined temperature+humidity sensor types now apply the expected 0.1 scale when still configured with the default scale value.
+- Combined temperature+humidity devices now read two 16-bit registers by default.
+- Sensor cards now decode both values from raw Modbus register bytes and support word-order swapping when a device reports humidity and temperature in the opposite order.
+- Added tests for signed temperature compensation, manual register defaults, and register-pair word-order handling.
+
+---
+## v1.2.4.8sp0006 | 2026-06-22
+
+**Build purpose:** System Management hang prevention and global layout containment patch.
+
+### System Management Stability
+- Stopped automatic admin API loading when entering the System Management page.
+- Admin tab data now loads only after the user explicitly selects the tab.
+- Changed host-status to a lightweight response without blocking CPU, memory, disk, or GPU system probes.
+- Kept request timeouts for host status, license status, and machine ID calls so a single abnormal request cannot leave other pages loading indefinitely.
+
+### Layout Stability
+- Added global page and main-content containment so oversized tables or controls cannot expand the application frame.
+- Added flexible section headers so action buttons wrap inside the available frame instead of pushing content wider.
+- Added an internal scroll frame for the Audit Logs table so it no longer expands the System Management page width.
+- Updated responsive table containment so narrow screens keep wide tables inside local scroll regions.
+
+---
+## v1.2.4.8sp0005 | 2026-06-22
+
+**Build purpose:** System Management request isolation patch.
+
+### System Management
+- Changed the admin page to lazy-load only the active System Management tab instead of firing every admin API at once.
+- Added frontend API request timeouts so a stuck admin request cannot leave other pages permanently loading.
+- Reduced host-status, license-status, and machine-id request timeouts to fail fast in abnormal environments.
+
+---
+## v1.2.4.8sp0004 | 2026-06-22
+
+**Build purpose:** System management stability patch and cross-platform service-pack release.
+
+### System Management
+- Prevented the admin System Management page from blocking the server while loading host status.
+- Changed host status ffmpeg lookup to use local binaries only, avoiding implicit network downloads during page load.
+- Added timeouts around ffmpeg download and hardware-acceleration probing paths.
+- Skipped heavyweight GPU probing in the host-status API so other page requests are not blocked after opening System Management.
+- Added timeout and caching for machine UUID detection used by the license page.
+
+### Release Packaging
+- Built release artifacts for Windows amd64, Linux amd64, and Linux arm64.
+
+---
+## v1.2.4.8sp0002 | 2026-06-18
+
+**Build purpose:** IoT feature patch — Modbus RTU / RS485 support and sensor reading UI.
+
+### IoT — Modbus RTU / RS485 Active Polling
+- Added native Modbus RTU direct polling over serial port (COM port on Windows, /dev/ttyUSB0 on Linux).
+- Added Modbus RS485 half-duplex support (rtu+rs485 scheme with DE/RE pin toggling).
+- Serial port parameters configurable per device: baud rate, data bits, parity (N/E/O), stop bits.
+- Supports same FC03 / FC04 function codes and all data types (uint16/int16/uint32/int32/float32) as Modbus TCP.
+- Background poller now covers modbus_tcp, modbus_rtu, and modbus_rs485 protocols.
+
+### IoT — Sensor Display UI
+- Added sensor type classification per device: temperature, humidity, temperature+humidity, power, voltage, current, pressure, CO₂, PM2.5.
+- Added sensor reading card grid on IoT page — shows current value with unit (°C, %, W, V, etc.) and online/offline/error status.
+- Device list table now shows sensor type and target (IP:port for TCP, serial port for RTU/RS485).
+- Measurement values in tables now display with unit auto-detected from metric name.
+- Relative timestamps (e.g. "3m ago") on sensor cards for quick freshness check.
+
+### IoT — Add Device Modal
+- Replaced inline form with modal dialog and protocol tabs (Modbus TCP / Modbus RTU / Modbus RS485).
+- TCP tab shows Host IP and Port fields; RTU/RS485 tab shows serial port, baud rate, data bits, parity, stop bits.
+- All Modbus register fields (unit ID, address, FC, data type, scale, offset, endian, poll interval) shared across tabs.
+
+### IoT — Protocol Capabilities
+- Updated protocol profile list to mark Modbus RTU and Modbus RS485 as Ready (active poll).
+- MQTT, OPC-UA, BACnet remain Bridge Ready (push ingest via REST API).
+
+### UI Layout
+- IoT page restructured with clear section titles: Sensor Readings → Device List → Recent Measurements → Configuration → Embed Tokens.
+- Configuration cards (Forward Queue, Gateway Ingest Test, Embed Token, Allowlist) moved to a consistent grid layout with labeled form fields.
 
 ---
 ## v1.2.4.8 | 2026-06-10

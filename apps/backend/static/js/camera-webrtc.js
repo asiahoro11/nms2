@@ -1,3 +1,5 @@
+// Made by YTSworks
+// YTS工作室製作
 (function (global) {
     const sessions = new Map();
     const DEFAULT_TIMEOUT_MS = 20000;

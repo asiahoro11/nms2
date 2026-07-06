@@ -1,3 +1,5 @@
+// Made by YTSworks
+// YTS工作室製作
 // Version: 2.0.1 -
 
 // Returns true if the device is an EdgeCore switch (backup / reboot / PoE supported)
@@ -353,8 +355,17 @@ async function createDevice(event) {
             loadDevices();
         }
     } catch (error) {
-        showToast(error.message || t('devices.modal.error_add'), 'error');
+        showToast(translateDeviceError(error) || t('devices.modal.error_add'), 'error');
     }
+}
+
+// Map known backend error strings to translated messages.
+function translateDeviceError(error) {
+    const msg = (error && error.message) || '';
+    if (msg.includes('device limit reached')) {
+        return t('devices.limit_reached') || msg;
+    }
+    return msg;
 }
 
 // ===== 批量新增設備 =====
@@ -631,7 +642,7 @@ async function executeBulkAdd(event) {
             loadDevices();
         }
     } catch (error) {
-        showToast(error.message || t('devices.toast.scan_failed'), 'error');
+        showToast(translateDeviceError(error) || t('devices.toast.scan_failed'), 'error');
         document.getElementById('bulk-add-form').style.display = 'block';
         document.getElementById('bulk-scan-progress').style.display = 'none';
     }
@@ -1696,7 +1707,7 @@ async function updateDevice(event, id) {
             loadDevices();
         }
     } catch (error) {
-        showToast(error.message || t('devices.toast.update_failed'), 'error');
+        showToast(translateDeviceError(error) || t('devices.toast.update_failed'), 'error');
     }
 }
 
@@ -1905,12 +1916,12 @@ function updateBulkDeleteButtonState() {
     const count = selectedDeviceIds.size;
 
     if (deleteBtn) {
-        deleteBtn.innerHTML = `<span>🗑️</span> 批量刪除 (${count})`;
+        deleteBtn.innerHTML = `<span>🗑️</span> <span data-i18n="devices.bulk_delete">${t('devices.bulk_delete') || '批量刪除'}</span> (${count})`;
         deleteBtn.style.display = count > 0 ? 'inline-block' : 'none';
     }
 
     if (editBtn) {
-        editBtn.innerHTML = `<span>✏️</span> 批量編輯 (${count})`;
+        editBtn.innerHTML = `<span>✏️</span> <span data-i18n="devices.bulk_edit">${t('devices.bulk_edit') || '批量編輯'}</span> (${count})`;
         editBtn.style.display = count > 0 ? 'inline-block' : 'none';
     }
 }

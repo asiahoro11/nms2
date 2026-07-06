@@ -1,3 +1,5 @@
+// Made by YTSworks
+// YTS工作室製作
 // Comprehensive string replacement mapping for all JS files
 const fs = require('fs');
 const path = require('path');

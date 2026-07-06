@@ -1,3 +1,5 @@
+// Made by YTSworks
+// YTS工作室製作
 package handlers
 
 import (
@@ -128,7 +130,7 @@ func (h *Handler) ensureCameraSchema() error {
 }
 
 // ============================================================
-// API Handlers ??Camera CRUD
+// API Handlers — Camera CRUD
 // ============================================================
 
 // GetCameraModuleStatus GET /api/v1/cameras/status
@@ -1032,6 +1034,8 @@ func (h *Handler) GetCameraMJPEG(c *gin.Context) {
 	c.Writer.Flush()
 	cameramodule.Debugf("mjpeg_http_flush cam=%s client=%s seq=%d bytes=%d flush_ms=%d since_req_ms=%d", id, c.ClientIP(), frameSeq, len(firstFrame), time.Since(flushStartedAt).Milliseconds(), time.Since(requestStartedAt).Milliseconds())
 	clientGone := c.Request.Context().Done()
+	heartbeat := time.NewTimer(10 * time.Second)
+	defer heartbeat.Stop()
 	for {
 		select {
 		case <-clientGone:
@@ -1040,6 +1044,13 @@ func (h *Handler) GetCameraMJPEG(c *gin.Context) {
 			if !ok {
 				return
 			}
+			if !heartbeat.Stop() {
+				select {
+				case <-heartbeat.C:
+				default:
+				}
+			}
+			heartbeat.Reset(10 * time.Second)
 			frameSeq++
 			flushStartedAt = time.Now()
 			fmt.Fprintf(c.Writer, "--%s\r\nContent-Type: image/jpeg\r\nContent-Length: %d\r\n\r\n", boundary, len(frame))
@@ -1049,9 +1060,10 @@ func (h *Handler) GetCameraMJPEG(c *gin.Context) {
 			if frameSeq <= 5 || frameSeq%30 == 0 {
 				cameramodule.Debugf("mjpeg_http_flush cam=%s client=%s seq=%d bytes=%d flush_ms=%d since_req_ms=%d", id, c.ClientIP(), frameSeq, len(frame), time.Since(flushStartedAt).Milliseconds(), time.Since(requestStartedAt).Milliseconds())
 			}
-		case <-time.After(10 * time.Second):
+		case <-heartbeat.C:
 			fmt.Fprintf(c.Writer, "--%s\r\n\r\n", boundary)
 			c.Writer.Flush()
+			heartbeat.Reset(10 * time.Second)
 		}
 	}
 }

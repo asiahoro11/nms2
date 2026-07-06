@@ -1,4 +1,6 @@
 @echo off
+REM Made by YTSworks
+REM YTS工作室製作
 chcp 65001 >nul
 set LANG=zh_TW.UTF-8
 set LC_ALL=zh_TW.UTF-8

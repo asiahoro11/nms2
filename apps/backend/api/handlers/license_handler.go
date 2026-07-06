@@ -1,3 +1,5 @@
+// Made by YTSworks
+// YTS工作室製作
 package handlers
 
 import (
@@ -138,7 +140,7 @@ func (h *Handler) legacyActivateLicense(c *gin.Context) {
 
 	var result sql.Result
 	if alreadyExists {
-		// Key already in DB (same machine, valid signature) ??re-activate it.
+		// Key already in DB (same machine, valid signature) — re-activate it.
 		// This handles the case where the database was wiped/replaced and the user
 		// needs to re-enter their existing license key.
 		result, err = h.db.Exec(`
@@ -262,6 +264,21 @@ func (h *Handler) legacyActivateLicense(c *gin.Context) {
 			VALUES ('pdu_enabled', '1', 'PDU/UPS module enabled')`)
 		log.Printf("[License] PDU/UPS module enabled.")
 		messages = append(messages, "PDU/UPS 模組已解鎖")
+	}
+
+	// Auto-enable IoT module if license contains iot feature
+	hasIoTFeature := false
+	for _, feature := range payload.Features {
+		if feature == "iot" {
+			hasIoTFeature = true
+			break
+		}
+	}
+	if hasIoTFeature {
+		h.db.Exec(`INSERT OR REPLACE INTO system_config (config_key, config_value, description)
+			VALUES ('iot_enabled', '1', 'IoT / Modbus module enabled')`)
+		log.Printf("[License] IoT / Modbus module enabled.")
+		messages = append(messages, "IoT / Modbus enabled")
 	}
 
 	// Auto-enable Camera Recording if license contains camera_recording feature
@@ -396,8 +413,10 @@ func (h *Handler) GetLicenseFeatures(c *gin.Context) {
 			"slack":             features["slack"],
 			"device_management": features["device_management"],
 			"camera_viewer":     features["camera_viewer"],
+			"camera_recording":  features["camera_recording"],
 			"pdu":               features["pdu"],
 			"access_control":    features["access_control"],
+			"iot":               features["iot"],
 		},
 	})
 }
@@ -463,7 +482,7 @@ func parseIntFromString(s string) (int, error) {
 type GenerateLicenseKeyInput struct {
 	MachineID    string   `json:"machine_id"`
 	LicenseMode  string   `json:"license_mode"`
-	LicenseType  string   `json:"license_type"` // "device", "alert", "camera", "access_control", "combined", "full"
+	LicenseType  string   `json:"license_type"` // "device", "alert", "camera", "access_control", "pdu", "iot", "combined", "full"
 	DeviceCount  int      `json:"device_count"` // Required for device/combined/full
 	CameraCount  int      `json:"camera_count"` // Required for camera/combined/full (4/9/16)
 	Years        int      `json:"years"`        // 1-5 years
@@ -475,13 +494,13 @@ type GenerateLicenseKeyInput struct {
 
 // GenerateLicenseKey generates a new license key for a customer (Admin only)
 //
-// License types (?��??�購 / ?��?�?:
-//   - "device"         ??設�??��??��? (yearly)
-//   - "alert"          ???�警?�知管�? (one-time, permanent)
-//   - "camera"         ???�影機監?�模�?(yearly, camera_count = 4/9/16)
-//   - "access_control" ???�禁管?�模�?(yearly)
-//   - "combined"       ??設�? + ?�警 (yearly)
-//   - "full"           ??設�? + ?�警 + ?�影�?(yearly)
+// License types (subscription / one-time):
+//   - "device"         device monitoring module (yearly)
+//   - "alert"          alert & notification management (one-time, permanent)
+//   - "camera"         camera surveillance module (yearly, camera_count = 4/9/16)
+//   - "access_control" access control module (yearly)
+//   - "combined"       device + alert (yearly)
+//   - "full"           device + alert + camera (yearly)
 func (h *Handler) legacyGenerateLicenseKey(c *gin.Context) {
 	var input GenerateLicenseKeyInput
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -510,7 +529,7 @@ func (h *Handler) legacyGenerateLicenseKey(c *gin.Context) {
 	}
 
 	isAnnual := input.LicenseType == "device" || input.LicenseType == "combined" ||
-		input.LicenseType == "camera" || input.LicenseType == "access_control" || input.LicenseType == "full"
+		input.LicenseType == "camera" || input.LicenseType == "access_control" || input.LicenseType == "iot" || input.LicenseType == "full"
 	if isAnnual && licenseMode != license.PoCLicenseMode {
 		if input.Years < 1 || (input.Years > 5 && !license.IsPermanentYears(input.Years)) {
 			c.JSON(http.StatusBadRequest, Response{Success: false, Error: "years must be between 1 and 5, or 50 and above for permanent license"})
@@ -566,15 +585,17 @@ func (h *Handler) legacyGenerateLicenseKey(c *gin.Context) {
 		features = []string{"access_control"}
 	case "pdu":
 		features = []string{"pdu"}
+	case "iot":
+		features = []string{"iot"}
 	case "combined":
 		features = []string{"device_management", "line", "telegram", "whatsapp", "discord", "slack"}
 	case "full":
-		features = []string{"device_management", "line", "telegram", "whatsapp", "discord", "slack", "camera_viewer", "access_control", "pdu"}
+		features = []string{"device_management", "line", "telegram", "whatsapp", "discord", "slack", "camera_viewer", "camera_recording", "access_control", "pdu", "iot"}
 		cameraCount = input.CameraCount
 	}
 
 	deviceCount := input.DeviceCount
-	if input.LicenseType == "alert" || input.LicenseType == "camera" || input.LicenseType == "access_control" || input.LicenseType == "pdu" {
+	if input.LicenseType == "alert" || input.LicenseType == "camera" || input.LicenseType == "access_control" || input.LicenseType == "pdu" || input.LicenseType == "iot" {
 		deviceCount = 0
 	}
 
@@ -598,6 +619,7 @@ func (h *Handler) legacyGenerateLicenseKey(c *gin.Context) {
 		"camera":         "camera viewer",
 		"access_control": "access control",
 		"pdu":            "pdu",
+		"iot":            "iot",
 		"combined":       "device + alerts",
 		"full":           "full suite",
 	}
@@ -633,7 +655,7 @@ func (h *Handler) getMaxDeviceLimit() int {
 func (h *Handler) legacyResetLicenseIdentity(c *gin.Context) {
 	// 1. Clear secret key
 	if _, err := h.db.Exec("DELETE FROM system_config WHERE config_key = 'aes_secret_key_v2'"); err != nil {
-		c.JSON(http.StatusInternalServerError, Response{Success: false, Error: "?�置?�鑰失�?"})
+		c.JSON(http.StatusInternalServerError, Response{Success: false, Error: "重置金鑰失敗"})
 		return
 	}
 
@@ -737,7 +759,7 @@ func (h *Handler) autoEnableCameraViewer(payload *license.LicensePayload) {
 		}
 	}
 
-	// ?��? CameraCount > 0 ?�是 Features 裡面??camera_viewer 就�??��?
+	// if CameraCount > 0 or Features contains camera_viewer, camera module is active
 	if payload.CameraCount > 0 {
 		hasCameraFeature = true
 	}

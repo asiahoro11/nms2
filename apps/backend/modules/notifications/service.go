@@ -1,3 +1,5 @@
+// Made by YTSworks
+// YTS工作室製作
 package notifications
 
 import (
@@ -105,21 +107,28 @@ func (s *Service) GetAlertSettings() ([]AlertSettingView, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	features := s.FeatureFlags()
 	settings := make([]AlertSettingView, 0)
 	for rows.Next() {
 		var item AlertSettingView
 		if err := rows.Scan(&item.ID, &item.AlertType, &item.IsEnabled, &item.Config); err != nil {
+			_ = rows.Close()
 			return nil, err
 		}
 		item.NeedsLicense = item.AlertType != "email"
-		item.HasLicense = !item.NeedsLicense || features[item.AlertType]
 		settings = append(settings, item)
 	}
 	if err := rows.Err(); err != nil {
+		_ = rows.Close()
 		return nil, err
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+
+	features := s.FeatureFlags()
+	for i := range settings {
+		settings[i].HasLicense = !settings[i].NeedsLicense || features[settings[i].AlertType]
 	}
 
 	return settings, nil

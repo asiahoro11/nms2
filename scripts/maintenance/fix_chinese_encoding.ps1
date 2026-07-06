@@ -1,3 +1,5 @@
+# Made by YTSworks
+# YTS工作室製作
 $OutputEncoding = [System.Text.Encoding]::UTF8
 $ConfirmPreference = "None"
 # ============================================================================

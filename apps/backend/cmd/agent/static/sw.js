@@ -1,4 +1,6 @@
-const SW_VERSION = new URL(self.location.href).searchParams.get('v') || 'v1.2.4.8';
+// Made by YTSworks
+// YTS工作室製作
+const SW_VERSION = new URL(self.location.href).searchParams.get('v') || 'v1.2.4.9sp0001';
 const CACHE_NAME = `sync-${SW_VERSION}`;
 const STATIC_ASSETS = [
     '/',

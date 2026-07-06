@@ -1,3 +1,5 @@
+// Made by YTSworks
+// YTS工作室製作
 /* ============================================================
    Access Control (門禁) Module — door-module.js
    ============================================================ */
@@ -33,6 +35,9 @@ async function acLoadStatus() {
         const res = await apiGet('/api/v1/access-control/status');
         if (res.success) {
             acModuleEnabled = res.data.enabled;
+            if (typeof setModuleLock === 'function') {
+                setModuleLock('access_control', !acModuleEnabled);
+            }
             document.getElementById('ac-license-notice').style.display = acModuleEnabled ? 'none' : 'flex';
             document.getElementById('ac-module-content').style.display = acModuleEnabled ? 'block' : 'none';
         }

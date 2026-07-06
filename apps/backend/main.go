@@ -1,6 +1,9 @@
+// Made by YTSworks
+// YTS工作室製作
 package main
 
 import (
+	"context"
 	"database/sql"
 	"log"
 	"management-server/api"
@@ -15,6 +18,7 @@ import (
 	"management-server/services/scheduler"
 	"management-server/services/syslog"
 	"management-server/services/timesync"
+	"net/http"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -28,51 +32,49 @@ func init() {
 }
 
 func main() {
-	if err := enforceLauncher(); err != nil {
-		log.Fatal(err)
-	}
+	enforceLauncher()
 
-	// 載入設�?
+	// Load configuration
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
-	// ?��??�日�?
+	// Initialize logging
 	logging.Init(cfg.Logging)
 	log.Println("Logging system initialized")
 
-	// ?��??��??�庫
+	// 初始化資料庫
 	db, err := database.Initialize(cfg.Database.Path, cfg.System.Version)
 	if err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
 	defer db.Close()
 
-	// ?��??�系統�?設�?�?
+	// Initialize system defaults
 	initSystemDefaults(db, cfg)
 
-	// ?��? DB Worker (序�??�寫??
+	// Initialize DB worker (serialized writes)
 	dbWorker := dbworker.New(db)
 	dbWorker.Start()
 	defer dbWorker.Stop()
 
-	// 檢查?��??��???(Startup Check)
+	// Startup health checks
 	license.CheckCompliance(db, cfg, func(msg string) {
 		alert.DispatchToEnabledChannels(db, cfg, msg)
 	})
 
-	// ?��? Syslog ?�收??
+	// Start Syslog receiver
 	syslogReceiver := syslog.NewReceiver(cfg.Syslog.Port, db)
 	go syslogReceiver.Start()
 
-	// ?��? Pinger ?��? (�?-5�?Ping)
+	// 啟動 Pinger 心跳檢測服務
 	// Apply license limit to pinger
 	pingSvc := pinger.New(cfg, db, dbWorker)
 	pingSvc.Start()
 	defer pingSvc.Stop()
 
-	// ?��??�端??��??(Cloud Edge Connector)
+	// Start cloud edge connector
 	var cloudConn *cloud.Connector
 	if cfg.Cloud.Enabled {
 		cloudConn = cloud.New(cfg.Cloud, db)
@@ -87,34 +89,42 @@ func main() {
 		}
 	}
 
-	// ?��??��???
+	// 啟動排程器
 	sch := scheduler.New(cfg, db, dbWorker)
 	go sch.Start()
 
-	// ?��??��??�步?��?
+	// 啟動時間同步服務
 	timesync.Start()
 
-	// ?��? API ?��? (?�入 SNMP collector ???��?資�?)
+	// 建立 API 路由 (注入 SNMP collector 與嵌入資源)
 	router := api.SetupRouter(cfg, db, sch.GetCollector(), assets)
 
-	// ?��??��?
+	// 等待結束訊號
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
+	// ReadHeaderTimeout/IdleTimeout only: blanket Read/Write timeouts would
+	// kill long-lived WebSSH websockets and camera streams.
+	srv := &http.Server{
+		Addr:              cfg.Server.Host + ":" + cfg.Server.Port,
+		Handler:           router,
+		ReadHeaderTimeout: 10 * time.Second,
+		IdleTimeout:       120 * time.Second,
+	}
+
 	go func() {
-		addr := cfg.Server.Host + ":" + cfg.Server.Port
-		log.Printf("Management Server starting on %s", addr)
+		log.Printf("Management Server starting on %s", srv.Addr)
 		log.Printf("System Version: %s", cfg.System.Version)
 
+		var err error
 		if cfg.Security.EnableTLS {
 			log.Printf("[TLS] Enabled. Using cert: %s", cfg.Security.CertFile)
-			if err := router.RunTLS(addr, cfg.Security.CertFile, cfg.Security.KeyFile); err != nil {
-				log.Fatalf("Failed to start server (TLS): %v", err)
-			}
+			err = srv.ListenAndServeTLS(cfg.Security.CertFile, cfg.Security.KeyFile)
 		} else {
-			if err := router.Run(addr); err != nil {
-				log.Fatalf("Failed to start server: %v", err)
-			}
+			err = srv.ListenAndServe()
+		}
+		if err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Failed to start server: %v", err)
 		}
 	}()
 
@@ -123,10 +133,18 @@ func main() {
 	if cfg.Security.EnableTLS {
 		scheme = "https"
 	}
-	go openBrowser(cfg.Server.Host+":"+cfg.Server.Port, scheme)
+	go openBrowser(cfg.Server.Host, cfg.Server.Port, scheme)
 
 	<-quit
 	log.Println("Shutting down server...")
+
+	// Stop accepting new requests and let in-flight ones finish.
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		log.Printf("HTTP server shutdown: %v", err)
+	}
+
 	if cloudConn != nil {
 		cloudConn.Stop()
 	}
@@ -135,16 +153,14 @@ func main() {
 	syslogReceiver.Stop()
 }
 
-func openBrowser(url string, scheme string) {
-	// Add scheme if missing
-	fullURL := scheme + "://" + url
-	// Handle 0.0.0.0 or empty host
-	if url[0] == ':' || url[:7] == "0.0.0.0" {
-		port := url
-		if url[:7] == "0.0.0.0" {
-			port = url[7:]
-		}
-		fullURL = scheme + "://localhost" + port
+func openBrowser(host string, port string, scheme string) {
+	// 0.0.0.0 / :: / empty bind addresses are not browsable; use localhost.
+	if host == "" || host == "0.0.0.0" || host == "::" {
+		host = "localhost"
+	}
+	fullURL := scheme + "://" + host
+	if port != "" {
+		fullURL += ":" + port
 	}
 
 	// Wait a bit for server to start
@@ -169,19 +185,9 @@ func openBrowser(url string, scheme string) {
 	}
 }
 
-// isCameraViewerEnabled 檢查 Camera Viewer 模�??�否?�用
-func isCameraViewerEnabled(db *sql.DB) bool {
-	var enabled string
-	err := db.QueryRow("SELECT config_value FROM system_config WHERE config_key = 'camera_viewer_enabled'").Scan(&enabled)
-	if err != nil {
-		return false // ?�設?��?
-	}
-	return enabled == "true" || enabled == "1"
-}
-
 func initSystemDefaults(db *sql.DB, cfg *config.Config) {
-	// ?�裡?�確保�??�庫中�?必�??��?設值�??��??�端?�找不到 key ?�顯示錯誤�??�??
-	// ?�設??false，�?要使?�者�??��???
+	// 確保資料庫中有必要的預設值，避免前端因找不到 key 而顯示錯誤
+	// 預設為 false，需要使用者手動開啟
 	defaults := map[string]string{
 		"alerts_global_enabled":     "false",
 		"camera_viewer_enabled":     "false",
@@ -193,7 +199,7 @@ func initSystemDefaults(db *sql.DB, cfg *config.Config) {
 		db.Exec(`INSERT OR IGNORE INTO system_config (config_key, config_value) VALUES (?, ?)`, key, val)
 	}
 
-	// 確�??�?��??�都?��?要�??�述資�? (如�?不�???
+	// 確保設定項目都有描述資料 (如果不存在)
 	db.Exec(`UPDATE system_config SET description = 'Enable Camera Viewer Module' WHERE config_key = 'camera_viewer_enabled' AND description IS NULL`)
 
 }

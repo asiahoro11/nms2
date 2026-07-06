@@ -6,25 +6,29 @@ import (
 	"html/template"
 	"log"
 	"net/http"
-	"management-server/services/license"
 	"os/exec"
 	"runtime"
+	"strconv"
 	"strings"
-	"time"
+
+	"management-server/cmd/internal/licensegen"
+	"management-server/services/license"
 )
 
-var (
-	port = flag.String("port", "8089", "Port to run the web server on")
-)
+var port = flag.String("port", "8089", "Port to run the web server on")
 
-// PageData holds data for rendering the HTML template
-type PageData struct {
-	Result       string
-	Error        string
-	GeneratedKey string
-	MachineID    string
-	Count        int
-	Years        int
+type pageData struct {
+	MachineID      string
+	Mode           string
+	LicenseType    string
+	DeviceCount    int
+	CameraCount    int
+	Years          int
+	DurationDays   int
+	Features       []string
+	FeatureOptions []licensegen.FeatureOption
+	Result         *licensegen.GenerateResult
+	Error          string
 }
 
 func main() {
@@ -32,21 +36,30 @@ func main() {
 
 	http.HandleFunc("/", handleIndex)
 	http.HandleFunc("/generate", handleGenerate)
-	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
 
-	url := fmt.Sprintf("http://localhost:%s", *port)
-	fmt.Printf("Starting License Generator Web Interface at %s\n", url)
-
-	// Open browser automatically
+	url := fmt.Sprintf("http://127.0.0.1:%s", *port)
+	fmt.Printf("Starting Management System %s License Generator at %s\n", licensegen.ProductVersion, url)
 	openBrowser(url)
 
 	if err := http.ListenAndServe(":"+*port, nil); err != nil {
-		log.Fatalf("Failed to start server: %v", err)
+		log.Fatalf("failed to start license generator: %v", err)
 	}
 }
 
-func handleIndex(w http.ResponseWriter, r *http.Request) {
-	renderTemplate(w, PageData{Count: 10, Years: 1})
+func defaultPageData() pageData {
+	return pageData{
+		Mode:           license.FormalLicenseMode,
+		LicenseType:    "full",
+		DeviceCount:    10,
+		CameraCount:    4,
+		Years:          1,
+		DurationDays:   14,
+		FeatureOptions: licensegen.FeatureOptions,
+	}
+}
+
+func handleIndex(w http.ResponseWriter, _ *http.Request) {
+	renderPage(w, defaultPageData())
 }
 
 func handleGenerate(w http.ResponseWriter, r *http.Request) {
@@ -55,139 +68,71 @@ func handleGenerate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	mode := r.FormValue("mode") // "subscription" or "buyout"
-	machineID := strings.TrimSpace(r.FormValue("machine_id"))
-	licenseType := r.FormValue("type") // "device", "alert", "combined"
-	countStr := r.FormValue("count")
-	yearsStr := r.FormValue("years")
-
-	data := PageData{
-		MachineID: machineID,
+	data := defaultPageData()
+	data.MachineID = strings.TrimSpace(r.FormValue("machine_id"))
+	data.Mode = strings.TrimSpace(r.FormValue("mode"))
+	data.LicenseType = strings.TrimSpace(r.FormValue("license_type"))
+	data.DeviceCount = parseIntOrDefault(r.FormValue("device_count"), data.DeviceCount)
+	data.CameraCount = parseIntOrDefault(r.FormValue("camera_count"), data.CameraCount)
+	data.Years = parseIntOrDefault(r.FormValue("years"), data.Years)
+	data.DurationDays = parseIntOrDefault(r.FormValue("duration_days"), data.DurationDays)
+	if strings.EqualFold(data.LicenseType, "custom") {
+		data.Features = licensegen.NormalizeSelectedFeatures(r.Form["features"])
 	}
 
-	// Basic Validation
-	if machineID == "" {
-		data.Error = "請輸入客戶機器碼 (Machine ID)"
-		renderTemplate(w, data)
+	result, err := licensegen.Generate(licensegen.GenerateInput{
+		Mode:         data.Mode,
+		MachineID:    data.MachineID,
+		LicenseType:  data.LicenseType,
+		Features:     data.Features,
+		DeviceCount:  data.DeviceCount,
+		CameraCount:  data.CameraCount,
+		Years:        data.Years,
+		DurationDays: data.DurationDays,
+	})
+	if err != nil {
+		data.Error = err.Error()
+		renderPage(w, data)
 		return
 	}
 
-	// Parse numeric inputs
-	count := 0
-	fmt.Sscanf(countStr, "%d", &count)
-	data.Count = count
-
-	years := 0
-	fmt.Sscanf(yearsStr, "%d", &years)
-	data.Years = years
-
-	// Logic Determination
-	secretKey := license.DeriveKey("NMS-LICENSE-" + strings.ToLower(machineID))
-	var features []string
-	var validUntil string
-	var deviceCount int
-
-	// Common Feature Sets
-	alertFeatures := []string{"email", "line", "telegram", "whatsapp", "discord", "slack"}
-	basicFeatures := []string{"email"}
-
-	if mode == "buyout" {
-		// --- Buyout Mode (Ori-New) ---
-		// Always Permanent
-		validUntil = ""
-
-		switch licenseType {
-		case "device":
-			if count <= 0 {
-				data.Error = "買斷設備授權: 數量必須大於 0"
-				renderTemplate(w, data)
-				return
-			}
-			features = basicFeatures
-			deviceCount = count
-			data.Result = fmt.Sprintf("買斷版 (永久) - 設備授權 (%d 台)", count)
-
-		case "alert":
-			// Alert Buyout: Permanent Features, 0 Devices
-			features = alertFeatures
-			deviceCount = 0
-			data.Result = "買斷版 (永久) - 告警授權 (僅啟用告警功能)"
-
-		case "combined":
-			if count <= 0 {
-				data.Error = "買斷混合授權: 數量必須大於 0"
-				renderTemplate(w, data)
-				return
-			}
-			features = alertFeatures
-			deviceCount = count
-			data.Result = fmt.Sprintf("買斷版 (永久) - 混合授權 (%d 台 + 告警)", count)
-		}
-
-	} else {
-		// --- Subscription Mode (Original) ---
-		if years < 1 || years > 10 {
-			data.Error = "訂閱模式年數必須介於 1~10 年"
-			renderTemplate(w, data)
-			return
-		}
-
-		validUntil = time.Now().AddDate(years, 0, 0).Format("2006-01-02")
-
-		switch licenseType {
-		case "device":
-			if count <= 0 {
-				data.Error = "訂閱設備授權: 數量必須大於 0"
-				renderTemplate(w, data)
-				return
-			}
-			features = basicFeatures
-			deviceCount = count
-			data.Result = fmt.Sprintf("訂閱版 (%d 年) - 設備授權 (%d 台)", years, count)
-
-		case "alert":
-			// Original Alert logic (CLI allowed partial years, keeping consistent)
-			features = alertFeatures
-			deviceCount = 0
-			data.Result = fmt.Sprintf("訂閱版 (%d 年) - 告警授權", years)
-
-		case "combined":
-			if count <= 0 {
-				data.Error = "訂閱混合授權: 數量必須大於 0"
-				renderTemplate(w, data)
-				return
-			}
-			features = alertFeatures
-			deviceCount = count
-			data.Result = fmt.Sprintf("訂閱版 (%d 年) - 混合授權 (%d 台 + 告警)", years, count)
-		}
-	}
-
-	// Generate Key
-	key, err := license.GenerateLicenseKey(
-		strings.ToLower(machineID),
-		deviceCount,
-		features,
-		validUntil,
-		secretKey,
-	)
-
-	if err != nil {
-		data.Error = "?��?失�?: " + err.Error()
-	} else {
-		data.GeneratedKey = key
-	}
-
-	renderTemplate(w, data)
+	data.Result = &result
+	renderPage(w, data)
 }
 
-func renderTemplate(w http.ResponseWriter, data PageData) {
-	t, err := template.New("index").Parse(htmlTemplate)
-	if err != nil {
-		http.Error(w, "Template Error: "+err.Error(), http.StatusInternalServerError)
-		return
+func renderPage(w http.ResponseWriter, data pageData) {
+	if data.FeatureOptions == nil {
+		data.FeatureOptions = licensegen.FeatureOptions
 	}
-	t.Execute(w, data)
+	tpl := template.Must(template.New("generator").Funcs(template.FuncMap{
+		"containsFeature": licensegen.ContainsFeature,
+	}).Parse(pageTemplate))
+	if err := tpl.Execute(w, data); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func parseIntOrDefault(raw string, fallback int) int {
+	value, err := strconv.Atoi(strings.TrimSpace(raw))
+	if err != nil {
+		return fallback
+	}
+	return value
+}
+
+func parseCSV(raw string) []string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil
+	}
+	parts := strings.Split(raw, ",")
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if value := strings.TrimSpace(part); value != "" {
+			out = append(out, value)
+		}
+	}
+	return out
 }
 
 func openBrowser(url string) {
@@ -199,132 +144,141 @@ func openBrowser(url string) {
 		err = exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
 	case "darwin":
 		err = exec.Command("open", url).Start()
-	default:
-		err = fmt.Errorf("unsupported platform")
 	}
 	if err != nil {
-		fmt.Printf("Please open your web browser and visit: %s\n", url)
+		log.Printf("warning: failed to open browser: %v", err)
 	}
 }
 
-const htmlTemplate = `
-<!DOCTYPE html>
+const pageTemplate = `<!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NMS ?��??��???/title>
+    <title>Management System 授權產生器</title>
     <style>
-        body { font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f4f4f9; display: flex; justify-content: center; padding-top: 50px; }
-        .container { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 1000px; max-width: 900px; }
-        h1 { color: #333; text-align: center; margin-bottom: 1.5rem; }
-        .tabs { display: flex; border-bottom: 2px solid #ddd; margin-bottom: 1.5rem; }
-        .tab { padding: 10px 20px; cursor: pointer; border-bottom: 3px solid transparent; font-weight: bold; color: #666; }
-        .tab.active { border-bottom-color: #007bff; color: #007bff; }
-        
-        .form-group { margin-bottom: 1rem; }
-        label { display: block; margin-bottom: 0.5rem; color: #555; font-weight: 500;}
-        input[type="text"], input[type="number"], select { width: 100%; padding: 0.75rem; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 1rem; }
-        
-        .btn { display: block; width: 100%; padding: 1rem; background: #007bff; color: white; border: none; border-radius: 6px; font-size: 1.1rem; cursor: pointer; transition: background 0.2s; margin-top: 1.5rem; }
-        .btn:hover { background: #0056b3; }
-        
-        .result-box { margin-top: 2rem; background: #e9ecef; padding: 1.5rem; border-radius: 8px; border-left: 5px solid #28a745; word-break: break-all; }
-        .error-box { margin-top: 2rem; background: #f8d7da; color: #721c24; padding: 1rem; border-radius: 8px; border-left: 5px solid #dc3545; }
-        
-        .key-display { font-family: monospace; font-size: 1.1rem; background: #fff; padding: 1rem; border: 1px solid #ced4da; border-radius: 4px; margin-top: 0.5rem; }
-        
-        .hidden { display: none; }
-        .desc { font-size: 0.9rem; color: #666; margin-top: 0.25rem; }
+        body { margin:0; min-height:100vh; padding:32px; font-family:"Microsoft JhengHei", "Segoe UI", Arial, sans-serif; background:#0f172a; color:#e5e7eb; }
+        .shell { max-width:960px; margin:0 auto; }
+        h1 { margin:0 0 8px; font-size:30px; }
+        p { color:#94a3b8; }
+        form, .card { border:1px solid #334155; background:#111827; border-radius:10px; padding:22px; margin-top:18px; }
+        .grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+        .full { grid-column:1/-1; }
+        label { display:block; margin-bottom:6px; color:#cbd5e1; font-size:14px; }
+        input, select { width:100%; box-sizing:border-box; border:1px solid #334155; border-radius:8px; padding:11px 12px; background:#020617; color:#f8fafc; }
+        input[type="checkbox"] { width:auto; }
+        button { margin-top:18px; width:100%; border:0; border-radius:8px; padding:13px 16px; background:#38bdf8; color:#082f49; font-weight:700; cursor:pointer; }
+        .hint { margin-top:6px; color:#94a3b8; font-size:12px; line-height:1.5; }
+        .feature-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-top:10px; }
+        .feature-option { display:flex; gap:10px; align-items:flex-start; margin:0; padding:12px; border:1px solid #334155; border-radius:8px; background:#020617; cursor:pointer; }
+        .feature-option input { margin-top:3px; flex:0 0 auto; }
+        .feature-option-title { display:block; color:#f8fafc; font-weight:700; }
+        .feature-option-desc { display:block; margin-top:4px; color:#94a3b8; font-size:12px; line-height:1.45; }
+        .custom-disabled { opacity:.48; }
+        .custom-disabled .feature-option { cursor:not-allowed; }
+        .error { border-color:#ef4444; color:#fecaca; }
+        .key { word-break:break-all; font-family:Consolas, monospace; line-height:1.7; background:#020617; border:1px dashed #38bdf8; border-radius:8px; padding:14px; }
+        @media (max-width:720px) { body { padding:16px; } .grid, .feature-grid { grid-template-columns:1fr; } }
     </style>
-    <script>
-        function setMode(mode) {
-            document.getElementById('input_mode').value = mode;
-            
-            document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
-            document.getElementById('tab_' + mode).classList.add('active');
-
-            const yearGroup = document.getElementById('group_years');
-            if (mode === 'buyout') {
-                yearGroup.classList.add('hidden');
-            } else {
-                yearGroup.classList.remove('hidden');
-            }
-        }
-        
-        function onTypeChange() {
-            const type = document.getElementById('input_type').value;
-            const countGroup = document.getElementById('group_count');
-            
-            if (type === 'alert') {
-                countGroup.classList.add('hidden');
-            } else {
-                countGroup.classList.remove('hidden');
-            }
-        }
-        
-        function init() {
-            // Restore state if posted
-            const urlParams = new URLSearchParams(window.location.search);
-            // Simple logic: default to buyout if no post or whatever, handled by server template rendering mostly but needed for dynamic UI
-        }
-    </script>
 </head>
-<body onload="onTypeChange()">
-    <div class="container">
-        <h1>NMS ?��??��???/h1>
-        
-        <div class="tabs">
-            <div id="tab_buyout" class="tab active" onclick="setMode('buyout')">Ori-New (買斷??</div>
-            <div id="tab_subscription" class="tab" onclick="setMode('subscription')">Original (訂閱??</div>
-        </div>
+<body>
+    <main class="shell">
+        <h1>Management System ` + licensegen.ProductVersion + ` 授權產生器</h1>
+        <p>單一工具支援正式授權、PoC、買斷授權與自訂功能授權。所有授權類型都使用與後端一致的功能規則。</p>
 
-        <form method="POST" action="/generate">
-            <input type="hidden" id="input_mode" name="mode" value="buyout">
-            
-            <div class="form-group">
-                <label>機器識別�?(Machine ID)</label>
-                <input type="text" name="machine_id" value="{{.MachineID}}" placeholder="請輸入客戶伺服器的 Machine ID" required>
+        <form method="post" action="/generate">
+            <div class="grid">
+                <div>
+                    <label>授權模式</label>
+                    <select name="mode">
+                        <option value="formal" {{if eq .Mode "formal"}}selected{{end}}>正式授權</option>
+                        <option value="poc" {{if eq .Mode "poc"}}selected{{end}}>PoC 試用授權</option>
+                    </select>
+                </div>
+                <div>
+                    <label>授權類型</label>
+                    <select name="license_type" id="license-type-select">
+                        <option value="device" {{if eq .LicenseType "device"}}selected{{end}}>設備管理</option>
+                        <option value="alert" {{if eq .LicenseType "alert"}}selected{{end}}>告警通道</option>
+                        <option value="camera" {{if eq .LicenseType "camera"}}selected{{end}}>攝影機檢視</option>
+                        <option value="camera_recording" {{if eq .LicenseType "camera_recording"}}selected{{end}}>攝影機錄影</option>
+                        <option value="access_control" {{if eq .LicenseType "access_control"}}selected{{end}}>門禁管理</option>
+                        <option value="pdu" {{if eq .LicenseType "pdu"}}selected{{end}}>PDU / UPS</option>
+                        <option value="iot" {{if eq .LicenseType "iot"}}selected{{end}}>IoT / Modbus</option>
+                        <option value="combined" {{if eq .LicenseType "combined"}}selected{{end}}>設備與告警</option>
+                        <option value="full" {{if eq .LicenseType "full"}}selected{{end}}>完整功能</option>
+                        <option value="custom" {{if eq .LicenseType "custom"}}selected{{end}}>自訂功能</option>
+                    </select>
+                </div>
+                <div class="full">
+                    <label>Machine ID</label>
+                    <input name="machine_id" value="{{.MachineID}}" placeholder="正式授權必填；PoC 可留空">
+                </div>
+                <div>
+                    <label>授權年限</label>
+                    <input type="number" min="1" max="999" name="years" value="{{.Years}}">
+                    <div class="hint">正式授權使用。輸入 50 以上代表永久買斷。</div>
+                </div>
+                <div>
+                    <label>PoC 天數</label>
+                    <input type="number" min="1" max="3650" name="duration_days" value="{{.DurationDays}}">
+                    <div class="hint">PoC 使用，從第一次啟用開始計算。</div>
+                </div>
+                <div>
+                    <label>設備數量</label>
+                    <input type="number" min="0" name="device_count" value="{{.DeviceCount}}">
+                </div>
+                <div>
+                    <label>攝影機數量</label>
+                    <input type="number" min="0" name="camera_count" value="{{.CameraCount}}">
+                </div>
+                <div class="full">
+                    <label>自訂啟用模組</label>
+                    <div class="hint">僅在授權類型選擇「自訂功能」時使用。請直接勾選要啟用的模組，不需要手動輸入功能代碼。</div>
+                    <div class="feature-grid" id="custom-feature-grid">
+                        {{range .FeatureOptions}}
+                        <label class="feature-option">
+                            <input type="checkbox" name="features" value="{{.Key}}" {{if containsFeature $.Features .Key}}checked{{end}}>
+                            <span>
+                                <span class="feature-option-title">{{.Label}}</span>
+                                <span class="feature-option-desc">{{.Description}}</span>
+                            </span>
+                        </label>
+                        {{end}}
+                    </div>
+                </div>
             </div>
-
-            <div class="form-group">
-                <label>?��?類�? (License Type)</label>
-                <select id="input_type" name="type" onchange="onTypeChange()">
-                    <option value="device">設�??��? (增�?管�??��?)</option>
-                    <option value="alert">?�警?��? (?��? Line/TG 等通知)</option>
-                    <option value="combined">混�??��? (設�? + ?�警)</option>
-                </select>
-            </div>
-
-            <div class="form-group" id="group_count">
-                <label>設�??��? (Device Count)</label>
-                <input type="number" name="count" value="{{if .Count}}{{.Count}}{{else}}10{{end}}" min="0">
-                <div class="desc">請輸?��?增�??�設?��?�?/div>
-            </div>
-
-            <div class="form-group hidden" id="group_years">
-                <label>?��?年�? (Years)</label>
-                <input type="number" name="years" value="{{if .Years}}{{.Years}}{{else}}1{{end}}" min="1" max="10">
-                <div class="desc">請輸?��??�年??(1-10�?</div>
-            </div>
-
-            <button type="submit" class="btn">?��??��??�鑰</button>
+            <button type="submit">產生授權</button>
         </form>
 
         {{if .Error}}
-        <div class="error-box">
-            <strong>?�誤�?/strong> {{.Error}}
-        </div>
+        <div class="card error">{{.Error}}</div>
         {{end}}
 
-        {{if .GeneratedKey}}
-        <div class="result-box">
-            <h3>{{.Result}}</h3>
-            <div class="desc">請�?製以下�??��?供給客戶�?/div>
-            <div class="key-display" onclick="this.select();document.execCommand('copy');alert('已�?製到?�貼�?)">{{.GeneratedKey}}</div>
+        {{if .Result}}
+        <div class="card">
+            <h2>授權已產生</h2>
+            <p>{{.Result.Description}}</p>
+            <div class="key">{{.Result.Key}}</div>
         </div>
         {{end}}
-    </div>
+    </main>
+    <script>
+        const licenseTypeSelect = document.getElementById('license-type-select');
+        const customFeatureGrid = document.getElementById('custom-feature-grid');
+        function syncCustomFeatures() {
+            const enabled = licenseTypeSelect && licenseTypeSelect.value === 'custom';
+            if (customFeatureGrid) {
+                customFeatureGrid.classList.toggle('custom-disabled', !enabled);
+                customFeatureGrid.querySelectorAll('input[type="checkbox"]').forEach((input) => {
+                    input.disabled = !enabled;
+                });
+            }
+        }
+        if (licenseTypeSelect) {
+            licenseTypeSelect.addEventListener('change', syncCustomFeatures);
+            syncCustomFeatures();
+        }
+    </script>
 </body>
-</html>
-`
+</html>`

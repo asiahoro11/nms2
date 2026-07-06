@@ -1,4 +1,6 @@
 #!/bin/bash
+# Made by YTSworks
+# YTS工作室製作
 set -e
 
 # Colors

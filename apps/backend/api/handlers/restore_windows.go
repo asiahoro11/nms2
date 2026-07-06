@@ -1,5 +1,7 @@
 //go:build windows
 
+// Made by YTSworks
+// YTS工作室製作
 package handlers
 
 import (
@@ -161,9 +163,12 @@ func executeRestoreScript() {
 	log.Printf("[Restore] Executing restore script: %s", scriptPath)
 
 	// Use 'cmd /c start ...' to launch the batch file in a separate detached console
-	// that survives the parent process's exit.
-	// /MIN minimizes the wrapper window, but the restore.bat itself will decide what to show
-	cmd := exec.Command("cmd", "/C", "start", "/MIN", "cmd", "/C", scriptPath)
+	// that survives the parent process's exit. The window is left visible
+	// (no /MIN) since a hidden window running a script that deletes files and
+	// relaunches the executable is exactly the shape antivirus heuristics
+	// flag as dropper/self-updater behavior; showing it is also more
+	// transparent for an admin-initiated restore.
+	cmd := exec.Command("cmd", "/C", "start", "cmd", "/C", scriptPath)
 	cmd.Dir = cwd
 
 	err := cmd.Start()

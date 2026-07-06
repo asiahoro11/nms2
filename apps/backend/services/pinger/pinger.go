@@ -1,3 +1,5 @@
+// Made by YTSworks
+// YTS工作室製作
 package pinger
 
 import (
@@ -16,6 +18,13 @@ import (
 	"management-server/services/alert"
 	"management-server/services/dbworker"
 	"management-server/services/license"
+)
+
+const (
+	pingCycleInterval       = 30 * time.Second
+	pingMaxConcurrency      = 50
+	pingLaunchInterval      = 20 * time.Millisecond
+	pingCycleStartJitterMax = 500 * time.Millisecond
 )
 
 type Pinger struct {
@@ -54,10 +63,9 @@ func New(cfg *config.Config, db *sql.DB, worker *dbworker.Worker) *Pinger {
 }
 
 func (p *Pinger) Start() {
-	// 3 seconds interval (3s * 3 retries = ~9s detection)
-	ticker := time.NewTicker(3 * time.Second)
+	ticker := time.NewTicker(pingCycleInterval)
 	go func() {
-		log.Println("[Pinger] Service started")
+		log.Printf("[Pinger] Service started (interval=%s, concurrency=%d, launch_interval=%s)", pingCycleInterval, pingMaxConcurrency, pingLaunchInterval)
 		for {
 			select {
 			case <-p.stopCh:
@@ -84,6 +92,14 @@ func (p *Pinger) Stop() {
 func (p *Pinger) pingAll() {
 	if license.ShouldRuntimeLockdown(p.db, p.config.System.Version) {
 		return
+	}
+	if pingCycleStartJitterMax > 0 {
+		jitter := time.Duration(time.Now().UnixNano() % int64(pingCycleStartJitterMax))
+		select {
+		case <-p.stopCh:
+			return
+		case <-time.After(jitter):
+		}
 	}
 
 	// 1. Fetch authorized devices only
@@ -142,13 +158,27 @@ func (p *Pinger) pingAll() {
 		p.processResults(resultsCh)
 	}()
 
-	// 4. Start Concurrent Workers
-	// Limit concurrency to 50
-	sem := make(chan struct{}, 50)
+	// 4. Start concurrent workers with launch pacing.
+	// The work is still parallel, but requests are not fired as one sharp burst.
+	sem := make(chan struct{}, pingMaxConcurrency)
+	launchTicker := time.NewTicker(pingLaunchInterval)
+	defer launchTicker.Stop()
 
+launchLoop:
 	for _, d := range devices {
+		select {
+		case <-p.stopCh:
+			break launchLoop
+		case <-launchTicker.C:
+		}
+
 		workerWg.Add(1)
-		sem <- struct{}{}
+		select {
+		case <-p.stopCh:
+			workerWg.Done()
+			break launchLoop
+		case sem <- struct{}{}:
+		}
 		go func(id int, ip string, dbStatus bool, devName string) {
 			defer workerWg.Done()
 			defer func() { <-sem }()

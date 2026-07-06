@@ -1,3 +1,5 @@
+// Made by YTSworks
+// YTS工作室製作
 package main
 
 import (
@@ -10,38 +12,20 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"time"
 
+	"management-server/cmd/internal/licensegen"
 	"management-server/services/license"
 )
 
 const (
-	formalSecretSeed = "NMS-LICENSE-"
-	// Keep the PoC seed stable so existing generated keys remain compatible.
-	pocSecretSeed  = "NMS-POC-LICENSE-v1.2.1-PoC"
-	productVersion = "v1.2.4.2"
+	productVersion = licensegen.ProductVersion
 )
 
 var port = flag.String("port", "8092", "Port to run the PoC license generator on")
 
-type featureOption struct {
-	Key         string
-	Label       string
-	Description string
-}
+type featureOption = licensegen.FeatureOption
 
-var generatorFeatures = []featureOption{
-	{Key: "device_management", Label: "Device Management", Description: "Enable device management and consume device_count."},
-	{Key: "camera_viewer", Label: "Camera Viewer", Description: "Enable camera monitor pages and consume camera_count."},
-	{Key: "camera_recording", Label: "Camera Recording", Description: "Enable NVR recording flow and consume camera_count."},
-	{Key: "access_control", Label: "Access Control", Description: "Enable access control module."},
-	{Key: "pdu", Label: "PDU / UPS", Description: "Enable PDU and UPS monitoring module."},
-	{Key: "line", Label: "LINE Notify", Description: "Enable LINE alert delivery."},
-	{Key: "telegram", Label: "Telegram", Description: "Enable Telegram alert delivery."},
-	{Key: "whatsapp", Label: "WhatsApp", Description: "Enable WhatsApp alert delivery."},
-	{Key: "discord", Label: "Discord", Description: "Enable Discord alert delivery."},
-	{Key: "slack", Label: "Slack", Description: "Enable Slack alert delivery."},
-}
+var generatorFeatures = licensegen.FeatureOptions
 
 type pageData struct {
 	ActiveTab string
@@ -63,13 +47,6 @@ type pageData struct {
 	ResultDescription string
 	GeneratedKey      string
 	ErrorMessage      string
-}
-
-type licenseProfile struct {
-	Features    []string
-	DeviceCount int
-	CameraCount int
-	Labels      []string
 }
 
 func main() {
@@ -191,157 +168,27 @@ func handlePoCGenerate(w http.ResponseWriter, r *http.Request) {
 }
 
 func normalizeSelectedFeatures(raw []string) []string {
-	if len(raw) == 0 {
-		return nil
-	}
-
-	selected := make(map[string]struct{}, len(raw))
-	for _, item := range raw {
-		key := strings.ToLower(strings.TrimSpace(item))
-		if key != "" {
-			selected[key] = struct{}{}
-		}
-	}
-
-	result := make([]string, 0, len(selected))
-	for _, option := range generatorFeatures {
-		if _, ok := selected[option.Key]; ok {
-			result = append(result, option.Key)
-		}
-	}
-	return result
+	return licensegen.NormalizeSelectedFeatures(raw)
 }
 
 func containsFeature(slice []string, item string) bool {
-	for _, value := range slice {
-		if value == item {
-			return true
-		}
-	}
-	return false
-}
-
-func buildLicenseProfile(selectedFeatures []string, deviceCount, cameraCount int) (licenseProfile, error) {
-	if len(selectedFeatures) == 0 {
-		return licenseProfile{}, fmt.Errorf("select at least one feature")
-	}
-
-	selected := make(map[string]featureOption, len(selectedFeatures))
-	for _, option := range generatorFeatures {
-		if containsFeature(selectedFeatures, option.Key) {
-			selected[option.Key] = option
-		}
-	}
-
-	if len(selected) == 0 {
-		return licenseProfile{}, fmt.Errorf("select at least one supported feature")
-	}
-
-	profile := licenseProfile{
-		Features: make([]string, 0, len(selected)),
-		Labels:   make([]string, 0, len(selected)),
-	}
-
-	needsDeviceCount := false
-	needsCameraCount := false
-	for _, option := range generatorFeatures {
-		if _, ok := selected[option.Key]; !ok {
-			continue
-		}
-		profile.Features = append(profile.Features, option.Key)
-		profile.Labels = append(profile.Labels, option.Label)
-		if option.Key == "device_management" {
-			needsDeviceCount = true
-		}
-		if option.Key == "camera_viewer" || option.Key == "camera_recording" {
-			needsCameraCount = true
-		}
-	}
-
-	if needsDeviceCount {
-		if deviceCount <= 0 {
-			return licenseProfile{}, fmt.Errorf("device_count must be greater than 0 when device management is selected")
-		}
-		profile.DeviceCount = deviceCount
-	}
-
-	if needsCameraCount {
-		if cameraCount <= 0 {
-			return licenseProfile{}, fmt.Errorf("camera_count must be greater than 0 when camera features are selected")
-		}
-		profile.CameraCount = cameraCount
-	}
-
-	return profile, nil
+	return licensegen.ContainsFeature(slice, item)
 }
 
 func generateLicense(mode, machineID string, selectedFeatures []string, deviceCount, cameraCount, years, durationDays int) (string, string, error) {
-	if mode == license.FormalLicenseMode && years < 1 {
-		years = 1
-	}
-
-	profile, err := buildLicenseProfile(selectedFeatures, deviceCount, cameraCount)
+	result, err := licensegen.Generate(licensegen.GenerateInput{
+		Mode:         mode,
+		MachineID:    machineID,
+		Features:     selectedFeatures,
+		DeviceCount:  deviceCount,
+		CameraCount:  cameraCount,
+		Years:        years,
+		DurationDays: durationDays,
+	})
 	if err != nil {
 		return "", "", err
 	}
-
-	validUntil := ""
-	if mode == license.PoCLicenseMode {
-		if err := license.ValidatePoCDurationDays(durationDays); err != nil {
-			return "", "", err
-		}
-	} else {
-		if license.IsPermanentYears(years) {
-			validUntil = ""
-		} else {
-			validUntil = time.Now().AddDate(years, 0, 0).Format("2006-01-02")
-		}
-		durationDays = 0
-	}
-
-	secretKey := license.DeriveKey(formalSecretSeed + strings.ToLower(strings.TrimSpace(machineID)))
-	if mode == license.PoCLicenseMode {
-		secretKey = license.DeriveKey(pocSecretSeed)
-	}
-
-	key, err := license.GenerateLicenseKeyAdvancedWithDuration(
-		mode,
-		machineID,
-		profile.DeviceCount,
-		profile.CameraCount,
-		profile.Features,
-		validUntil,
-		durationDays,
-		secretKey,
-	)
-	if err != nil {
-		return "", "", err
-	}
-
-	modeLabel := "Formal"
-	if mode == license.PoCLicenseMode {
-		modeLabel = "PoC"
-	}
-
-	description := fmt.Sprintf(
-		"%s | features: %s | devices: %d | cameras: %d | validity: %s",
-		modeLabel,
-		strings.Join(profile.Labels, ", "),
-		profile.DeviceCount,
-		profile.CameraCount,
-		displayValidity(mode, validUntil, durationDays),
-	)
-	return key, description, nil
-}
-
-func displayValidity(mode string, validUntil string, durationDays int) string {
-	if mode == license.PoCLicenseMode {
-		return fmt.Sprintf("starts on first activation, %d day(s)", durationDays)
-	}
-	if strings.TrimSpace(validUntil) == "" {
-		return "permanent"
-	}
-	return validUntil
+	return result.Key, result.Description, nil
 }
 
 func parseIntOrDefault(raw string, fallback int) int {

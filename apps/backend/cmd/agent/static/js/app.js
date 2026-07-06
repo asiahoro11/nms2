@@ -1,3 +1,5 @@
+// Made by YTSworks
+// YTS工作室製作
 // 全域狀態
 const state = {
     currentPage: 'dashboard',
@@ -515,22 +517,8 @@ function loadPage(page) {
         case 'admin':
             if (isLicenseLockActive()) {
                 enterLicenseLockMode(getLicenseLockReason());
-                if (typeof loadLicenses === 'function') {
-                    loadLicenses();
-                }
-                if (typeof isAdmin === 'function' && isAdmin() && typeof loadUsers === 'function') {
-                    loadUsers();
-                }
                 activateAdminTab(getPreferredLockedAdminTab());
                 break;
-            }
-            loadHostStatus();
-            loadUsers();
-            loadAlertSettings();
-            loadBrandingSettings();
-            loadLicenses();
-            if (typeof loadModuleConfigs === 'function') {
-                loadModuleConfigs();
             }
             break;
         case 'audit':
@@ -563,7 +551,7 @@ function loadPage(page) {
 
 // 初始化管理員頁籤
 function initAdminTabs() {
-    const tabBtns = document.querySelectorAll('.tab-btn');
+    const tabBtns = document.querySelectorAll('.admin-tabs .tab-btn');
 
     tabBtns.forEach(btn => {
         btn.addEventListener('click', () => {
@@ -580,6 +568,7 @@ function initAdminTabs() {
 
             // 更新按鈕狀態
             tabBtns.forEach(b => b.classList.remove('active'));
+            tabBtns.forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
 
             // 更新內容
@@ -588,16 +577,41 @@ function initAdminTabs() {
             if (tabContent) {
                 tabContent.classList.add('active');
             }
-
-            // 切換到稽核 tab 時自動載入
-            if (tab === 'audit' && typeof loadAuditLogs === 'function') {
-                loadAuditLogs(1);
-            }
+            loadAdminTabData(tab);
         });
     });
 }
 
 // 初始化過濾器
+function loadAdminTabData(tab) {
+    if (typeof isAdmin === 'function' && !isAdmin() && !isLicenseLockActive()) return;
+
+    switch (tab) {
+        case 'host-status':
+            if (typeof loadHostStatus === 'function') loadHostStatus();
+            break;
+        case 'users':
+            if (typeof loadUsers === 'function') loadUsers();
+            break;
+        case 'audit':
+            if (typeof loadAuditLogs === 'function') loadAuditLogs(1);
+            break;
+        case 'licenses':
+            if (typeof loadLicenses === 'function') loadLicenses();
+            break;
+        case 'alerts':
+            if (typeof loadAlertSettings === 'function') loadAlertSettings();
+            if (typeof loadModuleConfigs === 'function') loadModuleConfigs();
+            break;
+        case 'security':
+            if (typeof loadSecuritySettings === 'function') loadSecuritySettings();
+            break;
+        case 'branding':
+            if (typeof loadBrandingSettings === 'function') loadBrandingSettings();
+            break;
+    }
+}
+
 function initFilters() {
     // 設備搜尋
     const deviceSearch = document.getElementById('device-search');
@@ -760,6 +774,11 @@ async function updateModuleVisibility() {
             const deviceManagementEnabled = !!features.device_management;
             const pageKeys = ['devices', 'topology'];
 
+            setModuleLock('camera', !features.camera_viewer);
+            setModuleLock('access_control', !features.access_control);
+            setModuleLock('pdu', !features.pdu);
+            setModuleLock('iot', !features.iot);
+
             pageKeys.forEach((pageKey) => {
                 const nav = document.querySelector(`.nav-item[data-page="${pageKey}"]`);
                 const page = document.getElementById(pageKey);
@@ -783,3 +802,73 @@ async function updateModuleVisibility() {
         console.error('Failed to update module visibility:', error);
     }
 }
+
+function setModuleLock(moduleKey, locked) {
+    const modules = {
+        camera: {
+            navId: 'nav-cameras',
+            lockId: 'camera-nav-lock',
+            bottomId: 'bottom-nav-cameras',
+            bottomLockId: 'bottom-camera-nav-lock',
+            title: '需要攝影機授權'
+        },
+        access_control: {
+            navId: 'nav-access-control',
+            lockId: 'ac-nav-lock',
+            bottomId: 'bottom-nav-access-control',
+            bottomLockId: 'bottom-ac-nav-lock',
+            title: '需要門禁管理授權'
+        },
+        pdu: {
+            navId: 'nav-pdu',
+            lockId: 'pdu-nav-lock',
+            bottomId: 'bottom-nav-pdu',
+            bottomLockId: 'bottom-pdu-nav-lock',
+            title: '需要 PDU/UPS 授權'
+        },
+        iot: {
+            navId: 'nav-iot',
+            lockId: 'iot-nav-lock',
+            bottomId: 'bottom-nav-iot',
+            bottomLockId: 'bottom-iot-nav-lock',
+            title: '需要 IoT / Modbus 授權'
+        }
+    };
+
+    const config = modules[moduleKey];
+    if (!config) return;
+
+    const ensureLock = (containerId, lockId, className) => {
+        const container = document.getElementById(containerId);
+        if (!container) return null;
+
+        let lock = document.getElementById(lockId);
+        if (!lock) {
+            lock = document.createElement('span');
+            lock.id = lockId;
+            lock.className = className;
+            lock.textContent = '🔒';
+            container.appendChild(lock);
+        }
+
+        lock.title = config.title;
+        lock.setAttribute('aria-label', config.title);
+        return lock;
+    };
+
+    const navLock = ensureLock(config.navId, config.lockId, 'nav-badge-lock');
+    const bottomLock = ensureLock(config.bottomId, config.bottomLockId, 'bottom-nav-lock');
+
+    [navLock, bottomLock].forEach((lock) => {
+        if (lock) lock.style.display = locked ? 'inline-flex' : 'none';
+    });
+
+    [document.getElementById(config.navId), document.getElementById(config.bottomId)].forEach((item) => {
+        if (item) {
+            item.classList.toggle('module-locked', locked);
+            item.title = locked ? config.title : '';
+        }
+    });
+}
+
+window.setModuleLock = setModuleLock;

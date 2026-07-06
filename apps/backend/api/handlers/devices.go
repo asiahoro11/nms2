@@ -1,3 +1,5 @@
+// Made by YTSworks
+// YTS工作室製作
 package handlers
 
 import (
@@ -387,7 +389,7 @@ func (h *Handler) DeleteDevice(c *gin.Context) {
 	c.JSON(http.StatusOK, Response{Success: true, Message: "Device deleted"})
 }
 
-// GetDevices ?嚙踝蕭?閮哨蕭?皜
+// GetDevices returns a paginated list of all devices
 func (h *Handler) getDevicesLegacy(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))

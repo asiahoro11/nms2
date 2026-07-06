@@ -1,3 +1,5 @@
+// Made by YTSworks
+// YTS工作室製作
 const I18N_STORAGE_KEY = 'nms_lang';
 const DEFAULT_LANG = 'zh-TW';
 const FALLBACK_LANG = 'zh-TW';

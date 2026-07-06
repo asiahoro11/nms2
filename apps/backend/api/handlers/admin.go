@@ -1,16 +1,25 @@
+// Made by YTSworks
+// YTS工作室製作
 package handlers
 
 import (
+	"context"
 	licensemodule "management-server/modules/license"
 	"net/http"
 	"os"
 	"os/exec"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
+)
+
+var (
+	systemUUIDOnce  sync.Once
+	systemUUIDCache string
 )
 
 type User struct {
@@ -182,9 +191,21 @@ func (h *Handler) GetSystemInfo(c *gin.Context) {
 
 // getSystemUUID returns the local machine identity used by legacy license flows.
 func getSystemUUID() string {
+	systemUUIDOnce.Do(func() {
+		systemUUIDCache = detectSystemUUID()
+	})
+	return systemUUIDCache
+}
+
+func commandOutputWithTimeout(timeout time.Duration, name string, args ...string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	return exec.CommandContext(ctx, name, args...).CombinedOutput()
+}
+
+func detectSystemUUID() string {
 	if runtime.GOOS == "windows" {
-		cmd := exec.Command("wmic", "csproduct", "get", "uuid")
-		output, err := cmd.CombinedOutput()
+		output, err := commandOutputWithTimeout(2*time.Second, "wmic", "csproduct", "get", "uuid")
 		if err == nil {
 			str := string(output)
 			lines := strings.Split(str, "\n")
@@ -196,8 +217,7 @@ func getSystemUUID() string {
 			}
 		}
 
-		cmd = exec.Command("reg", "query", "HKLM\\SOFTWARE\\Microsoft\\Cryptography", "/v", "MachineGuid")
-		output, err = cmd.CombinedOutput()
+		output, err = commandOutputWithTimeout(2*time.Second, "reg", "query", "HKLM\\SOFTWARE\\Microsoft\\Cryptography", "/v", "MachineGuid")
 		if err == nil {
 			str := string(output)
 			lines := strings.Split(str, "\n")
@@ -211,8 +231,7 @@ func getSystemUUID() string {
 			}
 		}
 
-		cmd = exec.Command("wmic", "bios", "get", "serialnumber")
-		output, err = cmd.CombinedOutput()
+		output, err = commandOutputWithTimeout(2*time.Second, "wmic", "bios", "get", "serialnumber")
 		if err == nil {
 			str := string(output)
 			lines := strings.Split(str, "\n")

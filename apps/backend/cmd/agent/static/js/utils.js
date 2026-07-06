@@ -1,3 +1,5 @@
+// Made by YTSworks
+// YTS工作室製作
 // ===== Toast Notifications =====
 function showToast(message, type = 'info') {
     const container = document.getElementById('toast-container');
@@ -17,11 +19,12 @@ function showToast(message, type = 'info') {
     // Trigger animation
     setTimeout(() => toast.classList.add('show'), 10);
 
-    // Remove after 3 seconds
+    // Errors and warnings carry actionable info — keep them visible longer.
+    const duration = (type === 'error' || type === 'warning') ? 6000 : 3000;
     setTimeout(() => {
         toast.classList.remove('show');
         setTimeout(() => toast.remove(), 300);
-    }, 3000);
+    }, duration);
 }
 
 // ===== Modal System =====

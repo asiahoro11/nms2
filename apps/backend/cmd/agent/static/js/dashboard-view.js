@@ -1,3 +1,5 @@
+// Made by YTSworks
+// YTS工作室製作
 // Dashboard View - 戰情畫面邏輯
 // Version: 1.2.1 — Camera Monitor added
 

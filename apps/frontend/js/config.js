@@ -1,7 +1,9 @@
+// Made by YTSworks
+// YTS工作室製作
 (function (global) {
     const config = {
-        appVersion: 'v1.2.4.8',
-        assetVersion: 'v1.2.4.8',
+        appVersion: 'v1.2.4.9sp0001',
+        assetVersion: 'v1.2.4.9sp0001',
         productName: 'Management System'
     };
 

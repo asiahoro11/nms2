@@ -1,4 +1,6 @@
 #!/bin/bash
+# Made by YTSworks
+# YTS工作室製作
 # Automated NMS GitHub Deployment Script
 # This script prepares NMS files and pushes to GitHub automatically
 

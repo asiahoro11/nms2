@@ -1,3 +1,5 @@
+// Made by YTSworks
+// YTS工作室製作
 // Dashboard 功能
 
 async function loadDashboard() {

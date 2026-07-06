@@ -1,3 +1,5 @@
+// Made by YTSworks
+// YTS工作室製作
 package snmp
 
 import (
@@ -31,14 +33,14 @@ func isEdgecore(vendor string) bool {
 		strings.Contains(v, "ecs") && strings.Contains(v, "100")
 }
 
-// PoE ?��? OID (controls.go ??OIDs shared with collector.go use the collector.go declarations)
+// PoE Port OID (controls.go — OIDs shared with collector.go use the collector.go declarations)
 var (
 	// RFC 3621 - POWER-ETHERNET-MIB
 	OIDPethPsePortAdminEnable     = ".1.3.6.1.2.1.105.1.1.1.3"     // 1:auto/on, 2:off
 	OIDPethPsePortDetectionStatus = ".1.3.6.1.2.1.105.1.1.1.6"     // 1:disabled, 2:searching, 3:deliveringPower, ...
 	OIDPethMainPsePower           = ".1.3.6.1.2.1.105.1.2.1.1.2.1" // Total Watts (budget)
 
-	// Edgecore Specific (?��??��?)
+	// Edgecore Specific (廠商專用)
 	OIDEdgecoreReboot = ".1.3.6.1.4.1.259.10.1.1.1.1.1.10.0" // System Reset (1:reset)
 
 	// Q-BRIDGE-MIB (VLAN)
@@ -46,7 +48,7 @@ var (
 
 	// Power Ethernet MIB Extensions
 	OIDPethPsePortIfIndex           = ".1.3.6.1.2.1.105.1.1.1.1"  // Map PoE Port -> ifIndex
-	OIDPethPsePortMeasuredPortPower = ".1.3.6.1.2.1.105.1.1.1.15" // Output power (mW) ??not all vendors
+	OIDPethPsePortMeasuredPortPower = ".1.3.6.1.2.1.105.1.1.1.15" // Output power (mW) — not all vendors
 	OIDPethPsePortPowerClass        = ".1.3.6.1.2.1.105.1.1.1.10" // pethPsePortPowerClassifications (0-4)
 
 	// EdgeCore Private PoE OIDs
@@ -104,18 +106,18 @@ func (c *Collector) GetDevicePortDetails(deviceID int) ([]map[string]interface{}
 	}
 
 	// 1. Walk Interfaces
-	// Descr (?�本資�?)
+	// Descr (basic device info)
 	params.Walk(OIDIfDescr, func(pdu gosnmp.SnmpPDU) error {
 		idx := extractIndexFromOID(pdu.Name)
 		ensurePort(idx)
 		if bytes, ok := pdu.Value.([]byte); ok {
 			val := string(bytes)
 			ports[idx]["descr"] = val
-			ports[idx]["name"] = val // ?�設 name ??descr
+			ports[idx]["name"] = val // 預設 name 為 descr
 		}
 		return nil
 	})
-	// Name (如�??�援?��???name, ?�常?�簡�?
+	// Name (如果支援則覆寫 name, 通常較簡短)
 	params.Walk(OIDIfName, func(pdu gosnmp.SnmpPDU) error {
 		idx := extractIndexFromOID(pdu.Name)
 		if ports[idx] != nil {
@@ -365,7 +367,7 @@ func (c *Collector) GetApStatus(deviceID int) (*ApStatus, error) {
 	return status, nil
 }
 
-// ControlPoEPort ?�制 PoE 端口
+// ControlPoEPort controls the PoE port power state
 // EdgeCore: SSH CLI preferred. Other vendors or no SSH creds: SNMP SET.
 func (c *Collector) ControlPoEPort(deviceID int, portIndex int, action string) error {
 	ip, cliUser, cliPass, vendor, err := deviceSSHCreds(c.db, deviceID)
@@ -456,7 +458,7 @@ func (c *Collector) ControlPoEPort(deviceID int, portIndex int, action string) e
 	}
 }
 
-// RebootDevice ?��?設�?
+// RebootDevice reboots a network device
 // EdgeCore/Accton: uses SSH CLI "reload". Other vendors: SNMP SET.
 func (c *Collector) RebootDevice(deviceID int) error {
 	ip, cliUser, cliPass, vendor, err := deviceSSHCreds(c.db, deviceID)
@@ -553,7 +555,7 @@ func (c *Collector) RebootDevice(deviceID int) error {
 	return lastErr
 }
 
-// SaveDeviceConfig ?�份設�?設�?
+// SaveDeviceConfig backs up device configuration
 // EdgeCore: SSH "show running-config" ??store in device_config_backups.
 // Other vendors: SNMP write-memory OID.
 func (c *Collector) SaveDeviceConfig(deviceID int) error {
@@ -651,7 +653,7 @@ func (c *Collector) SaveDeviceConfig(deviceID int) error {
 	return lastErr
 }
 
-// ControlPortStatus ?�制介面 Admin Status (Shutdown/No Shutdown)
+// ControlPortStatus controls the interface Admin Status (shutdown/no-shutdown)
 func (c *Collector) ControlPortStatus(deviceID int, portIndex int, status string) error {
 	var ip, community, rwCommunity string
 	var version int

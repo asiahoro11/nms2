@@ -1,3 +1,5 @@
+// Made by YTSworks
+// YTS工作室製作
 package snmp
 
 import (
@@ -42,7 +44,7 @@ var (
 	OIDIfOutErrors   = ".1.3.6.1.2.1.2.2.1.20"
 	OIDIfName        = ".1.3.6.1.2.1.31.1.1.1.1"  // ifXTable
 	OIDIfAlias       = ".1.3.6.1.2.1.31.1.1.1.18" // ifAlias
-	OIDIfHighSpeed   = ".1.3.6.1.2.1.31.1.1.1.15" // 高速�??�速度 (Mbps)
+	OIDIfHighSpeed   = ".1.3.6.1.2.1.31.1.1.1.15" // 高速介面速度 (Mbps)
 	OIDIfHCInOctets  = ".1.3.6.1.2.1.31.1.1.1.6"  // 64-bit counters
 	OIDIfHCOutOctets = ".1.3.6.1.2.1.31.1.1.1.10" // 64-bit counters
 
@@ -73,7 +75,7 @@ var (
 	OIDDot1dTpFdbPort             = ".1.3.6.1.2.1.17.4.3.1.2" // Bridge FDB Port Index
 	OIDDot1dBasePortIfIndex       = ".1.3.6.1.2.1.17.1.4.1.2" // Mapping bridge port to ifIndex
 
-	// ?�?� EnGenius (Senao International, Enterprise .1.3.6.1.4.1.14125) ?�?�?�?�?�?�?�?�?�?�
+	// ─── EnGenius (Senao International, Enterprise .1.3.6.1.4.1.14125) ─────────
 	// EnGenius AP/Switch firmware is Linux-based; CPU/MEM fall back to UCD-SNMP-MIB.
 	// These private OIDs are used for supplemental info on supported models.
 	OIDEngeniusModelName   = ".1.3.6.1.4.1.14125.2.1.1.5"   // AP/Switch model name
@@ -82,14 +84,14 @@ var (
 	OIDEngeniusTxPower     = ".1.3.6.1.4.1.14125.3.2.1.1.5" // Tx power dBm (AP)
 	OIDEngeniusSignal      = ".1.3.6.1.4.1.14125.3.1.1.1.7" // Signal strength (AP client)
 
-	// ?�?� IEEE 802.3af/at PoE MIB (POWER-ETHERNET-MIB, RFC 3621) ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+	// ─── IEEE 802.3af/at PoE MIB (POWER-ETHERNET-MIB, RFC 3621) ──────────────
 	// Supported by: Edgecore ECS series, Cisco, HP/Aruba, and most PoE switches.
 	OIDPethPortDetectionStatus = ".1.3.6.1.2.1.105.1.1.1.6"  // pethPsePortDetectionStatus (1=off,3=deliv)
 	OIDPethPortPowerConsumption = ".1.3.6.1.2.1.105.1.1.1.12" // pethPsePortPowerClassifications / actual mW
 	OIDPethMainPseConsumption  = ".1.3.6.1.2.1.105.1.3.1.4"  // pethMainPseConsumptionPower (mW, total)
 	OIDPethMainPseCapacity     = ".1.3.6.1.2.1.105.1.3.1.2"  // pethMainPsePower (mW, max budget)
 
-	// ?�?� Hikvision (Enterprise .1.3.6.1.4.1.39165) ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+	// ─── Hikvision (Enterprise .1.3.6.1.4.1.39165) ──────────────────────────
 	OIDHikvisionCPU          = ".1.3.6.1.4.1.39165.1.7.0"  // CPU usage %
 	OIDHikvisionMemTotal     = ".1.3.6.1.4.1.39165.1.10.0" // Total memory (KB)
 	OIDHikvisionMemUsed      = ".1.3.6.1.4.1.39165.1.11.0" // Memory used (KB)
@@ -100,7 +102,7 @@ var (
 	OIDHikvisionVideoInputs  = ".1.3.6.1.4.1.39165.1.20.0" // Video input channels
 	OIDHikvisionEncodeStatus = ".1.3.6.1.4.1.39165.1.21.0" // Video encode status
 
-	// ?�?� Dahua (Enterprise .1.3.6.1.4.1.1004849) ?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�?�
+	// ─── Dahua (Enterprise .1.3.6.1.4.1.1004849) ────────────────────────────
 	OIDDahuaCPU          = ".1.3.6.1.4.1.1004849.2.1.3"       // CPU usage %
 	OIDDahuaSoftVersion  = ".1.3.6.1.4.1.1004849.2.1.1.1"     // Software version
 	OIDDahuaHardVersion  = ".1.3.6.1.4.1.1004849.2.1.1.2"     // Hardware version
@@ -153,11 +155,11 @@ func NewCollector(cfg *config.Config, db *sql.DB, worker *dbworker.Worker, commu
 	}
 }
 
-// PollAllDevices 輪詢?�?�設??
+// PollAllDevices polls all active devices in the database
 func (c *Collector) PollAllDevices() {
 	maxDevices := license.GetMaxDevices(c.db, c.config)
 
-	// ?�輪詢�? SNMP community ?�設?? 且�??�在?��?範�???(id LIMIT ?)
+	// 只輪詢有 SNMP community 設定、且排序在本批範圍內 (id LIMIT ?)
 	query := fmt.Sprintf(`
 		SELECT id, ip_address, snmp_community, snmp_version, device_type,
 		       snmpv3_security_name, snmpv3_security_level, snmpv3_auth_protocol, snmpv3_auth_password,
@@ -183,10 +185,10 @@ func (c *Collector) PollAllDevices() {
 		}
 	}
 
-	// ?�於?��? IP -> MAC ?��? (�?Switch/Router ?��?)
+	// 用於彙整 IP -> MAC 對應 (由 Switch/Router 收集)
 	ipToMacMap := &sync.Map{}
 
-	// ?�於?��? SwitchID -> [MAC -> ifIndex] ?��?
+	// 用於彙整 SwitchID -> [MAC -> ifIndex] 對應
 	switchFdbMap := &sync.Map{}
 
 	// 使用 worker pool
@@ -216,16 +218,16 @@ func (c *Collector) PollAllDevices() {
 	close(jobs)
 	wg.Wait()
 
-	// 1. ?�試??ping-only 設�??�步 MAC ?��?
+	// 1. 嘗試為 ping-only 設備同步 MAC 位址
 	c.SyncPingOnlyMacs(ipToMacMap)
 
-	// 2. ?�試?�步 FDB ?�樸 (Switch 下�?設�?)
+	// 2. 嘗試同步 FDB 拓樸 (Switch 下游設備)
 	c.SyncFdbTopology(switchFdbMap)
 
 	log.Printf("SNMP poll completed for %d devices", len(devices))
 }
 
-// PollDevice 輪詢?��?設�?
+// PollDevice polls a single device by ID
 func (c *Collector) PollDevice(d PollDeviceConfig, ipToMacMap *sync.Map, switchFdbMap *sync.Map) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -290,18 +292,18 @@ func (c *Collector) PollDevice(d PollDeviceConfig, ipToMacMap *sync.Map, switchF
 	}
 	defer params.Conn.Close()
 
-	// ?��?系統資�? (?��? OIDIfPhysAddr.1 以獲?�基�?MAC)
-	// 常�??��? MAC OID: .1.3.6.1.2.1.2.2.1.6.1 (介面 1 MAC)
+	// 讀取系統資訊 (使用 OIDIfPhysAddr.1 以獲取基本 MAC)
+	// 常見基本 MAC OID: .1.3.6.1.2.1.2.2.1.6.1 (介面 1 MAC)
 	result, err := params.Get([]string{OIDSysDescr, OIDSysName, OIDSysUpTime, OIDSysLocation, OIDIfPhysAddr + ".1"})
 	if err != nil {
 		// c.updateDeviceStatus(deviceID, false)
 		return
 	}
 
-	// ?�新設�??�?�為上�? (交由 Pinger ?��?，此?�忽??
+	// 不將設備標記為上線 (交由 Pinger 判斷，此處忽略)
 	// c.updateDeviceStatus(deviceID, true)
 
-	// �??系統資�?
+	// 讀取系統資訊
 	var sysDescr, sysName, sysLocation, baseMac string
 	var sysUpTime int64
 	for _, variable := range result.Variables {
@@ -322,7 +324,7 @@ func (c *Collector) PollDevice(d PollDeviceConfig, ipToMacMap *sync.Map, switchF
 			}
 		case OIDIfPhysAddr + ".1":
 			if bytes, ok := variable.Value.([]byte); ok && len(bytes) == 6 {
-				// 驗�??�否?�全 0 (?��? MAC)
+				// 驗證是否為全 0 (無效 MAC)
 				isZero := true
 				for _, b := range bytes {
 					if b != 0 {
@@ -338,7 +340,7 @@ func (c *Collector) PollDevice(d PollDeviceConfig, ipToMacMap *sync.Map, switchF
 		}
 	}
 
-	// 如�? .1 沒�??��??��? MAC，�??�試 Walk ?�第一?��??��?
+	// 如果 .1 沒有取得有效 MAC，則嘗試 Walk 取第一個有效值
 	if baseMac == "" {
 		params.Walk(OIDIfPhysAddr, func(pdu gosnmp.SnmpPDU) error {
 			if bytes, ok := pdu.Value.([]byte); ok && len(bytes) == 6 {
@@ -359,11 +361,11 @@ func (c *Collector) PollDevice(d PollDeviceConfig, ipToMacMap *sync.Map, switchF
 		})
 	}
 
-	// ?�新設�?資�? (?�含 sysName)
+	// 更新設備資訊 (包含 sysName)
 	vendor, model := parseVendorModel(sysDescr)
 	uptimeStr := formatUptime(sysUpTime)
 
-	// 檢測設�?類�?
+	// 檢測設備類型
 	detectedType := detectDeviceType(sysDescr, vendor)
 
 	// Update device info (Lock required -> No, serialized by dbWorker)
@@ -383,28 +385,28 @@ func (c *Collector) PollDevice(d PollDeviceConfig, ipToMacMap *sync.Map, switchF
 		return err
 	})
 
-	// ?��??�?��??��?�?
+	// 收集各介面的流量
 	c.collectAllInterfaces(params, d.ID)
 
-	// ?��??�能?��?
+	// 收集效能指標
 	c.collectMetrics(params, d.ID)
 
-	// 如�??�交?�器?�路?�器，收??ARP 表以建聯 IP->MAC ?��?
+	// 如果是交換器或路由器，收集 ARP 表以建立 IP->MAC 對應
 	if d.DeviceType == "switch" || d.DeviceType == "router" || d.DeviceType == "firewall" {
 		c.collectArpTable(params, ipToMacMap)
 	}
 
-	// 如�??�交?�器，收??FDB 表以建聯 MAC->Port ?��?
+	// 如果是交換器，收集 FDB 表以建立 MAC->Port 對應
 	if d.DeviceType == "switch" {
 		c.collectFdbTable(params, d.ID, switchFdbMap)
 	}
 }
 
-// collectAllInterfaces 完整?��??�?��???
+// collectAllInterfaces collects all interface data for a device
 func (c *Collector) collectAllInterfaces(params *gosnmp.GoSNMP, deviceID int) {
 	interfaces := make(map[int]map[string]interface{})
 
-	// 1. Walk ifDescr (?�本資�?, RFC1213 規�?必�?)
+	// 1. Walk ifDescr (基本資訊, RFC1213 規定必備)
 	params.Walk(OIDIfDescr, func(pdu gosnmp.SnmpPDU) error {
 		ifIndex := extractIndex(pdu.Name, OIDIfDescr)
 		if ifIndex == 0 {
@@ -417,12 +419,12 @@ func (c *Collector) collectAllInterfaces(params *gosnmp.GoSNMP, deviceID int) {
 		if bytes, ok := pdu.Value.([]byte); ok {
 			val := string(bytes)
 			interfaces[ifIndex]["if_desc"] = val
-			interfaces[ifIndex]["if_name"] = val // ?�設 if_name 也�???if_desc
+			interfaces[ifIndex]["if_name"] = val // 預設 if_name 也使用 if_desc
 		}
 		return nil
 	})
 
-	// 2. Walk ifName (ifXTable, �?ifDescr ?�簡�? �? Gi1/0/1)
+	// 2. Walk ifName (ifXTable, 比 ifDescr 更簡短, 如 Gi1/0/1)
 	params.Walk(OIDIfName, func(pdu gosnmp.SnmpPDU) error {
 		ifIndex := extractIndex(pdu.Name, OIDIfName)
 		if ifIndex == 0 || interfaces[ifIndex] == nil {
@@ -434,7 +436,7 @@ func (c *Collector) collectAllInterfaces(params *gosnmp.GoSNMP, deviceID int) {
 		return nil
 	})
 
-	// ?�收??ifSpeed (32-bit, ?��?.3Gbps) 作為?��???
+	// 先收集 ifSpeed (32-bit, 上限 4.3Gbps) 作為預設值
 	params.Walk(OIDIfSpeed, func(pdu gosnmp.SnmpPDU) error {
 		ifIndex := extractIndex(pdu.Name, OIDIfSpeed)
 		if ifIndex == 0 || interfaces[ifIndex] == nil {
@@ -447,24 +449,24 @@ func (c *Collector) collectAllInterfaces(params *gosnmp.GoSNMP, deviceID int) {
 		return nil
 	})
 
-	// ?�用 ifHighSpeed (Mbps) 覆�?,?�援 >4Gbps ?��???
+	// 改用 ifHighSpeed (Mbps) 覆寫, 支援 >4Gbps 的介面
 	params.Walk(OIDIfHighSpeed, func(pdu gosnmp.SnmpPDU) error {
 		ifIndex := extractIndex(pdu.Name, OIDIfHighSpeed)
 		if ifIndex == 0 || interfaces[ifIndex] == nil {
 			return nil
 		}
 		speedMbps := gosnmp.ToBigInt(pdu.Value).Int64()
-		// ?��???ifHighSpeed ?�值�?不為0?��?覆�?
+		// 只有當 ifHighSpeed 有值且不為 0 時才覆寫
 		if speedMbps > 0 {
 			interfaces[ifIndex]["if_speed"] = speedMbps * 1000000 // Mbps ??bps
 		}
 		return nil
 	})
 
-	// 修正?�擬介面?�速度 - �?2-bit上�?(4.3Gbps)?�為2.5Gbps
+	// 修正虛擬介面的速度 - 將 32-bit 上限 (4.3Gbps) 改為 2.5Gbps
 	for ifIndex, ifData := range interfaces {
 		if speed, ok := ifData["if_speed"].(int64); ok && speed == 4294967295 {
-			// 檢查?�否?��??��???(vmbr, tap, veth, docker, br-, lo�?
+			// 檢查是否為虛擬介面 (vmbr, tap, veth, docker, br-, lo 等)
 			ifName := ""
 			if name, ok := ifData["if_name"].(string); ok {
 				ifName = name
@@ -531,7 +533,7 @@ func (c *Collector) collectAllInterfaces(params *gosnmp.GoSNMP, deviceID int) {
 		return nil
 	})
 
-	// 如�? HC counters 不支?��?使用 32-bit counters
+	// 如果 HC counters 不支援，使用 32-bit counters
 	params.Walk(OIDIfInOctets, func(pdu gosnmp.SnmpPDU) error {
 		ifIndex := extractIndex(pdu.Name, OIDIfInOctets)
 		if ifIndex == 0 || interfaces[ifIndex] == nil {
@@ -573,8 +575,8 @@ func (c *Collector) collectAllInterfaces(params *gosnmp.GoSNMP, deviceID int) {
 		return nil
 	})
 
-	// ?��?介面資�??��??�庫
-	// 使用 dbWorker ?��?序�??�寫??
+	// 寫入介面資料到資料庫
+	// 使用 dbWorker 進行序列化寫入
 	c.dbWorker.Push(func(db *sql.DB) error {
 		return dbutils.TxWithRetry(db, func(tx *sql.Tx) error {
 			for ifIndex, ifData := range interfaces {
@@ -582,7 +584,7 @@ func (c *Collector) collectAllInterfaces(params *gosnmp.GoSNMP, deviceID int) {
 				var prevInOctets, prevOutOctets int64
 				var prevUpdatedAt time.Time
 
-				// ?�試?�詢?��??��?以�?算帶�?
+				// 嘗試查詢前次數據以計算帶寬
 				// Use QueryRow on tx, not c.db
 				err := tx.QueryRow(`
 			SELECT id, in_octets, out_octets, updated_at
@@ -601,12 +603,12 @@ func (c *Collector) collectAllInterfaces(params *gosnmp.GoSNMP, deviceID int) {
 				inErrors := getInt64Value(ifData, "in_errors")
 				outErrors := getInt64Value(ifData, "out_errors")
 
-				// 修正?�擬介面?�度: ??G/10G?�都設為2.5Gbps
+				// 修正虛擬介面速度: 把 G/10G 的都設為 2.5Gbps
 				if ifSpeed > 1000000000 && ifSpeed != 10000000000 {
 					ifSpeed = 2500000000 // 2.5 Gbps
 				}
 
-				// 計�??��?帶寬 (Bytes/sec)
+				// 計算即時帶寬 (Bytes/sec)
 				var bandwidthIn, bandwidthOut int64 = 0, 0
 				if err == nil && !prevUpdatedAt.IsZero() {
 					// Ensure we compare apples to apples (UTC vs UTC or derived)
@@ -640,11 +642,11 @@ func (c *Collector) collectAllInterfaces(params *gosnmp.GoSNMP, deviceID int) {
 					}
 				}
 
-				// 檢查?�否已�???(使用 device_id + if_index)
-				// 注�?: 上面??SELECT ?�於計�?，這裡?�們�?次檢?�主要為了確定是 INSERT ?�是 UPDATE (?�然?�輯?��??��?，�??��??�中?��??��?)
-				// ?��?: 上面??err ?�為 nil ?�表示�??��?sql.ErrNoRows ?��?存在
+				// 檢查是否已存在 (使用 device_id + if_index)
+				// 注意: 上面的 SELECT 用於計數，這裡再次檢查主要為了確定是 INSERT 還是 UPDATE (邏輯稍有重複，但能明確判斷寫入路徑)
+				// 說明: 上面的 err 若為 nil 且不是 sql.ErrNoRows 即代表已存在
 				if err == sql.ErrNoRows {
-					// ?��?
+					// 新增
 					_, execErr := tx.Exec(`
 				INSERT INTO device_interfaces (device_id, if_index, if_name, if_desc, if_speed, if_mac, if_status, if_admin_status, in_octets, out_octets, in_errors, out_errors, bandwidth_in, bandwidth_out)
 				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -653,7 +655,7 @@ func (c *Collector) collectAllInterfaces(params *gosnmp.GoSNMP, deviceID int) {
 						log.Printf("Error inserting interface %d for device %d: %v", ifIndex, deviceID, execErr)
 					}
 				} else if err == nil {
-					// ?�新
+					// 更新
 					_, execErr := tx.Exec(`
 				UPDATE device_interfaces
 				SET if_name = ?, if_desc = ?, if_speed = ?, if_mac = ?, if_status = ?, if_admin_status = ?,
@@ -698,7 +700,7 @@ func (c *Collector) collectAllInterfaces(params *gosnmp.GoSNMP, deviceID int) {
 				}
 			}
 
-			// ?��?修正?��?準速度??.5Gbps
+			// 同樣修正非標準速度為 2.5Gbps
 			_, err := tx.Exec(`
 		UPDATE device_interfaces 
 		SET if_speed = 2500000000 
@@ -719,7 +721,7 @@ func (c *Collector) collectMetrics(params *gosnmp.GoSNMP, deviceID int) {
 	var cpuUsage float64
 	var memUsage float64
 
-	// ?�試?��? CPU 使用??
+	// 嘗試讀取 CPU 使用率
 	// 1. HOST-RESOURCES-MIB (hrProcessorLoad)
 	params.Walk(OIDHrProcessorLoad, func(pdu gosnmp.SnmpPDU) error {
 		if val := gosnmp.ToBigInt(pdu.Value).Int64(); val > 0 {
@@ -730,13 +732,13 @@ func (c *Collector) collectMetrics(params *gosnmp.GoSNMP, deviceID int) {
 		return nil
 	})
 
-	// 2. ?��??��??��??��?
+	// 2. 嘗試其他備援 OID
 	if cpuUsage == 0 {
 		cpuOids := []string{
 			".1.3.6.1.4.1.9.9.109.1.1.1.1.7.1",      // Cisco 5min
 			".1.3.6.1.4.1.2011.5.25.31.1.1.1.1.5.0", // Huawei
 			".1.3.6.1.4.1.11863.6.1.1.2.1.1.1.0",    // TP-Link
-			".1.3.6.1.4.1.2021.11.11.0",              // Net-SNMP / EnGenius (Linux, Idle) - ?��?100-val
+			".1.3.6.1.4.1.2021.11.11.0",              // Net-SNMP / EnGenius (Linux, Idle) - 需以 100-val 換算
 			".1.3.6.1.4.1.25506.2.6.1.1.1.1.6.1",    // H3C
 			OIDHikvisionCPU,                           // Hikvision IP Camera
 			OIDDahuaCPU,                               // Dahua IP Camera
@@ -759,7 +761,7 @@ func (c *Collector) collectMetrics(params *gosnmp.GoSNMP, deviceID int) {
 		}
 	}
 
-	// 3. ?��?記憶體使?��? - 修正 HOST-RESOURCES-MIB ?�輯 (?��?�?RAM 類�?)
+	// 3. 嘗試記憶體使用率 - 修正 HOST-RESOURCES-MIB 邏輯 (只取實體 RAM 類型)
 	// hrStorageRam OID: .1.3.6.1.2.1.25.2.1.2
 	var memTotal, memUsed int64
 	var ramSize, ramUsed int64
@@ -768,7 +770,7 @@ func (c *Collector) collectMetrics(params *gosnmp.GoSNMP, deviceID int) {
 		if strings.Contains(storageType, ".1.3.6.1.2.1.25.2.1.2") { // hrStorageRam
 			index := extractIndex(pdu.Name, ".1.3.6.1.2.1.25.2.3.1.2")
 
-			// ?��?�?index ??Units, Size, Used
+			// 先取得各 index 的 Units, Size, Used
 			unitsRes, _ := params.Get([]string{fmt.Sprintf(".1.3.6.1.2.1.25.2.3.1.4.%d", index)})
 			sizeRes, _ := params.Get([]string{fmt.Sprintf(".1.3.6.1.2.1.25.2.3.1.5.%d", index)})
 			usedRes, _ := params.Get([]string{fmt.Sprintf(".1.3.6.1.2.1.25.2.3.1.6.%d", index)})
@@ -793,7 +795,7 @@ func (c *Collector) collectMetrics(params *gosnmp.GoSNMP, deviceID int) {
 		return nil
 	})
 
-	// 4. ?��?記憶體�??�優??(??Hikvision / EnGenius Linux-based)
+	// 4. 私有記憶體 OID 優先 (如 Hikvision / EnGenius Linux-based)
 	if memUsage == 0 {
 		// Hikvision: direct total/used in KB
 		hikvisionMemTotalOID := OIDHikvisionMemTotal
@@ -834,7 +836,7 @@ func (c *Collector) collectMetrics(params *gosnmp.GoSNMP, deviceID int) {
 					}
 				} else if oid == ".1.3.6.1.4.1.2021.4.11.0" {
 					// Net-SNMP: (Total - Free - Buffers - Cached) / Total
-					// val �?MemFree (.1.3.6.1.4.1.2021.4.11.0)
+					// val 為 MemFree (.1.3.6.1.4.1.2021.4.11.0)
 					resTotal, _ := params.Get([]string{".1.3.6.1.4.1.2021.4.5.0"})
 					resBuffers, _ := params.Get([]string{".1.3.6.1.4.1.2021.4.14.0"})
 					resCached, _ := params.Get([]string{".1.3.6.1.4.1.2021.4.15.0"})
@@ -851,7 +853,7 @@ func (c *Collector) collectMetrics(params *gosnmp.GoSNMP, deviceID int) {
 					}
 
 					if total > 0 {
-						// ??�� Free, Buffers, Cached ?�是?�正??Used
+						// 扣除 Free, Buffers, Cached 才是真正的 Used
 						actualUsed := total - val - buffers - cached
 						if actualUsed < 0 {
 							actualUsed = 0
@@ -868,7 +870,7 @@ func (c *Collector) collectMetrics(params *gosnmp.GoSNMP, deviceID int) {
 		}
 	}
 
-	// 5. ?��?磁�?使用??(HOST-RESOURCES-MIB)
+	// 5. 嘗試磁碟使用率 (HOST-RESOURCES-MIB)
 	var diskTotal, diskUsed uint64
 	params.Walk(OIDHrStorageType, func(pdu gosnmp.SnmpPDU) error {
 		storageType := pdu.Value.(string)
@@ -906,9 +908,9 @@ func (c *Collector) collectMetrics(params *gosnmp.GoSNMP, deviceID int) {
 		}
 	}
 
-	// ?�在?�數?��??�入
+	// 現在將數據寫入
 	if (cpuUsage > 0 && cpuUsage <= 100) || (memUsage > 0 && memUsage <= 100) || diskUsage > 0 {
-		// 修正極端?��?
+		// 修正極端數值
 		if cpuUsage > 100 {
 			cpuUsage = 100
 		}
@@ -926,7 +928,7 @@ func (c *Collector) collectMetrics(params *gosnmp.GoSNMP, deviceID int) {
 	}
 }
 
-// updateDeviceStatus ?�新設�??�??
+// updateDeviceStatus updates the device status in the database
 func (c *Collector) updateDeviceStatus(deviceID int, isOnline bool) {
 	c.dbWorker.Push(func(db *sql.DB) error {
 		var wasOnline bool
@@ -964,7 +966,7 @@ func (c *Collector) updateDeviceStatus(deviceID int, isOnline bool) {
 	})
 }
 
-// logEvent 記�?事件
+// logEvent records a device event to the database
 func (c *Collector) logEvent(deviceID int, eventType, severity, message string) {
 	c.dbWorker.Push(func(db *sql.DB) error {
 		_, err := dbutils.ExecWithRetry(db, `
@@ -993,7 +995,7 @@ func getInt64Value(m map[string]interface{}, key string) int64 {
 	return 0
 }
 
-// isVirtualInterface ?�斷?�否?��??�網路�???
+// isVirtualInterface returns true for virtual/loopback network interfaces
 func isVirtualInterface(ifName string) bool {
 	if ifName == "" {
 		return false
@@ -1001,7 +1003,7 @@ func isVirtualInterface(ifName string) bool {
 
 	lowerName := strings.ToLower(ifName)
 
-	// 常�??�擬介面?�綴
+	// 常見虛擬介面前綴
 	virtualPrefixes := []string{
 		"vmbr",   // Proxmox virtual bridge
 		"tap",    // TAP device
@@ -1136,12 +1138,12 @@ func extractModelFromDescr(sysDescr, keyword string) string {
 	return ""
 }
 
-// detectDeviceType ?��? sysDescr ??vendor ?�斷設�?類�?
+// detectDeviceType infers vendor and device type from sysDescr
 func detectDeviceType(sysDescr, vendor string) string {
 	descLower := strings.ToLower(sysDescr)
 	vendorLower := strings.ToLower(vendor)
 
-	// 路由?��???
+	// 路由器特徵
 	if strings.Contains(descLower, "router") ||
 		strings.Contains(descLower, "routing") ||
 		(strings.Contains(vendorLower, "cisco") && strings.Contains(descLower, "ios")) ||
@@ -1150,7 +1152,7 @@ func detectDeviceType(sysDescr, vendor string) string {
 		return "router"
 	}
 
-	// 交�??��???
+	// 交換器特徵
 	if strings.Contains(descLower, "switch") ||
 		strings.Contains(descLower, "switching") ||
 		strings.Contains(descLower, "ethernet switch") ||
@@ -1172,7 +1174,7 @@ func detectDeviceType(sysDescr, vendor string) string {
 		return "switch"
 	}
 
-	// ?�火?��???
+	// 防火牆特徵
 	if strings.Contains(descLower, "firewall") ||
 		strings.Contains(descLower, "fortigate") ||
 		strings.Contains(descLower, "palo alto") ||
@@ -1182,7 +1184,7 @@ func detectDeviceType(sysDescr, vendor string) string {
 		return "firewall"
 	}
 
-	// 伺�??��???
+	// 伺服器特徵
 	if strings.Contains(descLower, "linux") ||
 		strings.Contains(descLower, "ubuntu") ||
 		strings.Contains(descLower, "centos") ||
@@ -1193,7 +1195,7 @@ func detectDeviceType(sysDescr, vendor string) string {
 		return "server"
 	}
 
-	// ?��?存�?�?(AP) 識別 ???�含 EnGenius AP 系�?
+	// 無線存取點 (AP) 識別 — 包含 EnGenius AP 系列
 	if strings.Contains(descLower, "access point") ||
 		strings.Contains(descLower, "wireless ap") ||
 		strings.Contains(descLower, "wap") ||
@@ -1201,7 +1203,7 @@ func detectDeviceType(sysDescr, vendor string) string {
 		(strings.Contains(vendorLower, "tp-link") && strings.Contains(descLower, "eap")) ||
 		strings.Contains(descLower, "aironet") ||
 		strings.Contains(descLower, "unifi") ||
-		// EnGenius AP 系�?: ECB (Enterprise Ceiling/Bridge), ENS (Outdoor), EAP
+		// EnGenius AP 系列: ECB (Enterprise Ceiling/Bridge), ENS (Outdoor), EAP
 		strings.Contains(vendorLower, "engenius") ||
 		strings.Contains(descLower, "engenius") ||
 		(strings.Contains(descLower, "ecb") && strings.Contains(descLower, "wireless")) ||
@@ -1216,7 +1218,7 @@ func detectDeviceType(sysDescr, vendor string) string {
 		return "access_point"
 	}
 
-	// ?�影�?(IP Camera / CCTV) 識別 ???��?廠�?清單
+	// 攝影機 (IP Camera / CCTV) 識別 — 常見廠商清單
 	// QCTek platform detection: sysDescr usually contains "QCTek", "QCTEK", "QCT" or "Camera"
 	if strings.Contains(descLower, "camera") ||
 		strings.Contains(descLower, "ipcam") ||
@@ -1250,7 +1252,7 @@ func detectDeviceType(sysDescr, vendor string) string {
 		return "ipcam"
 	}
 
-	// ?��??�控?�器 / 影�???(Video Wall)
+	// 電視牆控制器 / 影像牆 (Video Wall)
 	if strings.Contains(descLower, "video wall") ||
 		strings.Contains(descLower, "tv wall") ||
 		strings.Contains(descLower, "wall controller") ||
@@ -1277,11 +1279,11 @@ func extractIndex(fullOID, baseOID string) int {
 	return idx
 }
 
-// DiscoverLLDPTopology ?��? LLDP ?�索?�樸???
+// DiscoverLLDPTopology discovers the network topology using LLDP
 func (c *Collector) DiscoverLLDPTopology() {
 	log.Println("Starting LLDP topology discovery...")
 
-	// ?��??�?��? SNMP community ?�設??
+	// 只取有效的 SNMP community 設定
 	maxDevices := license.GetMaxDevices(c.db, c.config)
 	query := fmt.Sprintf(`
 		SELECT id, ip_address, snmp_community, snmp_version 
@@ -1312,13 +1314,13 @@ func (c *Collector) DiscoverLLDPTopology() {
 		}
 	}
 
-	// 建�? IP ?�設??ID ?��?�?
+	// 建立 IP 到設備 ID 的對應表
 	ipToDeviceID := make(map[string]int)
 	for _, d := range devices {
 		ipToDeviceID[d.IPAddress] = d.ID
 	}
 
-	// 建�? sysName ?�設??ID ?��?�?(?�含完整?�稱?�短?�稱)
+	// 建立 sysName 到設備 ID 的對應表 (包含完整名稱與短名稱)
 	sysNameToDeviceID := make(map[string]int)
 	sysNameRows, _ := c.db.Query("SELECT id, COALESCE(sys_name, '') FROM devices")
 	if sysNameRows != nil {
@@ -1330,7 +1332,7 @@ func (c *Collector) DiscoverLLDPTopology() {
 				lowerName := strings.ToLower(sysName)
 				sysNameToDeviceID[lowerName] = id
 
-				// ?��?索�??��?�?(移除網�?後綴)
+				// 同時索引短名稱 (移除網域後綴)
 				parts := strings.Split(lowerName, ".")
 				if len(parts) > 1 {
 					sysNameToDeviceID[parts[0]] = id
@@ -1340,7 +1342,7 @@ func (c *Collector) DiscoverLLDPTopology() {
 		}
 	}
 
-	discoveredLinks := make(map[string]bool) // ?�於?��?
+	discoveredLinks := make(map[string]bool) // 用於去重
 
 	for _, d := range devices {
 		c.discoverDeviceLLDP(d.ID, d.IPAddress, d.Community, d.Version, ipToDeviceID, sysNameToDeviceID, discoveredLinks)
@@ -1349,7 +1351,7 @@ func (c *Collector) DiscoverLLDPTopology() {
 	log.Printf("LLDP discovery completed for %d devices. Created %d new links.", len(devices), len(discoveredLinks))
 }
 
-// discoverDeviceLLDP ?�索?��?設�???LLDP ?��?
+// discoverDeviceLLDP discovers LLDP neighbors for a single device
 func (c *Collector) discoverDeviceLLDP(deviceID int, ip, community string, version int, ipToDeviceID map[string]int, sysNameToDeviceID map[string]int, discoveredLinks map[string]bool) {
 	snmpVersion := gosnmp.Version2c
 	if version == 1 {
@@ -1371,7 +1373,7 @@ func (c *Collector) discoverDeviceLLDP(deviceID int, ip, community string, versi
 	}
 	defer params.Conn.Close()
 
-	// ?��? LLDP ?��?資�?
+	// 讀取 LLDP 鄰居資訊
 	type neighborInfo struct {
 		sysName   string
 		chassisID string
@@ -1479,7 +1481,7 @@ func (c *Collector) discoverDeviceLLDP(deviceID int, ip, community string, versi
 
 	log.Printf("LLDP: Device %s (ID:%d) found %d LLDP neighbors", ip, deviceID, len(neighbors))
 
-	// ?��??��?資�?建�??�樸???
+	// 根據鄰居資訊建立拓樸連線
 	for localIfIndex, neighbor := range neighbors {
 		if neighbor == nil {
 			continue
@@ -1488,12 +1490,12 @@ func (c *Collector) discoverDeviceLLDP(deviceID int, ip, community string, versi
 		var remoteDeviceID int
 		var found bool
 
-		// ?��? 1: ?��? sysName ?��?
+		// 策略 1: 依照 sysName 比對
 		if neighbor.sysName != "" {
 			lowerName := strings.ToLower(neighbor.sysName)
 			remoteDeviceID, found = sysNameToDeviceID[lowerName]
 
-			// 如�?完整?�稱沒找?��??�試?��?�?
+			// 如果完整名稱沒找到，嘗試短名稱
 			if !found {
 				parts := strings.Split(lowerName, ".")
 				if len(parts) > 1 {
@@ -1507,7 +1509,7 @@ func (c *Collector) discoverDeviceLLDP(deviceID int, ip, community string, versi
 			}
 		}
 
-		// ?��? 2: ?��?管�? IP ?��?
+		// 策略 2: 依照管理 IP 比對
 		if !found && len(neighbor.manAddrs) > 0 {
 			for _, maddr := range neighbor.manAddrs {
 				if id, ok := ipToDeviceID[maddr]; ok {
@@ -1525,18 +1527,18 @@ func (c *Collector) discoverDeviceLLDP(deviceID int, ip, community string, versi
 			continue
 		}
 
-		// ?��??�己??���?
+		// 跳過自己連自己
 		if remoteDeviceID == deviceID {
 			continue
 		}
 
-		// 建�???? key ?�於?��? (確�? A-B ??B-A ?��??��?�?
+		// 建立連線 key 用於去重 (確保 A-B 與 B-A 視為同一條)
 		linkKey := fmt.Sprintf("%d-%d", min(deviceID, remoteDeviceID), max(deviceID, remoteDeviceID))
 		if discoveredLinks[linkKey] {
 			continue
 		}
 
-		// 檢查????�否已�???
+		// 檢查連線是否已存在
 		var existingID int
 		err := c.db.QueryRow(`
 			SELECT id FROM topology_links 
@@ -1544,13 +1546,13 @@ func (c *Collector) discoverDeviceLLDP(deviceID int, ip, community string, versi
 			   OR (source_device_id = ? AND target_device_id = ?)
 		`, deviceID, remoteDeviceID, remoteDeviceID, deviceID).Scan(&existingID)
 
-		// ?��?來�?介面資�?
+		// 查詢來源介面資料
 		var sourceIfID sql.NullInt64
 		var sourceSpeed sql.NullInt64
 		c.db.QueryRow("SELECT id, if_speed FROM device_interfaces WHERE device_id = ? AND if_index = ?", deviceID, localIfIndex).Scan(&sourceIfID, &sourceSpeed)
 
 		if err == sql.ErrNoRows {
-			// 建�??��??
+			// 建立新連線
 			_, insertErr := c.db.Exec(`
 				INSERT INTO topology_links (source_device_id, target_device_id, source_if_id, link_speed, link_type, is_manual) 
 				VALUES (?, ?, ?, ?, 'lldp', 0)
@@ -1563,7 +1565,7 @@ func (c *Collector) discoverDeviceLLDP(deviceID int, ip, community string, versi
 				log.Printf("LLDP: Failed to create link: %v", insertErr)
 			}
 		} else if err == nil {
-			// ???已�??��??�試?�新?�度資�? (如�???0 ??NULL)
+			// 連線已存在時，嘗試更新速度資訊 (如果為 0 或 NULL)
 			if sourceSpeed.Int64 > 0 {
 				c.db.Exec("UPDATE topology_links SET link_speed = ?, source_if_id = ? WHERE id = ? AND (link_speed IS NULL OR link_speed = 0)", sourceSpeed.Int64, sourceIfID, existingID)
 			}
@@ -1573,7 +1575,7 @@ func (c *Collector) discoverDeviceLLDP(deviceID int, ip, community string, versi
 	}
 }
 
-// extractLLDPIndices �?LLDP OID 中�??�索�?
+// extractLLDPIndices extracts indices from LLDP OIDs
 func extractLLDPIndices(fullOID, baseOID string) []int {
 	if len(fullOID) <= len(baseOID)+1 {
 		return nil
@@ -1595,12 +1597,12 @@ func extractLLDPIndices(fullOID, baseOID string) []int {
 	return indices
 }
 
-// collectFdbTable ?��?交�??��? FDB �?(MAC -> Port)
+// collectFdbTable collects the switch FDB table (MAC to port mapping)
 func (c *Collector) collectFdbTable(params *gosnmp.GoSNMP, deviceID int, switchFdbMap *sync.Map) {
 	if switchFdbMap == nil {
 		return
 	}
-	// 1. ?��? Bridge Port ??ifIndex ?��???
+	// 1. 讀取 Bridge Port 到 ifIndex 的對應表
 	portToIfIndex := make(map[int]int)
 	params.Walk(OIDDot1dBasePortIfIndex, func(pdu gosnmp.SnmpPDU) error {
 		bridgePort := extractIndex(pdu.Name, OIDDot1dBasePortIfIndex)
@@ -1611,7 +1613,7 @@ func (c *Collector) collectFdbTable(params *gosnmp.GoSNMP, deviceID int, switchF
 		return nil
 	})
 
-	// 2. ?��? MAC ??Bridge Port ?��???
+	// 2. 讀取 MAC 到 Bridge Port 的對應表
 	macToPort := make(map[string]int)
 	params.Walk(OIDDot1dTpFdbPort, func(pdu gosnmp.SnmpPDU) error {
 		bridgePort := int(gosnmp.ToBigInt(pdu.Value).Int64())
@@ -1619,7 +1621,7 @@ func (c *Collector) collectFdbTable(params *gosnmp.GoSNMP, deviceID int, switchF
 			return nil
 		}
 
-		// �?OID ?��? MAC ?��?
+		// 從 OID 取出 MAC 位址
 		// .1.3.6.1.2.1.17.4.3.1.2.m1.m2.m3.m4.m5.m6
 		parts := strings.Split(pdu.Name, ".")
 		if len(parts) >= 6 {
@@ -1644,9 +1646,9 @@ func (c *Collector) collectFdbTable(params *gosnmp.GoSNMP, deviceID int, switchF
 	}
 }
 
-// SyncFdbTopology ?��? FDB 資�??�步?�樸???
+// SyncFdbTopology syncs FDB data to topology database
 func (c *Collector) SyncFdbTopology(switchFdbMap *sync.Map) {
-	// 1. 建�? MAC ??DeviceID ?��?�?
+	// 1. 建立 MAC 到 DeviceID 的對應表
 	macToDeviceID := make(map[string]int)
 	rows, err := c.db.Query("SELECT id, UPPER(mac_address), device_type FROM devices WHERE mac_address IS NOT NULL AND mac_address != ''")
 	if err != nil {
@@ -1664,12 +1666,12 @@ func (c *Collector) SyncFdbTopology(switchFdbMap *sync.Map) {
 		}
 	}
 
-	// 2. ?�歷每�?Switch ??FDB �?
+	// 2. 遍歷每台 Switch 的 FDB 表
 	switchFdbMap.Range(func(key, value interface{}) bool {
 		switchID := key.(int)
 		macToPort := value.(map[string]int)
 
-		// 統�?每�?port ?��?少�?MAC (如�?一??port 太�? MAC，通常??Uplink/Trunk，�?建�??��????)
+		// 統計每個 port 上有多少 MAC (如果一個 port 太多 MAC，通常是 Uplink/Trunk，不建立下游連線)
 		portMacCount := make(map[int]int)
 		for _, ifIndex := range macToPort {
 			portMacCount[ifIndex]++
@@ -1681,26 +1683,26 @@ func (c *Collector) SyncFdbTopology(switchFdbMap *sync.Map) {
 				continue
 			}
 
-			// 如�?�?Port ?��???2 ??MAC，跳??(?��???Uplink ?��??�接???)
+			// 如果該 Port 上超過 2 個 MAC，跳過 (可能是 Uplink 或串接交換器)
 			if portMacCount[ifIndex] > 2 {
 				continue
 			}
 
-			// 如�??��???Switch/Router/Firewall，優?�信�?LLDP，此?�跳??
+			// 如果對方是 Switch/Router/Firewall，優先信任 LLDP，此處跳過
 			if tType := deviceTypes[targetDeviceID]; tType == "switch" || tType == "router" || tType == "firewall" {
 				continue
 			}
 
-			// 建�????
+			// 建立連線
 			c.createFdbLink(switchID, targetDeviceID, ifIndex)
 		}
 		return true
 	})
 }
 
-// createFdbLink 建�??�更??FDB ???
+// createFdbLink creates or updates an FDB link record
 func (c *Collector) createFdbLink(switchID, targetID, ifIndex int) {
-	// ?��?來�?介面 ID
+	// 查詢來源介面 ID
 	var sourceIfID sql.NullInt64
 	var sourceSpeed sql.NullInt64
 	var ifName sql.NullString
@@ -1710,7 +1712,7 @@ func (c *Collector) createFdbLink(switchID, targetID, ifIndex int) {
 		return
 	}
 
-	// 檢查????�否已�???
+	// 檢查連線是否已存在
 	var existingID int
 	err := c.db.QueryRow(`
 		SELECT id FROM topology_links 
@@ -1719,7 +1721,7 @@ func (c *Collector) createFdbLink(switchID, targetID, ifIndex int) {
 	`, switchID, targetID, targetID, switchID).Scan(&existingID)
 
 	if err == sql.ErrNoRows {
-		// 建�??��??
+		// 建立新連線
 		_, err := c.db.Exec(`
 			INSERT INTO topology_links (source_device_id, target_device_id, source_if_id, source_if_name, link_speed, link_type, is_manual) 
 			VALUES (?, ?, ?, ?, ?, 'fdb', 0)
@@ -1728,7 +1730,7 @@ func (c *Collector) createFdbLink(switchID, targetID, ifIndex int) {
 			log.Printf("[Topology] Created FDB link: Switch %d (Port %d) -> Device %d", switchID, ifIndex, targetID)
 		}
 	} else if err == nil {
-		// 已�??��??，�??�是?��??�測?��??�新介面資�?
+		// 已有連線時，如果是自動探測的則更新介面資料
 		c.db.Exec(`
 			UPDATE topology_links 
 			SET source_if_id = ?, source_if_name = ?, link_speed = ?, link_type = 'fdb'
@@ -1737,18 +1739,18 @@ func (c *Collector) createFdbLink(switchID, targetID, ifIndex int) {
 	}
 }
 
-// collectArpTable ?��? ARP 表�?�?
+// collectArpTable collects the ARP table from a device
 func (c *Collector) collectArpTable(params *gosnmp.GoSNMP, ipToMacMap *sync.Map) {
 	if ipToMacMap == nil {
 		return
 	}
-	// ?�試 IPv4 ARP Table
+	// 嘗試 IPv4 ARP Table
 	params.Walk(OIDIpNetToPhysicalPhysAddress, func(pdu gosnmp.SnmpPDU) error {
 		if bytes, ok := pdu.Value.([]byte); ok && len(bytes) == 6 {
 			mac := fmt.Sprintf("%02X:%02X:%02X:%02X:%02X:%02X",
 				bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5])
 
-			// �?OID ?��? IP (?��?4 �?
+			// 從 OID 取出 IP (最後 4 段)
 			parts := strings.Split(pdu.Name, ".")
 			if len(parts) >= 4 {
 				ip := fmt.Sprintf("%s.%s.%s.%s", parts[len(parts)-4], parts[len(parts)-3], parts[len(parts)-2], parts[len(parts)-1])
@@ -1758,7 +1760,7 @@ func (c *Collector) collectArpTable(params *gosnmp.GoSNMP, ipToMacMap *sync.Map)
 		return nil
 	})
 
-	// ?�試?��? ARP Table (RFC1213)
+	// 嘗試傳統 ARP Table (RFC1213)
 	params.Walk(OIDIpNetToMediaPhysAddress, func(pdu gosnmp.SnmpPDU) error {
 		if bytes, ok := pdu.Value.([]byte); ok && len(bytes) == 6 {
 			mac := fmt.Sprintf("%02X:%02X:%02X:%02X:%02X:%02X",
@@ -1774,7 +1776,7 @@ func (c *Collector) collectArpTable(params *gosnmp.GoSNMP, ipToMacMap *sync.Map)
 	})
 }
 
-// SyncPingOnlyMacs ?�步?��??��? SNMP ?��? MAC ?�設??
+// SyncPingOnlyMacs syncs MAC addresses for ping-only (non-SNMP) devices
 func (c *Collector) SyncPingOnlyMacs(ipToMacMap *sync.Map) {
 	rows, err := c.db.Query("SELECT id, ip_address FROM devices WHERE (mac_address = '' OR mac_address IS NULL)")
 	if err != nil {

@@ -26,7 +26,8 @@
     "admin": "系統管理",
     "access_control": "門禁管理",
     "pdu": "PDU/UPS 監控",
-    "logout": "登出"
+    "logout": "登出",
+    "iot": "IoT / Modbus"
   },
   "common": {
     "loading": "載入中...",
@@ -76,7 +77,7 @@
     "password_policy": "密碼需至少 8 碼，需含大寫、小寫字母，以及數字或特殊字元"
   },
   "dashboard": {
-    "system_info": "系統資訊",
+    "system_info": "設備總數",
     "online_devices": "線上設備",
     "offline_devices": "離線設備",
     "memory_usage": "記憶體使用",
@@ -288,7 +289,9 @@
       "legend_link_up": "Link Up",
       "legend_link_down": "Link Down",
       "legend_poe": "PoE"
-    }
+    },
+    "subnet_group": "網段分群",
+    "limit_reached": "已達目前授權的設備數量上限，請至「系統管理 → 授權管理」啟用或升級授權"
   },
   "topology": {
     "title": "網路拓樸圖",
@@ -369,7 +372,8 @@
     "expand": "展開",
     "collapse": "收合",
     "view_force": "網狀圖",
-    "view_tree": "樹狀圖"
+    "view_tree": "樹狀圖",
+    "set_default": "設為預設"
   },
   "logs": {
     "title": "日誌與稽核",
@@ -548,7 +552,10 @@
       "uptime": "運行時間",
       "resource_usage": "資源使用率",
       "memory_usage_detail": "記憶體目前使用 (已用 / 總計):",
-      "disk_usage_detail": "磁碟空間目前使用 (已用 / 總計):"
+      "disk_usage_detail": "磁碟空間目前使用 (已用 / 總計):",
+      "gpu_accel": "GPU 加速:",
+      "gpu_method": "解碼方式:",
+      "gpu_max_streams": "建議最大串流:"
     },
     "users": {
       "title": "使用者列表",
@@ -627,7 +634,8 @@
       "how_to_step3": "將識別碼提供給銷售人員",
       "how_to_step4": "取得授權金鑰後貼上啟用",
       "activate_button": "啟用授權",
-      "trial_activated": "試用版已啟動"
+      "trial_activated": "試用版已啟動",
+      "unit_devices": "台"
     },
     "reports": {
       "device_report": "設備報表",
@@ -676,7 +684,13 @@
       "pos_bottom": "下方",
       "save_settings": "儲存設定",
       "company_placeholder": "例如: 某某科技股份有限公司",
-      "upload_btn_loading": "上傳中..."
+      "upload_btn_loading": "上傳中...",
+      "title": "公司品牌設定",
+      "upload_new": "上傳新 Logo",
+      "click_select": "點擊選擇圖片",
+      "resolution_hint": "建議解析度: 200x50 或等比例 (PNG/JPG)",
+      "upload_btn": "上傳 Logo",
+      "company_name": "公司名稱"
     },
     "modules": {
       "title": "功能模組管理",
@@ -716,7 +730,8 @@
       "running_btn": "執行中...",
       "server_error": "伺服器錯誤: {error}",
       "network_error": "網路錯誤: {error}",
-      "execution_failed": "執行失敗: {error}"
+      "execution_failed": "執行失敗: {error}",
+      "result": "執行結果："
     },
     "security": {
       "title": "安全設定",
@@ -725,7 +740,16 @@
       "password_expiry_title": "密碼過期策略",
       "password_expiry_desc": "強制使用者定期更換密碼。",
       "expiry_days_label": "密碼有效天數 (0 表示永不過期)",
-      "email_required": "請先設定並啟用 Email 告警以使用此功能"
+      "email_required": "請先設定並啟用 Email 告警以使用此功能",
+      "policy_title": "密碼強度政策",
+      "policy_rules": "目前啟用的規則：",
+      "rule_upper": "至少 1 個大寫字母 (A-Z)",
+      "rule_lower": "至少 1 個小寫字母 (a-z)",
+      "rule_digit": "至少 1 個數字 (0-9)",
+      "rule_special": "至少 1 個特殊字元 (!@#$%^&* 等)",
+      "rule_weak": "禁止使用常見弱密碼 (如 password、admin123 等)",
+      "rule_not_same": "新密碼不可與舊密碼相同",
+      "rule_min_len": "最少 8 個字元"
     },
     "alerts": {
       "notice": "請自行準備相關設定資訊 / API 金鑰進行設定",
@@ -809,6 +833,20 @@
       "restore_warning": "警告：系統將會還原至備份狀態並重新啟動。\n所有未備份的資料將會遺失。\n\n確定要繼續嗎？",
       "restore_readiness_issue": "⚠️ 系統還原準備度檢查發現潛在問題：\n\n• {issues}\n\n繼續還原可能導致資料不完整（如果備份檔未包含完整數據，建議修復後再試）。\n\n",
       "license_reset": "⚠️ 警告：這將會清除所有目前的授權資料與識別金鑰！\n\n請僅在「遷移系統」或「授權發生問題」時執行此操作。\n重置後，您需要重新輸入新的授權金鑰。\n\n確定要重置嗎？"
+    },
+    "unlock_prompt": "請輸入驗證資訊",
+    "audit": {
+      "export_csv": "匯出 CSV",
+      "filter_user": "使用者",
+      "status_all": "全部狀態",
+      "status_warning": "警告",
+      "to": "至",
+      "col_time": "時間",
+      "col_user": "使用者",
+      "col_source_ip": "來源 IP",
+      "col_source_mac": "來源 MAC",
+      "col_action": "操作項目",
+      "col_details": "詳細資訊"
     }
   },
   "user": {
@@ -856,7 +894,15 @@
     "reset_btn": "更新密碼並登入",
     "success": "密碼已更新成功！",
     "error_invalid": "無效或已過期的重設金鑰",
-    "error_mismatch": "密碼不一致"
+    "error_mismatch": "密碼不一致",
+    "email_label": "Email 地址",
+    "email_placeholder": "例如 user@example.com",
+    "send_btn": "寄送重設信",
+    "back_to_login": "返回登入",
+    "error": "密碼重設失敗",
+    "password_mismatch": "密碼不一致",
+    "reset_failed": "密碼重設失敗",
+    "reset_success": "密碼已更新"
   },
   "api": {
     "unauthorized": "未授權，請重新登入"
@@ -959,7 +1005,9 @@
     "overlay_location": "位置:",
     "overlay_name": "攝影機名稱:",
     "license_notice": "攝影機監控模組需加購 License 方可新增攝影機。",
+    "license_required": "請先啟用攝影機授權",
     "go_license": "前往授權管理",
+    "connection_mode_hint": "支援直接 RTSP 或 ONVIF 自動探測",
     "sidebar_title": "攝影機清單",
     "nvr_time": "時間",
     "nvr_date": "日期",
@@ -986,7 +1034,23 @@
     "nvr_confirm_delete": "確定刪除已選取的 {count} 筆錄影？此操作不可復原。",
     "nvr_deleted": "已刪除 {count} 筆",
     "nvr_delete_failed": "刪除失敗",
-    "nvr_connect_failed": "連線失敗"
+    "nvr_connect_failed": "連線失敗",
+    "nvr": {
+      "cam_list": "攝影機清單",
+      "date": "日期",
+      "all_dates": "全部日期",
+      "search": "搜尋",
+      "batch_select": "批次選取",
+      "delete_selected": "刪除已選",
+      "day_timeline_hint": "當日錄影時間軸（點擊跳至該錄影）",
+      "col_time": "時間",
+      "col_camera": "攝影機",
+      "col_duration": "時長",
+      "col_size": "大小",
+      "col_action": "操作",
+      "pick_camera_hint": "← 點選左側攝影機查看錄影",
+      "close": "關閉"
+    }
   },
   "mode_selection": {
     "welcome": "選擇您要進入的模式",
@@ -1080,7 +1144,10 @@
     "confirm_delete_schedule": "確定要刪除此排程？",
     "sched_fields_required": "請填寫卡號及有效期限",
     "sched_created": "排程申請已送出",
-    "sched_updated": "排程已更新"
+    "sched_updated": "排程已更新",
+    "rows_50": "50 筆",
+    "rows_100": "100 筆",
+    "rows_500": "500 筆"
   },
   "pdu": {
     "add": "新增裝置",
@@ -1146,5 +1213,748 @@
     "page_info": "第 {page} / {total} 頁（共 {count} 筆）",
     "prev_page": "上一頁",
     "next_page": "下一頁"
+  },
+  "iot": {
+    "title": "IoT / Modbus",
+    "refresh": "重新整理",
+    "tab_overview": "功能頁面",
+    "tab_devices": "設備管理",
+    "tab_integration": "整合設定",
+    "summary": {
+      "title": "摘要統計",
+      "total_devices": "設備總數",
+      "enabled": "已啟用",
+      "measurements": "量測筆數",
+      "forward_pending": "待發送",
+      "forward_failed": "發送失敗",
+      "sent_hold": "已發送暫存"
+    },
+    "protocols": {
+      "title": "支援協定"
+    },
+    "sensor_readings": "感測器讀值",
+    "devices": {
+      "title": "設備清單",
+      "add_device": "+ 新增設備",
+      "col_name": "名稱",
+      "col_type": "類型",
+      "col_protocol": "協定",
+      "col_target": "目標",
+      "col_register": "暫存器",
+      "col_metric": "指標",
+      "col_last_value": "最後數值",
+      "col_last_seen": "最後上線",
+      "col_action": "操作",
+      "no_devices": "尚未設定任何設備",
+      "edit": "編輯",
+      "delete": "刪除",
+      "enable": "啟用",
+      "disable": "停用",
+      "poll_success": "輪詢完成",
+      "poll_failed": "輪詢失敗",
+      "load_failed": "載入失敗",
+      "poll_btn": "立即輪詢"
+    },
+    "measurements": {
+      "title": "最近量測紀錄",
+      "col_time": "時間",
+      "col_device": "設備 / 外部 ID",
+      "col_metric": "指標",
+      "col_value": "數值",
+      "col_status": "狀態",
+      "no_data": "無資料"
+    },
+    "forward": {
+      "title": "HTTP 轉發佇列",
+      "mode": "轉發模式",
+      "mode_enabled": "啟用",
+      "mode_disabled": "停用",
+      "url": "Webhook URL",
+      "token": "Bearer Token",
+      "token_hint": "（留空保留現有）",
+      "batch_size": "批次大小",
+      "flush": "立即清空",
+      "save": "儲存",
+      "save_success": "轉發設定已儲存",
+      "save_failed": "儲存失敗",
+      "flush_success": "佇列已清空",
+      "flush_failed": "清空失敗"
+    },
+    "ingest": {
+      "title": "閘道器測試",
+      "protocol": "協定",
+      "external_id": "外部 ID",
+      "name": "名稱",
+      "metric": "指標",
+      "value": "數值",
+      "send_test": "送出測試",
+      "success": "測試送出成功",
+      "failed": "測試送出失敗"
+    },
+    "embed": {
+      "title": "iframe 嵌入 Token",
+      "token_name": "Token 名稱",
+      "view": "檢視頁面",
+      "expiry": "有效期（分鐘）",
+      "generate": "產生 Token",
+      "col_name": "名稱",
+      "col_views": "頁面",
+      "col_expires": "到期時間",
+      "col_last_used": "最後使用",
+      "col_status": "狀態",
+      "col_action": "操作",
+      "revoke": "撤銷",
+      "tokens_title": "Embed Token 清單",
+      "no_tokens": "尚無嵌入 Token",
+      "generated": "Token 已產生，請妥善保管 URL",
+      "generate_failed": "產生 Token 失敗",
+      "revoked": "Token 已撤銷",
+      "revoke_failed": "撤銷 Token 失敗",
+      "revoke_confirm": "確定要撤銷此 Token？"
+    },
+    "allowlist": {
+      "title": "iframe 允許清單",
+      "reload": "重新載入",
+      "save": "儲存",
+      "save_success": "設定已儲存",
+      "save_failed": "儲存失敗"
+    },
+    "modal": {
+      "edit_title": "編輯 IoT 設備",
+      "edit_btn": "編輯",
+      "save": "儲存",
+      "edit_success": "設備已更新",
+      "edit_failed": "更新失敗",
+      "add_title": "新增 IoT 設備",
+      "tab_tcp": "Modbus TCP",
+      "tab_rtu": "Modbus RTU",
+      "tab_rs485": "Modbus RS485",
+      "host": "Host / IP",
+      "port": "Port",
+      "serial_port": "序列埠",
+      "baud_rate": "鮑率",
+      "data_bits": "資料位元",
+      "parity": "同位檢查",
+      "parity_none": "無 (N)",
+      "parity_even": "偶數 (E)",
+      "parity_odd": "奇數 (O)",
+      "stop_bits": "停止位元",
+      "device_name": "設備名稱",
+      "sensor_type": "感測器類型",
+      "sensor_general": "通用",
+      "metric": "指標名稱",
+      "unit": "單位",
+      "unit_id": "Unit ID（Slave）",
+      "register_address": "暫存器位址",
+      "function_code": "功能碼",
+      "fc_01": "FC01 讀取線圈狀態",
+      "fc_02": "FC02 讀取離散輸入",
+      "fc_03": "FC03 Holding Register",
+      "fc_04": "FC04 Input Register",
+      "data_type": "資料型別",
+      "scale": "倍率（Scale）",
+      "offset": "偏移（Offset）",
+      "poll_interval": "輪詢間隔（秒）",
+      "byte_order": "Byte Order",
+      "word_order": "Word Order",
+      "cancel": "取消",
+      "add": "新增設備",
+      "host_required": "請輸入 Host / IP",
+      "serial_required": "請輸入序列埠",
+      "name_required": "請輸入設備名稱",
+      "add_success": "設備已新增",
+      "add_failed": "新增失敗",
+      "delete_confirm": "確定要刪除此設備？",
+      "delete_success": "設備已刪除",
+      "delete_failed": "刪除失敗",
+      "temperature_data_type": "溫度資料型別",
+      "humidity_data_type": "濕度資料型別"
+    },
+    "sensor_type": {
+      "temperature": "溫度",
+      "humidity": "濕度",
+      "temperature_humidity": "溫濕度",
+      "power": "功率",
+      "voltage": "電壓",
+      "current": "電流",
+      "pressure": "氣壓",
+      "co2": "二氧化碳",
+      "pm25": "PM2.5"
+    },
+    "status": {
+      "online": "上線",
+      "offline": "離線",
+      "error": "錯誤",
+      "ready": "就緒",
+      "bridge_ready": "橋接就緒"
+    },
+    "tab_online_modules": "線上模組總覽",
+    "online_modules": {
+      "title": "線上模組總覽"
+    },
+    "license_notice": "IoT / Modbus 模組需加購 License 方可使用。"
+  },
+  "release_notes": {
+    "title": "版本更新記錄",
+    "build_purpose_label": "建置目的",
+    "versions": [
+      {
+        "version": "v1.2.4.8sp0002",
+        "date": "2026-06-18",
+        "purpose": "IoT 功能補丁 — Modbus RTU / RS485 支援與感測器讀取介面。",
+        "sections": [
+          {
+            "title": "IoT — Modbus RTU / RS485 主動輪詢",
+            "items": [
+              "新增原生 Modbus RTU 直接序列埠輪詢（Windows 為 COM 埠，Linux 為 /dev/ttyUSB0）。",
+              "新增 Modbus RS485 半雙工支援（rtu+rs485 scheme，含 DE/RE 腳位切換）。",
+              "每台設備可獨立設定序列埠參數：鮑率、資料位元、同位元（N/E/O）、停止位元。",
+              "支援與 Modbus TCP 相同的 FC03 / FC04 功能碼及所有資料型別（uint16/int16/uint32/int32/float32）。",
+              "背景輪詢器現已涵蓋 modbus_tcp、modbus_rtu 及 modbus_rs485 協定。"
+            ]
+          },
+          {
+            "title": "IoT — 感測器顯示介面",
+            "items": [
+              "新增每台設備的感測器類型分類：溫度、濕度、溫濕度、功率、電壓、電流、氣壓、CO₂、PM2.5。",
+              "IoT 頁面新增感測器讀值卡片格，顯示當前數值含單位（°C、%、W、V 等）及上線/離線/錯誤狀態。",
+              "設備清單表格現在顯示感測器類型與目標（TCP 為 IP:port，RTU/RS485 為序列埠）。",
+              "表格中的量測數值現在可依指標名稱自動偵測並顯示單位。",
+              "感測器卡片上的相對時間戳記（例如「3 分鐘前」）可快速確認資料新鮮度。"
+            ]
+          },
+          {
+            "title": "IoT — 新增設備對話框",
+            "items": [
+              "將內嵌表單改為對話框，並新增通訊協定分頁（Modbus TCP / Modbus RTU / Modbus RS485）。",
+              "TCP 分頁顯示主機 IP 與埠號欄位；RTU/RS485 分頁顯示序列埠、鮑率、資料位元、同位元、停止位元。",
+              "所有 Modbus 暫存器欄位（單元 ID、位址、FC、資料型別、倍率、偏移、位元組順序、輪詢間隔）可跨分頁共用。"
+            ]
+          },
+          {
+            "title": "IoT — 通訊協定能力",
+            "items": [
+              "更新協定能力清單，將 Modbus RTU 與 Modbus RS485 標記為「就緒」（主動輪詢）。",
+              "MQTT、OPC-UA、BACnet 維持「橋接就緒」狀態（透過 REST API 推送攝取）。"
+            ]
+          },
+          {
+            "title": "介面佈局",
+            "items": [
+              "IoT 頁面重新整理，設有清楚的區段標題：感測器讀值 → 設備清單 → 最近量測 → 設定 → 嵌入 Token。",
+              "設定卡片（轉發佇列、閘道攝取測試、嵌入 Token、允許清單）改為一致的格線佈局，含標示欄位。"
+            ]
+          }
+        ]
+      },
+      {
+        "version": "v1.2.4.8",
+        "date": "2026-06-10",
+        "purpose": "客戶整合穩定版本，涵蓋 API、iframe 嵌入及 IoT 閘道整合。",
+        "sections": [
+          {
+            "title": "客戶整合穩定合約",
+            "items": [
+              "將客戶整合文件提升至 v1.2.4.8 作為目前的穩定合約。",
+              "整合就緒狀態明確分為「就緒」、「橋接就緒」及「計畫中」，清楚界定客戶端 API 範疇。",
+              "保留 /api/v1/integrations/network-snapshot 作為客戶儀表板的主要啟動 API。",
+              "保留以限定範疇嵌入 Token、伺服器端 Token 撤銷及執行期 frame-ancestors 允許清單管理為基礎的 iframe 嵌入整合。",
+              "保留 IoT 直接 Modbus TCP 輪詢及 REST 攝取作為「就緒」整合路徑。",
+              "將 MQTT、OPC-UA 及 BACnet 閘道攝取標記為「橋接就緒」，原生協定客戶端保留為「計畫中」。"
+            ]
+          },
+          {
+            "title": "IoT 邊緣緩衝更新",
+            "items": [
+              "為已設定的 modbus_tcp 訊號點啟用自動輪詢，支援 FC03 保持暫存器及 FC04 輸入暫存器。",
+              "新增 Modbus TCP 點的指標、輪詢間隔、倍率、偏移、位元組順序及字組順序欄位。",
+              "為 Modbus TCP 讀值及 REST 攝取量測加入本地 SQLite 持久化儲存與轉發行為。",
+              "新增 HTTP 轉發器設定與佇列 API，讓客戶系統無需直連各 Modbus TCP 設備即可接收 NMS 正規化的 IoT 數值。",
+              "新增離線重試機制（含退避延遲），轉發失敗的記錄保留在 NMS 主機直到客戶端點可達。",
+              "新增成功後保留期：已轉發的 IoT 記錄標記為「已傳送」，本地保留 10 分鐘後由清理程序刪除。",
+              "新增佇列檢視，可查看待處理、失敗及已傳送保留中的記錄。"
+            ]
+          },
+          {
+            "title": "安全性強化",
+            "items": [
+              "在一般 API JSON 回應中遮蔽設備及 PDU 的 SNMP 社群字串，同時保留內部輪詢行為。",
+              "設備及 PDU 更新現在在更新請求未填寫社群欄位時，保留原本儲存的 SNMP 社群字串。",
+              "攝影機 API 回應遮蔽 RTSP URL 中的認證資訊及敏感查詢參數。",
+              "擴大稽核與日誌詳情的遮蔽範圍，涵蓋密碼、Token、API 金鑰、Secret、授權及 SNMP 社群欄位。",
+              "iframe 及 IoT 整合介面現在顯示限定範疇 Token、HTTPS、允許清單、短 Token 有效期及 OT 網路隔離的安全指引。"
+            ]
+          },
+          {
+            "title": "介面與佈局",
+            "items": [
+              "加強稽核、管理、嵌入及 IoT 表格佈局，防止長 JSON、Token、URL、IP 及識別碼字串造成版面跑版。",
+              "行動裝置與平板表格容器現在將內容限制在頁面範圍內，以受控的水平捲動呈現。",
+              "確認監控模式命名維持為「電視牆模式」。"
+            ]
+          },
+          {
+            "title": "發行套件",
+            "items": [
+              "新增專屬的 Linux ARM64 打包路徑，供客戶交付使用。",
+              "專屬 ARM64 套件僅包含 ARM64 伺服器二進位檔、ARM64 go2rtc 輔助程式、Linux 啟動腳本、版本更新記錄、API 手冊及套件清單。"
+            ]
+          },
+          {
+            "title": "文件",
+            "items": [
+              "更新 docs/API_MANUAL.md 至 v1.2.4.8 客戶整合就緒狀態。",
+              "新增客戶安全驗證關卡，涵蓋認證遮蔽、iframe Token 處理、OT 網路分段及閘道攝取控制。",
+              "新增智慧建築 2016 / 2024 對齊說明，含內政部 / 建築研究所官方參考連結。",
+              "更新 docs/STABLE_RELEASE_ACCEPTANCE_CHECKLIST.md 以追蹤目前 v1.2.4.8 驗收狀態。",
+              "將後端執行版本、前端應用版本、靜態資產版本及 Service Worker 快取更新至 v1.2.4.8。"
+            ]
+          }
+        ]
+      },
+      {
+        "version": "v1.2.4.7",
+        "date": "2026-05-31",
+        "purpose": "強化客戶 iframe 整合管理，並擴展 IoT 閘道整合就緒能力。",
+        "sections": [
+          {
+            "title": "客戶整合",
+            "items": [
+              "新增伺服器端嵌入 Token 記錄，讓管理員可在發行後列出並撤銷 iframe Token。",
+              "嵌入快照請求現在透過 Token jti 記錄拒絕已撤銷或過期的嵌入 Token。",
+              "透過 /api/v1/integrations/settings 新增執行期 iframe frame-ancestors 允許清單設定；CSP 在每次請求時讀取資料庫支援的允許清單，無需重啟。",
+              "在 IoT / Modbus 頁面新增 iframe 允許清單管理及嵌入 Token 撤銷的管理員介面控制項。",
+              "新增 IoT 協定能力設定檔，涵蓋直接 Modbus TCP 加 REST、MQTT 橋接、OPC-UA 閘道及 BACnet 閘道攝取路徑。"
+            ]
+          },
+          {
+            "title": "文件與版本",
+            "items": [
+              "更新 docs/API_MANUAL.md 至 v1.2.4.7，包含嵌入 Token 管理、iframe 允許清單管理及 IoT 協定設定檔指引。",
+              "將後端、前端應用版本、靜態資產版本及 Service Worker 快取更新至 v1.2.4.7。"
+            ]
+          }
+        ]
+      },
+      {
+        "version": "v1.2.4.6",
+        "date": "2026-05-25",
+        "purpose": "新增客戶整合 API 最佳化並發布 API 手冊。",
+        "sections": [
+          {
+            "title": "API 整合",
+            "items": [
+              "新增 GET /api/v1/integrations/network-snapshot 作為客戶端整合 API，將儀表板摘要、設備清單及拓樸合併為單一回應。",
+              "新增 include、page、limit、search、type 及 status 查詢支援，讓客戶端可縮減 Payload 大小。",
+              "整合 Payload 使用 schema 版本 nms.integration.network_snapshot.v1 並省略敏感欄位。",
+              "端點維持在現有 JWT、授權鎖定及 device_management 閘道之後。",
+              "新增限定範疇 iframe 嵌入 Token 及唯讀的 /embed.html 殼層，供客戶入口在 iframe 中嵌入儀表板、拓樸、清單、告警或 IoT 檢視。",
+              "新增 IoT/Modbus 整合 API，支援 Modbus TCP 輪詢及 REST/Webhook 攝取。"
+            ]
+          },
+          {
+            "title": "文件與版本",
+            "items": [
+              "新增 docs/API_MANUAL.md，涵蓋客戶整合的認證、2FA、最佳化快照 API、iframe 嵌入、IoT/Modbus API、現有讀取 API、寫入 API 邊界、狀態碼及整合建議。",
+              "將後端、前端、靜態資產及 Service Worker 版本更新至 v1.2.4.6。",
+              "將繁體中文監控頁面標籤從「監控畫面」/「監控模式」重新命名為「電視牆模式」。"
+            ]
+          }
+        ]
+      },
+      {
+        "version": "v1.2.4.5",
+        "date": "2026-05-15",
+        "purpose": "修正報表匯出格式處理問題，並擴展合規/維運匯出涵蓋範圍。",
+        "sections": [
+          {
+            "title": "報表與匯出",
+            "items": [
+              "修正報表匯出格式處理問題，CSV/PDF 請求不再退回 JSON 輸出。",
+              "新增更豐富的設備與清單匯出欄位，包含 sys 名稱、韌體、位置、SNMP 運作時間、介面數、PoE 數及總流量計數器。",
+              "設備健康報表新增磁碟使用量，可用性報表新增 SNMP 運作時間。",
+              "新增介面/PoE/流量、健康趨勢摘要、SLA 證據、稽核/變更記錄、授權容量、攝影機清單、PDU/UPS 清單及門禁清單等匯出報表。",
+              "透過報表 i18n 路徑標準化報表介面標籤及 CSV/PDF 匯出標題、表頭及常用狀態值，預設使用繁體中文並遵循選取的介面語言。",
+              "為新增報表加入 CSV/PDF 按鈕，並將前端資產同步至兩個後端靜態資產樹。"
+            ]
+          },
+          {
+            "title": "安全性與資料處理",
+            "items": [
+              "報表匯出刻意省略敏感數值，例如密碼、SNMP 社群字串、完整授權金鑰及 RTSP URL。",
+              "授權容量匯出將授權金鑰遮蔽為短前綴。"
+            ]
+          },
+          {
+            "title": "建置與版本",
+            "items": [
+              "將後端、前端、靜態資產及 Service Worker 版本更新至 v1.2.4.5。",
+              "在授權產生輸入中新增 duration_days 繫結，使模組化授權產生器可正確編譯。",
+              "新增報表模組測試，涵蓋 PDF 格式路由、擴展的 CSV 欄位及新報表 SQL 路徑。"
+            ]
+          }
+        ]
+      },
+      {
+        "version": "v1.2.4.3",
+        "date": "2026-04-28",
+        "purpose": "將已驗證的編碼器攝影機預覽及錄影修正提升至混淆版本發行建置。",
+        "sections": [
+          {
+            "title": "攝影機串流",
+            "items": [
+              "MJPEG 維持為管理模式及監控模式的預設低延遲預覽路徑。",
+              "WebRTC/MSE 維持為選用模式，可透過 localStorage.nms-camera-preview-transport = \"webrtc\" 啟用。",
+              "監控模式中 WebRTC 連線失敗現在退回 MJPEG，而非留下黑色攝影機畫格。",
+              "預覽預設維持高品質 MJPEG 輸出，NMS_CAMERA_PREVIEW_QUALITY=2。",
+              "攝影機除錯日誌在此版本中預設停用；僅在需要現場診斷時設定 NMS_CAMERA_DEBUG=1。"
+            ]
+          },
+          {
+            "title": "錄影",
+            "items": [
+              "錄影預設使用 FFmpeg 直接 RTSP 方式。",
+              "錄影不再傳入不支援的 -rw_timeout 輸入選項，修正受影響建置上的 FFmpeg 啟動失敗問題。",
+              "錄影先寫入 MPEG-TS 格式，FFmpeg 結束後再重新封裝，若 MP4 重新封裝失敗則保留 .ts 檔。"
+            ]
+          },
+          {
+            "title": "介面",
+            "items": [
+              "恢復舊式圖示占位符的本地 SVG 圖示渲染。",
+              "Service Worker 監控頁面退回現在回傳有效回應，不再出現「Failed to convert value to 'Response'」錯誤。"
+            ]
+          }
+        ]
+      },
+      {
+        "version": "v1.2.4.4.1",
+        "date": "2026-04-27",
+        "purpose": "測試搭配 go2rtc RTSP 扇出的低延遲 FFmpeg/MJPEG 預覽。",
+        "sections": [
+          {
+            "title": "攝影機串流",
+            "items": [
+              "瀏覽器預覽恢復為 FFmpeg/MJPEG 低延遲路徑。",
+              "WebRTC/MSE 維持為可透過 localStorage 啟用的選用測試路徑。",
+              "MJPEG 預覽優先從 go2rtc 本地 RTSP 扇出取得，若 go2rtc 無法使用則退回直接 RTSP。",
+              "錄影繼續使用 FFmpeg，可從相同的 go2rtc 本地 RTSP 串流取得，減少對編碼器來源的重複上行拉流。"
+            ]
+          }
+        ]
+      },
+      {
+        "version": "v1.2.4.4",
+        "date": "2026-04-27",
+        "purpose": "選用 go2rtc/WebRTC 即時預覽整合，提供攝影機監控的低延遲選項。",
+        "sections": [
+          {
+            "title": "攝影機串流",
+            "items": [
+              "新增 go2rtc 支援的 WebRTC 預覽路徑，適用於攝影機即時檢視、監控模式及儀表板攝影機畫格。",
+              "NMS 按需啟動 go2rtc，將 go2rtc HTTP API 繫結至 127.0.0.1，並透過已驗證的 NMS 路由代理 WebRTC 信令。",
+              "瀏覽器播放優先使用 WebRTC，當 WebRTC/go2rtc 無法使用時自動退回現有的 MJPEG 串流。",
+              "RTSP URL 及認證資訊由 NMS 管理；瀏覽器不會收到直接的 RTSP 認證資訊。",
+              "Windows 套件包含 go2rtc.exe；Linux 套件包含 go2rtc_linux_amd64 及 go2rtc_linux_arm64。"
+            ]
+          }
+        ]
+      },
+      {
+        "version": "v1.2.4.1",
+        "date": "2026-04-26",
+        "purpose": "驗證已更正的翻譯及穩定本地 SVG 圖示的檢驗建置。",
+        "sections": [
+          {
+            "title": "前端",
+            "items": [
+              "更正 zh-TW、zh-CN、ja-JP 及 ko-KR 的日誌與稽核翻譯。",
+              "為導覽、狀態卡片、頂端操作及行動導覽新增本地 SVG 圖示層。",
+              "靜態快取版本更新至 v1.2.4.1-i18n-icons1。"
+            ]
+          }
+        ]
+      },
+      {
+        "version": "v1.2.4-PoC",
+        "date": "2026-04-24",
+        "purpose": "可直接交付客戶測試的 PoC 版，並保留同套程式轉正式 UUID 授權的出貨路徑。",
+        "sections": [
+          {
+            "title": "PoC 執行期",
+            "items": [
+              "版本封裝為 v1.2.4-PoC，與 v1.2.4 主線對齊。",
+              "PoC 版預設 default_device_limit = 0，裝置管理維持鎖定狀態。",
+              "客戶測試時可匯入 PoC License，由授權內容決定可用裝置數與模組能力。"
+            ]
+          },
+          {
+            "title": "授權升級",
+            "items": [
+              "/api/v1/system/info 與 Dashboard 版本字樣改為依實際授權狀態動態切換。",
+              "當系統存在有效的標準 UUID 授權時，版本字樣自動從 v1.2.4-PoC 轉為 v1.2.4。",
+              "PoC License 與 Trial 不會移除 PoC 字樣，避免與正式出貨授權混淆。"
+            ]
+          },
+          {
+            "title": "前端對齊",
+            "items": [
+              "登入頁與模式選擇頁會在載入後同步後端 runtime 版本字樣。",
+              "靜態資產版號維持 v1.2.4，後續正式授權切換時不需要更換整套軟體。"
+            ]
+          }
+        ]
+      },
+      {
+        "version": "v1.2.4",
+        "date": "Candidate",
+        "purpose": "日誌與稽核強化版 — 將既有零散的系統日誌與稽核紀錄重構為可搜尋、可匯出、可追溯的正式模組。",
+        "sections": [
+          {
+            "title": "日誌與稽核",
+            "items": [
+              "新增獨立主欄位：日誌與稽核。",
+              "拆分四類紀錄：稽核日誌、系統日誌、設備日誌、設定變更。",
+              "各類日誌支援獨立查詢、篩選與個別匯出。"
+            ]
+          },
+          {
+            "title": "稽核涵蓋範圍",
+            "items": [
+              "補齊高價值操作稽核：使用者登入/登出/登入失敗、授權新增/啟用/試用、設備/攝影機新增/修改/刪除、拓樸變更、PoE 開/關/重啟、設備重啟、系統設定變更。",
+              "稽核 detail 改為結構化 JSON，而非鬆散字串。",
+              "補入 recordset_id 與 correlation_id 以串聯同一批操作。"
+            ]
+          },
+          {
+            "title": "設定變更",
+            "items": [
+              "新增設定變更紀錄，針對設備、攝影機、授權、拓樸、系統設定保留 before / after 差異。",
+              "區分變更來源：manual、batch、auto_discovery、system_sync。"
+            ]
+          },
+          {
+            "title": "呈現與匯出",
+            "items": [
+              "前端顯示統一中文化，再由 i18n 載入其他語系。",
+              "匯出格式至少支援 CSV 及 JSON，包含篩選條件、時間範圍、匯出時間與筆數。"
+            ]
+          },
+          {
+            "title": "合規方向",
+            "items": [
+              "對齊智慧建築制度演進需求與管理維護可追溯性。",
+              "強化對 ISO/IEC 27001、ISO/IEC 27701、ISO 9001 的證據支援能力。",
+              "本版重點為「更接近可稽核」，不是直接宣稱完成認證。"
+            ]
+          }
+        ]
+      },
+      {
+        "version": "v1.2.1-PoC",
+        "date": "2026-04-20",
+        "purpose": "新增專屬 PoC 授權線，預設鎖定裝置管理，並新增正式與 PoC 授權的雙模式產生器。",
+        "sections": [
+          {
+            "title": "授權 / PoC",
+            "items": [
+              "新增 v1.2.1-PoC 授權線，預設 default_device_limit = 0。",
+              "裝置管理保持鎖定，直到有效授權啟用 device_management 或授予授權裝置容量。",
+              "PoC 授權不綁定機器 ID，支援自訂裝置數與確切到期時間。",
+              "正式授權維持綁定機器 ID。"
+            ]
+          },
+          {
+            "title": "產生器",
+            "items": [
+              "新增專屬產生器，分別提供正式授權與 PoC 授權介面。",
+              "正式授權需要機器 ID 並產生機器綁定金鑰。",
+              "PoC 授權可定義自訂到期時間與裝置數，無需 UUID 綁定。"
+            ]
+          },
+          {
+            "title": "前端 / 閘道",
+            "items": [
+              "設備與拓樸入口點現在依賴 /api/v1/license/features 及 device_management。",
+              "未授權的設備與拓樸讀寫 API 在後端被封鎖。"
+            ]
+          }
+        ]
+      },
+      {
+        "version": "v1.2.3",
+        "date": "2026-04-20",
+        "purpose": "監控模式與拓樸圖穩定化、攝影機預覽切換修復、錄影命名修正，以及版本與發布資訊收斂。",
+        "sections": [
+          {
+            "title": "監控 / 拓樸",
+            "items": [
+              "修正監控模式拓樸圖與 tooltip 殘留的占位符與亂碼顯示問題。",
+              "監控模式樹狀收合後，底下若有離線設備，父節點會正常顯示紅色呼吸燈提示。",
+              "管理模式後台拓樸圖同步補上相同的收合離線提示。",
+              "拓樸統計欄位與速率文字顯示已統一收斂，避免再出現殘留的開發字串。"
+            ]
+          },
+          {
+            "title": "攝影機 / 錄影",
+            "items": [
+              "修正從監控切回管理模式後，攝影機預覽可能卡住不再更新的 backend stale stream 問題。",
+              "錄影清單與匯出檔名改為優先使用 camera_recordings.camera_name，不再退回 cam1/cam2 類型命名。",
+              "新錄影會保留當下攝影機名稱快照，後續即使設備 ID 改動，錄影名稱仍可正確對應。"
+            ]
+          },
+          {
+            "title": "介面 / 發行",
+            "items": [
+              "清理前後台攝影機模組、錄影管理、刪除按鈕、監控提示中的可見亂碼與 raw key 顯示。",
+              "版本顯示與靜態資產 cache-busting 版號已統一收斂到 v1.2.3。",
+              "正式授權新增永久授權規則：當年限達到 50 年以上時，系統自動判定為永久授權。"
+            ]
+          }
+        ]
+      },
+      {
+        "version": "v1.2.2alpha4",
+        "date": "2026-04-17",
+        "purpose": "頻寬超限告警通知、攝影機密碼解密容錯、拓樸樹狀圖層次修正。",
+        "sections": [
+          {
+            "title": "告警通知",
+            "items": [
+              "攝影機 MJPEG 串流超過頻寬限制時，寫入鈴鐺通知。",
+              "網路設備頻寬超限告警：SNMP 輪詢時若介面流量超過 link speed 的 80%，自動寫入 notifications，5 分鐘冷卻。",
+              "告警通知可在右上角鈴鐺面板查看、標記已讀、清除。"
+            ]
+          },
+          {
+            "title": "拓樸圖修正",
+            "items": [
+              "移除「同類型 switch 直連視為 HA pair」的錯誤推斷，只有明確 link_type=ha/vrf/spine_leaf 才合併同層。",
+              "IPCAM 等下游設備現在正確掛在其上游 switch 下。"
+            ]
+          },
+          {
+            "title": "攝影機模組",
+            "items": [
+              "舊版加密密碼無法以當前 AES-GCM key 解密時，自動 fallback 解析 RTSP URL 中的明文密碼，修復 401 Unauthorized 問題。"
+            ]
+          }
+        ]
+      },
+      {
+        "version": "v1.2.2alpha3",
+        "date": "2026-04-16",
+        "purpose": "拓樸樹狀圖節點收折、IPCAM Bitrate 設定、監控模式拓樸修正。",
+        "sections": [
+          {
+            "title": "拓樸圖優化",
+            "items": [
+              "樹狀拓樸節點收折/展開：點選有子設備的節點可收折/展開；收折節點右下角顯示數字視覺提示。",
+              "節點收折狀態儲存在瀏覽器 localStorage，重新整理頁面可自動恢復。",
+              "主頁面（監控）與管理模式共享同一套拓樸渲染邏輯，確保視覺與設定一致性。"
+            ]
+          },
+          {
+            "title": "攝影機模組改善",
+            "items": [
+              "攝影機設定中新增「錄影 Bitrate (kbps)」欄位。",
+              "若設定 Bitrate > 0，錄影程序啟用 libx264 轉碼以符合頻寬需求；設為 0 則維持 Stream Copy 高效模式。",
+              "錄影來源支援 ONVIF 協定連接，確保錄影流能正確更新。"
+            ]
+          }
+        ]
+      },
+      {
+        "version": "v1.2.0",
+        "date": "2026-04-08",
+        "purpose": "監控模式正式化、雙模式登入架構、角色導向主控台、多語系 i18n 補完。",
+        "sections": [
+          {
+            "title": "監控模式正式化",
+            "items": [
+              "demo.html 正式更名為 monitor.html，路由從 /demo 改為 /monitor。",
+              "Badge 與標題後綴支援 5 語系即時切換（繁中 / 簡中 / EN / 日本語 / 한국어）。",
+              "系統名稱顯示修正：優先顯示 sysName，其次自定義名稱，fallback IP。",
+              "拓樸連線消失問題修復：自動刷新時比對 node/link ID，結構有變化則觸發完整 rebuild。"
+            ]
+          },
+          {
+            "title": "雙模式主控台",
+            "items": [
+              "新增 mode-selection.html：登入後統一跳至此頁選擇模式。",
+              "角色導向：admin/editor 顯示管理模式 + 監控模式兩張卡片；viewer 僅顯示監控模式。",
+              "管理模式右上角「監控模式」按鈕改為「主控台」，跳回模式選擇頁。",
+              "監控模式「離開監控」跳回主控台（保留 token，不需重新登入）。"
+            ]
+          },
+          {
+            "title": "登入流程重構",
+            "items": [
+              "登入成功後統一跳至 mode-selection.html，不再在登入頁選模式。",
+              "登入與變更密碼後強制 cache-bust（等同 Ctrl+F5），確保載入最新 JS/CSS。",
+              "已登入狀態開啟登入頁，自動跳至主控台選擇頁。"
+            ]
+          },
+          {
+            "title": "i18n 補完",
+            "items": [
+              "修復登入頁「登入模式」下拉選單未隨語系切換的問題。",
+              "各語言檔補充 login.mode_label / login.mode_admin / login.mode_monitor。",
+              "修復攝影機編輯 Modal 所有標籤、placeholder、按鈕改用 t() i18n 呼叫。",
+              "刪除確認對話框、操作成功/失敗 Toast 全面 i18n 化。"
+            ]
+          }
+        ]
+      },
+      {
+        "version": "v1.1.0sp2",
+        "date": "2026-04-07",
+        "purpose": "Demo 展示模式完善、攝影機 RWD 改善、Viewer 權限強化、UI Bug 修復。",
+        "sections": [
+          {
+            "title": "Demo / 監控模式",
+            "items": [
+              "完整實裝 Demo 頁面（/demo）：無需登出，無需重新登入。",
+              "左側：互動式網路拓樸圖（D3.js，可縮放/拖曳）；右側：設備統計卡片 + 即時事件 Log。",
+              "支援 5 種語系：繁中 / 簡中 / EN / 日本語 / 한국어。",
+              "支援深色 / 淺色主題切換（持久化至 localStorage）。",
+              "5 秒自動刷新，更新設備 on/off 狀態 + 線路流量（不重置 zoom/pan）。"
+            ]
+          }
+        ]
+      },
+      {
+        "version": "v1.1.0",
+        "date": "2026-04-03",
+        "purpose": "EdgeCore SSH 整合、PoE 控制、攝影機 GPU 加速、ffmpeg 自動下載。",
+        "sections": [
+          {
+            "title": "EdgeCore SSH 整合",
+            "items": [
+              "支援 ECS2100-10P、ECS4150、ECS2220 系列。",
+              "SSH 指令序列：備份、重啟、PoE ON/OFF/Recycle。",
+              "isPrompt 修正：!<stackingDB> 不再誤判為 prompt。"
+            ]
+          },
+          {
+            "title": "PoE 控制",
+            "items": [
+              "PoE ON/OFF/Recycle（SSH 優先，SNMP fallback）。",
+              "每 port 即時功耗（EdgeCore private OID）。",
+              "PoE 功率摘要卡片（總功率 / 已使用 / 進度條 >85% 紅 >60% 橙）。"
+            ]
+          },
+          {
+            "title": "攝影機強化",
+            "items": [
+              "GPU 加速串流（NVIDIA CUDA / Intel QSV / AMD VAAPI / D3D11VA）。",
+              "攝影機分頁（16ch/頁，最多 64ch）。",
+              "攝影機 status 修正（第一幀成功後才寫 online）。",
+              "ffmpeg 自動下載（找不到時從 GitHub BtbN builds 下載）。"
+            ]
+          }
+        ]
+      }
+    ]
   }
 }

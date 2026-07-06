@@ -1,3 +1,5 @@
+// Made by YTSworks
+// YTS工作室製作
 // Authentication Module
 
 // Get stored auth data

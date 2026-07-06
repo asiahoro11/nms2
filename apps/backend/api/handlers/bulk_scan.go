@@ -1,3 +1,5 @@
+// Made by YTSworks
+// YTS工作室製作
 package handlers
 
 import (
@@ -17,7 +19,12 @@ import (
 	"github.com/gosnmp/gosnmp"
 )
 
-// BulkScanRequest ?��??��?請�?
+const (
+	bulkScanWorkerCount    = 20
+	bulkScanLaunchInterval = 20 * time.Millisecond
+)
+
+// BulkScanRequest is the input for a bulk scan request
 type BulkScanRequest struct {
 	ScanType            string `json:"scan_type"` // "range" or "subnet"
 	StartIP             string `json:"start_ip"`  // for range scan
@@ -38,13 +45,13 @@ type BulkScanRequest struct {
 	SNMPV3ContextName   string `json:"snmpv3_context_name"`
 }
 
-// BulkScanResult ?��??��?結�?
+// BulkScanResult holds the result for a single scanned host
 type BulkScanResult struct {
 	Found int `json:"found"`
 	Added int `json:"added"`
 }
 
-// BulkScan ?��??��?並新增設??
+// BulkScan scans a subnet or IP range and registers discovered devices
 func (h *Handler) BulkScan(c *gin.Context) {
 	var req BulkScanRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -55,7 +62,7 @@ func (h *Handler) BulkScan(c *gin.Context) {
 		return
 	}
 
-	// ?�設??
+	// 預設值
 	if req.NamePrefix == "" {
 		req.NamePrefix = "Device-"
 	}
@@ -66,7 +73,7 @@ func (h *Handler) BulkScan(c *gin.Context) {
 		req.MonitorType = "ping"
 	}
 
-	// ?��?要�??��? IP ?�表
+	// 解析要掃描的 IP 列表
 	var ips []string
 	var err error
 
@@ -102,7 +109,7 @@ func (h *Handler) BulkScan(c *gin.Context) {
 		return
 	}
 
-	// ?�制?��??��??��??�大
+	// 限制掃描範圍避免過大
 	if len(ips) > 1024 {
 		h.WriteSystemLog("warning", "discovery", "bulk_scan_rejected", "bulk scan rejected: too many ips", map[string]interface{}{
 			"count": len(ips),
@@ -112,7 +119,7 @@ func (h *Handler) BulkScan(c *gin.Context) {
 		return
 	}
 
-	// ?��??��??�制?�當?�數??
+	// limit batch size
 	maxDevices := h.getMaxDeviceLimit()
 	var initialCount int
 	if err := h.db.QueryRow("SELECT COUNT(*) FROM devices").Scan(&initialCount); err != nil {
@@ -134,17 +141,17 @@ func (h *Handler) BulkScan(c *gin.Context) {
 		"name_prefix":   req.NamePrefix,
 	})
 
-	// 並�??��?
+	// concurrent scan
 	var found, added int
 	limitReached := false
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 
 	// 使用 worker pool
-	workerCount := 50
+	workerCount := bulkScanWorkerCount
 	jobs := make(chan string, len(ips))
 
-	// 第�??�段?��?（SNMP ??Ping�?
+	// 第一階段掃描（SNMP 或 Ping）
 	for i := 0; i < workerCount; i++ {
 		wg.Add(1)
 		go func() {
@@ -166,7 +173,7 @@ func (h *Handler) BulkScan(c *gin.Context) {
 						}
 					}
 				} else {
-					// Ping Only 模�?
+					// Ping Only 模式
 					if checkPing(ip) {
 						isOnline = true
 						isSnmp = false
@@ -177,14 +184,14 @@ func (h *Handler) BulkScan(c *gin.Context) {
 					mu.Lock()
 					found++
 
-					// 檢查?��??�制
+					// 檢查數量限制
 					if initialCount+added >= maxDevices {
 						limitReached = true
 						mu.Unlock()
 						continue
 					}
 
-					// 檢查?�否已�???
+					// 檢查是否已存在
 					var exists int
 					h.db.QueryRow("SELECT COUNT(*) FROM devices WHERE ip_address = ?", ip).Scan(&exists)
 
@@ -224,14 +231,24 @@ func (h *Handler) BulkScan(c *gin.Context) {
 		}()
 	}
 
-	// ?�送任??
+	// 派送任務
+	launchTicker := time.NewTicker(bulkScanLaunchInterval)
+	defer launchTicker.Stop()
 	for _, ip := range ips {
+		select {
+		case <-c.Request.Context().Done():
+			close(jobs)
+			wg.Wait()
+			c.JSON(http.StatusRequestTimeout, Response{Success: false, Error: "bulk scan cancelled"})
+			return
+		case <-launchTicker.C:
+		}
 		jobs <- ip
 	}
 	close(jobs)
 	wg.Wait()
 
-	// 記�?事件
+	// 記錄事件
 	username := c.GetString("username")
 	if username == "" {
 		username = "unknown"
@@ -248,10 +265,10 @@ func (h *Handler) BulkScan(c *gin.Context) {
 		go alert.DispatchToEnabledChannels(h.db, h.config, msg)
 	}
 
-	// 如�??�新增設?��?使用SNMP??��,立即觸發一次SNMP輪詢
+	// 如果有新增設備且使用 SNMP 監控, 立即觸發一次 SNMP 輪詢
 	if added > 0 && req.MonitorType == "snmp" && h.snmpCollector != nil {
 		go func() {
-			time.Sleep(1 * time.Second) // 稍微等�?以確保數?�已?�交
+			time.Sleep(1 * time.Second) // 稍微等待以確保資料已提交
 			h.snmpCollector.PollAllDevices()
 		}()
 	}
@@ -320,7 +337,7 @@ func (h *Handler) BulkScan(c *gin.Context) {
 	})
 }
 
-// expandIPRange 展�? IP 範�?
+// expandIPRange 展開 IP 範圍
 func expandIPRange(startIP, endIP string) ([]string, error) {
 	start := net.ParseIP(startIP)
 	end := net.ParseIP(endIP)
@@ -351,7 +368,7 @@ func expandIPRange(startIP, endIP string) ([]string, error) {
 	return ips, nil
 }
 
-// expandSubnet 展�?子網�?
+// expandSubnet 展開子網段
 func expandSubnet(cidr string) ([]string, error) {
 	_, ipnet, err := net.ParseCIDR(cidr)
 	if err != nil {
@@ -360,7 +377,7 @@ func expandSubnet(cidr string) ([]string, error) {
 
 	var ips []string
 	for ip := ipnet.IP.Mask(ipnet.Mask); ipnet.Contains(ip); incIP(ip) {
-		// 跳�?網段?��??�廣?�地?�
+		// 跳過網段位址與廣播位址
 		if !isNetworkOrBroadcast(ip, ipnet) {
 			ips = append(ips, ip.String())
 		}
@@ -394,7 +411,7 @@ func isNetworkOrBroadcast(ip net.IP, ipnet *net.IPNet) bool {
 		return false
 	}
 
-	// 網段?��? (??0)
+	// 網段位址 (結尾為 0)
 	network := ipnet.IP.To4()
 	isBroadcast := true
 	isNetwork := true
@@ -412,7 +429,7 @@ func isNetworkOrBroadcast(ip net.IP, ipnet *net.IPNet) bool {
 		}
 	}
 
-	// 對於 /32 網段，�?跳�?任�??��?
+	// 對於 /32 網段，不跳過任何位址
 	ones, bits := ipnet.Mask.Size()
 	if ones == bits {
 		return false
@@ -421,14 +438,14 @@ func isNetworkOrBroadcast(ip net.IP, ipnet *net.IPNet) bool {
 	return isNetwork || isBroadcast || ip4.Equal(network)
 }
 
-// checkPing 檢查 Ping ??���?
+// checkPing 檢查 Ping 可達性
 func checkPing(ip string) bool {
 	var cmd *exec.Cmd
 	if runtime.GOOS == "windows" {
-		// Windows: -n 1 (次數), -w 1000 (超�? ms)
+		// Windows: -n 1 (次數), -w 1000 (逾時 ms)
 		cmd = exec.Command("ping", "-n", "1", "-w", "1000", ip)
 	} else {
-		// Linux/Unix: -c 1 (次數), -W 1 (超�? sec)
+		// Linux/Unix: -c 1 (次數), -W 1 (逾時 sec)
 		cmd = exec.Command("ping", "-c", "1", "-W", "1", ip)
 	}
 
@@ -446,7 +463,7 @@ func checkPing(ip string) bool {
 	return true // Linux ping exit code is reliable
 }
 
-// checkSNMP 檢查 SNMP ??���?
+// checkSNMP 檢查 SNMP 可達性
 func checkSNMP(ip string, req BulkScanRequest) bool {
 	community := req.SNMPCommunity
 	if community == "" && req.SNMPVersion != 3 {
@@ -508,7 +525,7 @@ func checkSNMP(ip string, req BulkScanRequest) bool {
 	}
 	defer g.Conn.Close()
 
-	// ?�試?��? sysDescr
+	// 嘗試讀取 sysDescr
 	oids := []string{"1.3.6.1.2.1.1.1.0"}
 	result, err := g.Get(oids)
 	if err != nil || len(result.Variables) == 0 {

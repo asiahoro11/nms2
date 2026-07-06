@@ -1,3 +1,5 @@
+// Made by YTSworks
+// YTS工作室製作
 package database
 
 import (
@@ -42,8 +44,9 @@ func Initialize(dbPath string, version string) (*sql.DB, error) {
 		log.Printf("Warning: Failed to enable foreign keys: %v", err)
 	}
 
-	db.SetMaxOpenConns(10)
-	db.SetMaxIdleConns(5)
+	// busy_timeout is per-connection; single connection avoids SQLITE_BUSY under concurrent writes.
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
 
 	if err := createTables(db); err != nil {
 		return nil, err
@@ -345,7 +348,6 @@ func createTables(db *sql.DB) error {
 		return err
 	}
 
-	// 初始化預設 alert settings (預設皆為關閉)
 	db.Exec(`INSERT OR IGNORE INTO alert_settings (alert_type, is_enabled, config_json) VALUES ('email', 0, '{}')`)
 	db.Exec(`INSERT OR IGNORE INTO alert_settings (alert_type, is_enabled, config_json) VALUES ('line', 0, '{}')`)
 	db.Exec(`INSERT OR IGNORE INTO alert_settings (alert_type, is_enabled, config_json) VALUES ('telegram', 0, '{}')`)
@@ -460,7 +462,6 @@ func createTables(db *sql.DB) error {
 		return err
 	}
 
-	// 建立預設管理員帳號 (密碼: admin123)
 	_, err = db.Exec(`
 		CREATE TABLE IF NOT EXISTS topology_change_logs (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -568,29 +569,19 @@ func createTables(db *sql.DB) error {
 	return nil
 }
 
-// upgradeSchema 升級現有資料庫結構
 func upgradeSchema(db *sql.DB, version string) error {
-	log.Println("Checking for schema upgrades...")
-	// 檢測 alert_settings 是否為舊 Schema (使用 'key' 欄位檢查)
-	// 如果查詢 'key' 欄位成功，表示是舊 Schema，需要重建
-	// 或者直接查詢 'alert_type' 欄位，如果失敗，表示是舊 Schema 或 table 不存在(但 createTables 已建立)
-	// 對於現有舊 DB，createTables 中的 CREATE IF NOT EXISTS 不會執行，所以必須在這裡處理
-
+	// Migrate alert_settings if it uses the old schema (has 'key' column, not 'alert_type').
 	var hasAlertTypeColumn int
 	err := db.QueryRow("SELECT COUNT(*) FROM pragma_table_info('alert_settings') WHERE name='alert_type'").Scan(&hasAlertTypeColumn)
 	if err == nil && hasAlertTypeColumn == 0 {
-		// 舊 Schema 或是新建但有問題 (理論上新建的會有)
-		// 檢查是否有 key 欄位來確認是舊 Schema
 		var hasKeyColumn int
 		db.QueryRow("SELECT COUNT(*) FROM pragma_table_info('alert_settings') WHERE name='key'").Scan(&hasKeyColumn)
 
 		if hasKeyColumn > 0 {
 			log.Println("Migrating alert_settings from old schema...")
-			// Drop old table
 			if _, err := db.Exec("DROP TABLE alert_settings"); err != nil {
 				log.Printf("Failed to drop old alert_settings table: %v", err)
 			} else {
-				// Recreate table
 				_, err = db.Exec(`
 					CREATE TABLE IF NOT EXISTS alert_settings (
 						id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -604,20 +595,18 @@ func upgradeSchema(db *sql.DB, version string) error {
 				if err != nil {
 					log.Printf("Failed to recreate alert_settings table: %v", err)
 				} else {
-					// Re-populate defaults (預設皆為關閉)
 					db.Exec(`INSERT OR IGNORE INTO alert_settings (alert_type, is_enabled, config_json) VALUES ('email', 0, '{}')`)
 					db.Exec(`INSERT OR IGNORE INTO alert_settings (alert_type, is_enabled, config_json) VALUES ('line', 0, '{}')`)
 					db.Exec(`INSERT OR IGNORE INTO alert_settings (alert_type, is_enabled, config_json) VALUES ('telegram', 0, '{}')`)
 					db.Exec(`INSERT OR IGNORE INTO alert_settings (alert_type, is_enabled, config_json) VALUES ('discord', 0, '{}')`)
 					db.Exec(`INSERT OR IGNORE INTO alert_settings (alert_type, is_enabled, config_json) VALUES ('slack', 0, '{}')`)
 					db.Exec(`INSERT OR IGNORE INTO alert_settings (alert_type, is_enabled, config_json) VALUES ('whatsapp', 0, '{}')`)
-					log.Println("alert_settings migrated successfully.")
+					log.Println("alert_settings migrated.")
 				}
 			}
 		}
 	}
 
-	// 新增欄位 (忽略錯誤，欄位可能已存在)
 	alterStatements := []string{
 		"ALTER TABLE devices ADD COLUMN sys_name TEXT",
 		"ALTER TABLE devices ADD COLUMN sys_uptime TEXT",
@@ -929,31 +918,16 @@ func upgradeSchema(db *sql.DB, version string) error {
 		_, _ = db.Exec(stmt)
 	}
 
-	// 自動修復：如果 admin 的密碼雜湊長度不等於 60 (非 bcrypt 標準長度)，則重置為預設密碼 (admin123)
-	// 這能解決舊版本可能使用明文或非 bcrypt 雜湊導致無法登入的問題
+	// Reset admin password to default if the stored hash is not a valid bcrypt hash (length != 60).
 	_, err = db.Exec(`
-		UPDATE users 
-		SET password_hash = '$2a$10$Ec/YhIGuHjX6/g2bE8dsq.to2oo.oDO9i/zylvPFuqZx3KmtOC3yO', 
-			force_change_password = 1 
+		UPDATE users
+		SET password_hash = '$2a$10$Ec/YhIGuHjX6/g2bE8dsq.to2oo.oDO9i/zylvPFuqZx3KmtOC3yO',
+			force_change_password = 1
 		WHERE username = 'admin' AND LENGTH(password_hash) != 60
 	`)
 	if err != nil {
 		log.Printf("Failed to auto-fix admin password: %v", err)
 	}
-
-	// Ensure default admin has force_change_password = 1 if it's the default password (optional, but good for safety)
-	// We won't force reset here to avoid annoying existing users who already changed passwords.
-	// Ideally, we'd check if the hash matches the default, but that's complex here.
-	// Instead, we just rely on the column default being 0 for existing users (don't force them)
-	// and the INSERT IGNORE for new setups or resets.
-
-	// However, for THIS specific request, the user wants "First time login" behavior.
-	// If we assume this is a fresh deploy or we want to force it for 'admin' specifically:
-	// _, _ = db.Exec("UPDATE users SET force_change_password = 1 WHERE username = 'admin' AND role = 'admin'")
-	// Use caution with the above line in production updates.
-	// For this context, I will add the column.
-
-	// Ensure system_config defaults exist
 	trimmedVersion := strings.TrimSpace(version)
 	baseVersion := trimmedVersion
 	if strings.HasSuffix(strings.ToLower(baseVersion), "-poc") {

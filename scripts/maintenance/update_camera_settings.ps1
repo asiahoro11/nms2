@@ -1,3 +1,5 @@
+# Made by YTSworks
+# YTS工作室製作
 $html = Get-Content "frontend\camera-settings.html" -Raw -Encoding UTF8
 $newForms = Get-Content "replacement_form.js" -Raw -Encoding UTF8
 $pattern = '(?s)        function showAddCameraModal\(\) \{.*?        async function deleteCamera\(id\) \{'

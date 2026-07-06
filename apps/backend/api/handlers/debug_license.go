@@ -1,3 +1,5 @@
+// Made by YTSworks
+// YTS工作室製作
 package handlers
 
 import (
@@ -13,7 +15,7 @@ type DebugLicenseInput struct {
 	LicenseKey string `json:"license_key"`
 }
 
-// DebugLicense 測試並�??��?權�???
+// DebugLicense tests and returns the current license status
 func (h *Handler) DebugLicense(c *gin.Context) {
 	var input DebugLicenseInput
 	if err := c.ShouldBindJSON(&input); err != nil {

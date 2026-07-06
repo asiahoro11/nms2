@@ -1,3 +1,5 @@
+// Made by YTSworks
+// YTS工作室製作
 package api
 
 import (
@@ -26,20 +28,20 @@ func SetupRouter(cfg *config.Config, db *sql.DB, collector *snmp.Collector, asse
 	r.Use(middleware.Logger())
 	r.Use(middleware.Secure(cfg, db))
 
-	// 建�??��???
+	// Create handlers and start background loops
 	h := handlers.New(cfg, db, collector)
 	h.StartCameraHealthLoop()
 	h.StartLicenseHealthLoop()
 	h.StartIoTLoop()
 
-	// --- ?��?檔�??��? ---
-	// ?��?�?1: 檢查?��??��?下是?��??�實�?frontend 資�?�?(?�發??
-	// ?��?�?2: 使用?��?資�? (?�產?��?)
+	// --- Static file serving ---
+	// Strategy 1: check if a real frontend/ dir exists (dev mode)
+	// Strategy 2: use embedded assets (production)
 
-	// ?��?上傳路�? - ?��?使用?��??��???data
+	// Upload path — prefer ./data in current dir
 	dataPath := "./data"
 	if _, err := os.Stat("./data"); err != nil {
-		// ?��??��?沒�? data，檢?�父?��?
+		// No ./data found, try ../data
 		if _, err := os.Stat("../data"); err == nil {
 			dataPath = "../data"
 		}
@@ -51,17 +53,17 @@ func SetupRouter(cfg *config.Config, db *sql.DB, collector *snmp.Collector, asse
 	r.RedirectTrailingSlash = false
 	r.RedirectFixedPath = false
 
-	// 使用 Sub FS 以簡?�路徑�?�?index.html 位於?�目??
+	// Sub FS so index.html is at root (not /static/index.html)
 	staticFS, err := fs.Sub(assets, "static")
 	if err != nil {
 		log.Fatalf("Failed to create sub-filesystem: %v", err)
 	}
 
-	// ?��?資�??��??�輯：�?使用 FileFromFS 以�??��? 301
+	// Serve via ReadFile instead of FileFromFS to avoid 301 redirects
 	serveAsData := func(c *gin.Context, fsPath string, contentType string) {
 		data, err := fs.ReadFile(staticFS, fsPath)
 		if err != nil {
-			// ?�找不到檔�?且�???index.html，�??�退??index.html (SPA)
+			// File not found and not index.html → fall back to SPA root
 			if fsPath != "index.html" {
 				indexData, err := fs.ReadFile(staticFS, "index.html")
 				if err == nil {
@@ -74,7 +76,7 @@ func SetupRouter(cfg *config.Config, db *sql.DB, collector *snmp.Collector, asse
 		}
 
 		if contentType == "" {
-			// ?��??�測 Content-Type
+			// Auto-detect Content-Type from extension
 			switch {
 			case strings.HasSuffix(fsPath, ".html"):
 				contentType = "text/html; charset=utf-8"
@@ -99,27 +101,27 @@ func SetupRouter(cfg *config.Config, db *sql.DB, collector *snmp.Collector, asse
 		c.Data(http.StatusOK, contentType, data)
 	}
 
-	// ?�能路由：�??��??��?端�?源�? SPA 跳�?
+	// Catch-all: serve SPA for non-API frontend routes
 	r.NoRoute(func(c *gin.Context) {
 		path := c.Request.URL.Path
 
-		// API 請�?不�?走到?�裡
+		// API requests should not reach NoRoute
 		if strings.HasPrefix(path, "/api/") {
 			c.JSON(http.StatusNotFound, gin.H{"error": "API route not found"})
 			return
 		}
 
-		// 清�?路�?並移??/static ?�綴
+		// Strip /static/ prefix and leading slash
 		fsPath := path
 		fsPath = strings.TrimPrefix(path, "/static/")
 		fsPath = strings.TrimPrefix(fsPath, "/")
 
-		// ?��??�路徑�?空路�?
+		// Empty path → serve index.html
 		if fsPath == "" {
 			fsPath = "index.html"
 		}
 
-		// ?��??�副檔�???HTML (�?/login)
+		// No extension (e.g. /login) → try .html variant
 		if !strings.Contains(filepath.Base(fsPath), ".") {
 			altPath := fsPath + ".html"
 			if _, err := fs.Stat(staticFS, altPath); err == nil {
@@ -130,7 +132,7 @@ func SetupRouter(cfg *config.Config, db *sql.DB, collector *snmp.Collector, asse
 		serveAsData(c, fsPath, "")
 	})
 
-	// API 路由 (?�援 v1 ?�本?�管)
+	// API routes (v1)
 	v1 := r.Group("/api/v1")
 	{
 		v1.POST("/auth/login", h.Login)
@@ -325,12 +327,12 @@ func SetupRouter(cfg *config.Config, db *sql.DB, collector *snmp.Collector, asse
 			camEditor.GET("/cameras/monitor", h.GetMonitorCameras)
 			camEditor.GET("/cameras/:id", h.GetCamera)
 
-			// NVR Recording Routes ??literal paths before :id params
+			// NVR Recording Routes — literal paths before :id params
 			camEditor.GET("/cameras/recording/status", h.GetRecordingStatus)
 			camEditor.PUT("/cameras/recording/batch", h.BatchSetRecording)
 			camEditor.PUT("/cameras/:id/recording", h.SetCameraRecording)
 
-			// Recordings management ??literal paths before :id
+			// Recordings management — literal paths before :id
 			camEditor.GET("/recordings/stats", h.GetRecordingStats)
 			camEditor.GET("/recordings/dates", h.ListRecordingDates)
 			camEditor.GET("/recordings", h.ListRecordings)
@@ -351,7 +353,7 @@ func SetupRouter(cfg *config.Config, db *sql.DB, collector *snmp.Collector, asse
 			camAuth.GET("/cameras/:id/stream/mjpeg", h.GetCameraMJPEG)
 		}
 
-		// Access Control module ??status readable by any authenticated user
+		// Access Control module — status readable by any authenticated user
 		acAuth := v1.Group("")
 		acAuth.Use(middleware.AuthRequired([]byte(cfg.Security.JWTSecret)))
 		acAuth.Use(h.EnforceLicenseLock())
@@ -360,7 +362,7 @@ func SetupRouter(cfg *config.Config, db *sql.DB, collector *snmp.Collector, asse
 			acAuth.GET("/access-control/events", h.GetACEvents)
 		}
 
-		// Access Control ??read (editor+)
+		// Access Control — read (editor+)
 		acEditor := v1.Group("")
 		acEditor.Use(middleware.AuthRequired([]byte(cfg.Security.JWTSecret)))
 		acEditor.Use(h.EnforceLicenseLock())
@@ -371,7 +373,7 @@ func SetupRouter(cfg *config.Config, db *sql.DB, collector *snmp.Collector, asse
 			acEditor.GET("/access-control/cards", h.GetCards)
 		}
 
-		// Access Control ??write (admin only)
+		// Access Control — write (admin only)
 		acAdmin := v1.Group("")
 		acAdmin.Use(middleware.AuthRequired([]byte(cfg.Security.JWTSecret)))
 		acAdmin.Use(h.EnforceLicenseLock())
@@ -394,7 +396,7 @@ func SetupRouter(cfg *config.Config, db *sql.DB, collector *snmp.Collector, asse
 			acAdmin.GET("/access-control/schedules/check", h.CheckCardScheduleAccess)
 		}
 
-		// PDU/UPS module ??status readable by any authenticated user
+		// PDU/UPS module — status readable by any authenticated user
 		pduAuth := v1.Group("")
 		pduAuth.Use(middleware.AuthRequired([]byte(cfg.Security.JWTSecret)))
 		pduAuth.Use(h.EnforceLicenseLock())
@@ -402,7 +404,7 @@ func SetupRouter(cfg *config.Config, db *sql.DB, collector *snmp.Collector, asse
 			pduAuth.GET("/pdu/status", h.GetPDUModuleStatus)
 		}
 
-		// PDU/UPS ??read (editor+)
+		// PDU/UPS — read (editor+)
 		pduEditor := v1.Group("")
 		pduEditor.Use(middleware.AuthRequired([]byte(cfg.Security.JWTSecret)))
 		pduEditor.Use(h.EnforceLicenseLock())
@@ -413,7 +415,7 @@ func SetupRouter(cfg *config.Config, db *sql.DB, collector *snmp.Collector, asse
 			pduEditor.POST("/pdu/devices/:id/poll", h.PollPDUDevice)
 		}
 
-		// PDU/UPS ??write (admin only)
+		// PDU/UPS — write (admin only)
 		pduAdmin := v1.Group("")
 		pduAdmin.Use(middleware.AuthRequired([]byte(cfg.Security.JWTSecret)))
 		pduAdmin.Use(h.EnforceLicenseLock())

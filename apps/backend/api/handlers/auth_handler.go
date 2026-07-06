@@ -1,17 +1,75 @@
+// Made by YTSworks
+// YTS工作室製作
 package handlers
 
 import (
+	"fmt"
 	"net/http"
+	"strings"
+	"time"
 
 	authmodule "management-server/modules/auth"
 
 	"github.com/gin-gonic/gin"
 )
 
+// checkLoginRateLimit rejects the request with 429 when the client IP or the
+// IP+username pair is locked out. Returns false when the request was rejected.
+func (h *Handler) checkLoginRateLimit(c *gin.Context, username string) bool {
+	retry := time.Duration(0)
+	if blocked, r := h.loginIPLimiter.Blocked(c.ClientIP()); blocked {
+		retry = r
+	} else if blocked, r := h.loginAccountLimiter.Blocked(loginAccountKey(c, username)); blocked {
+		retry = r
+	}
+	if retry <= 0 {
+		return true
+	}
+
+	seconds := int(retry.Round(time.Second).Seconds())
+	if seconds < 1 {
+		seconds = 1
+	}
+	c.Header("Retry-After", fmt.Sprintf("%d", seconds))
+	c.JSON(http.StatusTooManyRequests, Response{
+		Success: false,
+		Error:   "登入嘗試次數過多，請稍後再試",
+	})
+	return false
+}
+
+// recordLoginFailure counts a failed authentication attempt and writes an
+// audit entry when the failure triggered a lockout.
+func (h *Handler) recordLoginFailure(c *gin.Context, username string) {
+	ipLocked := h.loginIPLimiter.RecordFailure(c.ClientIP())
+	acctLocked := h.loginAccountLimiter.RecordFailure(loginAccountKey(c, username))
+	if ipLocked || acctLocked {
+		h.WriteSystemLog("warning", "auth", "login_lockout", "too many failed login attempts", map[string]interface{}{
+			"username": username,
+			"ip":       c.ClientIP(),
+		})
+		h.WriteAudit(username, c.ClientIP(), h.auditSourceMAC(c), "login_lockout", "auth", "blocked", map[string]interface{}{
+			"username": username,
+		})
+	}
+}
+
+func (h *Handler) resetLoginFailures(c *gin.Context, username string) {
+	h.loginAccountLimiter.Reset(loginAccountKey(c, username))
+}
+
+func loginAccountKey(c *gin.Context, username string) string {
+	return c.ClientIP() + "|" + strings.ToLower(username)
+}
+
 func (h *Handler) Verify2FA(c *gin.Context) {
 	var input authmodule.VerifyTwoFactorInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, Response{Success: false, Error: "請提供有效的驗證碼"})
+		return
+	}
+
+	if !h.checkLoginRateLimit(c, "2fa|"+input.Username) {
 		return
 	}
 
@@ -23,16 +81,20 @@ func (h *Handler) Verify2FA(c *gin.Context) {
 		case authmodule.IsErrorCode(err, authmodule.ErrCodeTwoFactorChallengeExpired):
 			c.JSON(http.StatusUnauthorized, Response{Success: false, Error: "登入驗證已過期，請重新登入"})
 		case authmodule.IsErrorCode(err, authmodule.ErrCodeTwoFactorChallengeInvalid):
+			h.recordLoginFailure(c, "2fa|"+input.Username)
 			c.JSON(http.StatusUnauthorized, Response{Success: false, Error: "登入驗證無效，請重新登入"})
 		case authmodule.IsErrorCode(err, authmodule.ErrCodeTwoFactorExpired):
 			c.JSON(http.StatusUnauthorized, Response{Success: false, Error: "驗證碼已過期"})
 		case authmodule.IsErrorCode(err, authmodule.ErrCodeTwoFactorInvalid), authmodule.IsErrorCode(err, authmodule.ErrCodeTwoFactorNotConfigured):
+			h.recordLoginFailure(c, "2fa|"+input.Username)
 			c.JSON(http.StatusUnauthorized, Response{Success: false, Error: "驗證碼錯誤"})
 		default:
 			c.JSON(http.StatusInternalServerError, Response{Success: false, Error: "二階段驗證失敗"})
 		}
 		return
 	}
+
+	h.resetLoginFailures(c, "2fa|"+input.Username)
 
 	h.WriteSystemLog("notice", "auth", "login_2fa", "user login success via 2fa", map[string]interface{}{
 		"user_id":           result.User.ID,
@@ -228,10 +290,15 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
+	if !h.checkLoginRateLimit(c, input.Username) {
+		return
+	}
+
 	result, err := h.auth.Login(input)
 	if err != nil {
 		switch {
 		case authmodule.IsErrorCode(err, authmodule.ErrCodeUserNotFound):
+			h.recordLoginFailure(c, input.Username)
 			h.WriteSystemLog("warning", "auth", "login_failed", "login failed: user not found", map[string]interface{}{
 				"username": input.Username,
 				"reason":   "user_not_found",
@@ -242,6 +309,7 @@ func (h *Handler) Login(c *gin.Context) {
 			})
 			c.JSON(http.StatusUnauthorized, Response{Success: false, Error: "帳號或密碼錯誤"})
 		case authmodule.IsErrorCode(err, authmodule.ErrCodeAccountDisabled):
+			h.recordLoginFailure(c, input.Username)
 			h.WriteSystemLog("warning", "auth", "login_failed", "login failed: account disabled", map[string]interface{}{
 				"username": input.Username,
 				"reason":   "account_disabled",
@@ -252,6 +320,7 @@ func (h *Handler) Login(c *gin.Context) {
 			})
 			c.JSON(http.StatusUnauthorized, Response{Success: false, Error: "帳號已停用"})
 		case authmodule.IsErrorCode(err, authmodule.ErrCodeInvalidCredentials):
+			h.recordLoginFailure(c, input.Username)
 			h.WriteSystemLog("warning", "auth", "login_failed", "login failed: wrong password", map[string]interface{}{
 				"username": input.Username,
 				"reason":   "wrong_password",
@@ -276,6 +345,9 @@ func (h *Handler) Login(c *gin.Context) {
 		}
 		return
 	}
+
+	// Password verified: clear per-account failure history.
+	h.resetLoginFailures(c, input.Username)
 
 	if result.RequiresTwoFactor {
 		h.WriteSystemLog("notice", "auth", "login_2fa_challenge", "user login requires second factor", map[string]interface{}{

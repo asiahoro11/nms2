@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Made by YTSworks
+# YTS工作室製作
 set -euo pipefail
 
 export LANG=zh_TW.UTF-8

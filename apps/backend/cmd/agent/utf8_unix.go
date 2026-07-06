@@ -1,6 +1,8 @@
 //go:build !windows
 // +build !windows
 
+// Made by YTSworks
+// YTS工作室製作
 package main
 
 // Linux/Unix 系統不需要特殊的 UTF-8 初始化

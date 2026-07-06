@@ -1,3 +1,5 @@
+// Made by YTSworks
+// YTS工作室製作
 package iot
 
 import (
@@ -5,10 +7,12 @@ import (
 	"context"
 	"database/sql"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"math"
 	"net"
 	"net/http"
@@ -18,6 +22,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	modbusclient "github.com/simonvetter/modbus"
+
+	"management-server/pkg/dbutils"
 )
 
 const (
@@ -29,8 +36,13 @@ const (
 type Service struct {
 	db *sql.DB
 
-	loopOnce sync.Once
-	stopCh   chan struct{}
+	loopOnce    sync.Once
+	tablesMu    sync.Mutex
+	tablesReady bool
+	forwardMu   sync.Mutex
+	stopCh      chan struct{}
+
+	serialMu sync.Map // key: serial port → *sync.Mutex (Windows: exclusive open)
 }
 
 func NewService(db *sql.DB) *Service {
@@ -38,6 +50,13 @@ func NewService(db *sql.DB) *Service {
 }
 
 func (s *Service) EnsureTables() error {
+	s.tablesMu.Lock()
+	defer s.tablesMu.Unlock()
+
+	if s.tablesReady {
+		return nil
+	}
+
 	if _, err := s.db.Exec(`
 		CREATE TABLE IF NOT EXISTS iot_devices (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -93,6 +112,13 @@ func (s *Service) EnsureTables() error {
 		`ALTER TABLE iot_measurements ADD COLUMN drop_after DATETIME`,
 		`ALTER TABLE iot_measurements ADD COLUMN next_attempt_at DATETIME`,
 		`ALTER TABLE iot_measurements ADD COLUMN last_error TEXT DEFAULT ''`,
+		// RTU / RS485 serial fields
+		`ALTER TABLE iot_devices ADD COLUMN sensor_type TEXT DEFAULT ''`,
+		`ALTER TABLE iot_devices ADD COLUMN serial_port TEXT DEFAULT ''`,
+		`ALTER TABLE iot_devices ADD COLUMN baud_rate INTEGER DEFAULT 9600`,
+		`ALTER TABLE iot_devices ADD COLUMN data_bits INTEGER DEFAULT 8`,
+		`ALTER TABLE iot_devices ADD COLUMN parity TEXT DEFAULT 'N'`,
+		`ALTER TABLE iot_devices ADD COLUMN stop_bits INTEGER DEFAULT 1`,
 	}
 	for _, stmt := range migrations {
 		_, _ = s.db.Exec(stmt)
@@ -122,6 +148,8 @@ func (s *Service) EnsureTables() error {
 			return err
 		}
 	}
+
+	s.tablesReady = true
 	return nil
 }
 
@@ -144,13 +172,25 @@ func (s *Service) backgroundLoop() {
 		case <-s.stopCh:
 			return
 		case <-pollTicker.C:
-			s.PollDueDevices()
+			if s.LicenseEnabled() {
+				s.PollDueDevices()
+			}
 		case <-forwardTicker.C:
-			s.FlushForwardQueue()
+			if s.LicenseEnabled() {
+				s.FlushForwardQueue()
+			}
 		case <-cleanupTicker.C:
-			s.CleanupForwardedMeasurements()
+			if s.LicenseEnabled() {
+				s.CleanupForwardedMeasurements()
+			}
 		}
 	}
+}
+
+func (s *Service) LicenseEnabled() bool {
+	var val string
+	err := s.db.QueryRow(`SELECT config_value FROM system_config WHERE config_key='iot_enabled'`).Scan(&val)
+	return err == nil && (val == "1" || strings.EqualFold(val, "true"))
 }
 
 func (s *Service) Status() (Status, error) {
@@ -158,7 +198,7 @@ func (s *Service) Status() (Status, error) {
 		return Status{}, err
 	}
 	settings, _ := s.ForwarderSettings()
-	var status Status
+	status := Status{Enabled: s.LicenseEnabled()}
 	_ = s.db.QueryRow(`SELECT COUNT(*) FROM iot_devices`).Scan(&status.DeviceCount)
 	_ = s.db.QueryRow(`SELECT COUNT(*) FROM iot_devices WHERE enabled = 1`).Scan(&status.EnabledCount)
 	_ = s.db.QueryRow(`SELECT COUNT(*) FROM iot_measurements`).Scan(&status.MeasurementCount)
@@ -184,7 +224,34 @@ func (s *Service) Capabilities() []ProtocolProfile {
 			Name:        "Modbus TCP",
 			Mode:        "direct_poll",
 			Status:      "ready",
-			Description: "Background LAN polling for meters, PLCs, UPS, environmental sensors, and Modbus-capable equipment. Supports FC03 and FC04.",
+			Description: "LAN/WAN active polling. Supports FC03/FC04, multi data types, endian config.",
+			DataTypes:   []string{"uint16", "int16", "uint32", "int32", "float32"},
+			Endpoint:    "/api/v1/iot/devices",
+		},
+		{
+			Protocol:    "modbus_rtu",
+			Name:        "Modbus RTU",
+			Mode:        "direct_poll",
+			Status:      "ready",
+			Description: "Serial port active polling over RS232/RS485. Supports FC03/FC04 with CRC16 framing.",
+			DataTypes:   []string{"uint16", "int16", "uint32", "int32", "float32"},
+			Endpoint:    "/api/v1/iot/devices",
+		},
+		{
+			Protocol:    "modbus_rs485",
+			Name:        "Modbus RS485",
+			Mode:        "direct_poll",
+			Status:      "ready",
+			Description: "RTU framing over RS485 half-duplex serial bus. Suitable for multi-drop sensor networks.",
+			DataTypes:   []string{"uint16", "int16", "uint32", "int32", "float32"},
+			Endpoint:    "/api/v1/iot/devices",
+		},
+		{
+			Protocol:    "modbus_rtu_tcp",
+			Name:        "Modbus RTU over TCP",
+			Mode:        "direct_poll",
+			Status:      "ready",
+			Description: "RTU frames with CRC over a TCP transparent serial gateway. Use this for RS485-to-Ethernet converters that are not Modbus TCP gateways.",
 			DataTypes:   []string{"uint16", "int16", "uint32", "int32", "float32"},
 			Endpoint:    "/api/v1/iot/devices",
 		},
@@ -193,7 +260,7 @@ func (s *Service) Capabilities() []ProtocolProfile {
 			Name:        "REST / Webhook",
 			Mode:        "gateway_ingest",
 			Status:      "ready",
-			Description: "Generic push path for customer systems and IoT gateways. Measurements enter the same local forward queue.",
+			Description: "Generic HTTP push path for IoT gateways and custom integrations.",
 			Endpoint:    "/api/v1/iot/ingest",
 		},
 		{
@@ -201,7 +268,7 @@ func (s *Service) Capabilities() []ProtocolProfile {
 			Name:        "HTTP Forward Queue",
 			Mode:        "store_and_forward",
 			Status:      "ready",
-			Description: "Durable local buffering, offline retry, and successful-record cleanup after 10 minutes.",
+			Description: "Durable local buffering with offline retry and auto-cleanup.",
 			Endpoint:    "/api/v1/iot/forwarder/settings",
 		},
 		{
@@ -209,7 +276,7 @@ func (s *Service) Capabilities() []ProtocolProfile {
 			Name:        "MQTT Bridge",
 			Mode:        "gateway_ingest",
 			Status:      "bridge_ready",
-			Description: "Use an MQTT bridge to normalize topics into the REST ingest contract.",
+			Description: "Use an MQTT bridge to normalize topics into the REST ingest API.",
 			Endpoint:    "/api/v1/iot/ingest",
 		},
 		{
@@ -217,7 +284,7 @@ func (s *Service) Capabilities() []ProtocolProfile {
 			Name:        "OPC-UA Gateway",
 			Mode:        "gateway_ingest",
 			Status:      "bridge_ready",
-			Description: "Use an OPC-UA gateway or edge script to push node values into the ingest API.",
+			Description: "Push OPC-UA node values via gateway script into the ingest API.",
 			Endpoint:    "/api/v1/iot/ingest",
 		},
 		{
@@ -225,7 +292,7 @@ func (s *Service) Capabilities() []ProtocolProfile {
 			Name:        "BACnet Gateway",
 			Mode:        "gateway_ingest",
 			Status:      "bridge_ready",
-			Description: "Use a BACnet/IP gateway or collector to push building automation points into the ingest API.",
+			Description: "Push BACnet/IP building automation points via collector into the ingest API.",
 			Endpoint:    "/api/v1/iot/ingest",
 		},
 	}
@@ -236,7 +303,10 @@ func (s *Service) ListDevices() ([]Device, error) {
 		return nil, err
 	}
 	rows, err := s.db.Query(`
-		SELECT id, name, protocol, host, port, unit_id, address, quantity, COALESCE(function_code, 3),
+		SELECT id, name, protocol, COALESCE(sensor_type,''), host, port,
+		       COALESCE(serial_port,''), COALESCE(baud_rate,9600), COALESCE(data_bits,8),
+		       COALESCE(parity,'N'), COALESCE(stop_bits,1),
+		       unit_id, address, quantity, COALESCE(function_code, 3),
 		       data_type, COALESCE(byte_order, 'big'), COALESCE(word_order, 'big'), scale, COALESCE(offset, 0),
 		       COALESCE(metric, 'value'), topic, enabled, last_value, COALESCE(last_raw, ''),
 		       COALESCE(last_seen, ''), COALESCE(last_polled_at, ''), COALESCE(last_error, ''),
@@ -272,12 +342,15 @@ func (s *Service) CreateDevice(input UpsertDeviceInput) (int, error) {
 	}
 	res, err := s.db.Exec(`
 		INSERT INTO iot_devices (
-			name, protocol, host, port, unit_id, address, quantity, function_code, data_type,
+			name, protocol, sensor_type, host, port,
+			serial_port, baud_rate, data_bits, parity, stop_bits,
+			unit_id, address, quantity, function_code, data_type,
 			byte_order, word_order, scale, offset, metric, topic, poll_interval_seconds, enabled
 		)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, normalized.Name, normalized.Protocol, normalized.Host, normalized.Port, normalized.UnitID,
-		normalized.Address, normalized.Quantity, normalized.FunctionCode, normalized.DataType,
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, normalized.Name, normalized.Protocol, normalized.SensorType, normalized.Host, normalized.Port,
+		normalized.SerialPort, normalized.BaudRate, normalized.DataBits, normalized.Parity, normalized.StopBits,
+		normalized.UnitID, normalized.Address, normalized.Quantity, normalized.FunctionCode, normalized.DataType,
 		normalized.ByteOrder, normalized.WordOrder, normalized.Scale, normalized.Offset,
 		normalized.Metric, normalized.Topic, normalized.PollIntervalSeconds, enabled)
 	if err != nil {
@@ -298,13 +371,15 @@ func (s *Service) UpdateDevice(id string, input UpsertDeviceInput) error {
 	}
 	res, err := s.db.Exec(`
 		UPDATE iot_devices
-		SET name = ?, protocol = ?, host = ?, port = ?, unit_id = ?, address = ?,
-		    quantity = ?, function_code = ?, data_type = ?, byte_order = ?, word_order = ?,
-		    scale = ?, offset = ?, metric = ?, topic = ?, poll_interval_seconds = ?,
-		    enabled = ?, updated_at = CURRENT_TIMESTAMP
+		SET name = ?, protocol = ?, sensor_type = ?, host = ?, port = ?,
+		    serial_port = ?, baud_rate = ?, data_bits = ?, parity = ?, stop_bits = ?,
+		    unit_id = ?, address = ?, quantity = ?, function_code = ?, data_type = ?,
+		    byte_order = ?, word_order = ?, scale = ?, offset = ?, metric = ?, topic = ?,
+		    poll_interval_seconds = ?, enabled = ?, updated_at = CURRENT_TIMESTAMP
 		WHERE id = ?
-	`, normalized.Name, normalized.Protocol, normalized.Host, normalized.Port, normalized.UnitID,
-		normalized.Address, normalized.Quantity, normalized.FunctionCode, normalized.DataType,
+	`, normalized.Name, normalized.Protocol, normalized.SensorType, normalized.Host, normalized.Port,
+		normalized.SerialPort, normalized.BaudRate, normalized.DataBits, normalized.Parity, normalized.StopBits,
+		normalized.UnitID, normalized.Address, normalized.Quantity, normalized.FunctionCode, normalized.DataType,
 		normalized.ByteOrder, normalized.WordOrder, normalized.Scale, normalized.Offset,
 		normalized.Metric, normalized.Topic, normalized.PollIntervalSeconds, enabled, id)
 	if err != nil {
@@ -350,7 +425,10 @@ func (s *Service) PollDueDevices() {
 		return
 	}
 	rows, err := s.db.Query(`
-		SELECT id, name, protocol, host, port, unit_id, address, quantity, COALESCE(function_code, 3),
+		SELECT id, name, protocol, COALESCE(sensor_type,''), host, port,
+		       COALESCE(serial_port,''), COALESCE(baud_rate,9600), COALESCE(data_bits,8),
+		       COALESCE(parity,'N'), COALESCE(stop_bits,1),
+		       unit_id, address, quantity, COALESCE(function_code, 3),
 		       data_type, COALESCE(byte_order, 'big'), COALESCE(word_order, 'big'), scale, COALESCE(offset, 0),
 		       COALESCE(metric, 'value'), topic, enabled, last_value, COALESCE(last_raw, ''),
 		       COALESCE(last_seen, ''), COALESCE(last_polled_at, ''), COALESCE(last_error, ''),
@@ -358,7 +436,7 @@ func (s *Service) PollDueDevices() {
 		       COALESCE(poll_interval_seconds, ?)
 		FROM iot_devices
 		WHERE enabled = 1
-		  AND protocol = 'modbus_tcp'
+		  AND protocol IN ('modbus_tcp', 'modbus_rtu', 'modbus_rs485', 'modbus_rtu_tcp')
 		  AND (
 			last_polled_at IS NULL
 			OR last_polled_at = ''
@@ -369,47 +447,86 @@ func (s *Service) PollDueDevices() {
 	if err != nil {
 		return
 	}
-	defer rows.Close()
 
+	// Drain cursor before polling; RTU reads do DB writes that deadlock an open rows handle.
+	var due []Device
 	for rows.Next() {
 		d, err := scanDevice(rows)
 		if err != nil {
 			continue
 		}
+		due = append(due, d)
+	}
+	rows.Close()
+
+	for _, d := range due {
 		_ = s.pollDevice(d)
 	}
+}
+
+func (s *Service) serialPortMu(port string) *sync.Mutex {
+	v, _ := s.serialMu.LoadOrStore(port, &sync.Mutex{})
+	return v.(*sync.Mutex)
 }
 
 func (s *Service) pollDevice(d Device) error {
 	if !d.Enabled {
 		return errors.New("iot device is disabled")
 	}
+	d = normalizeDeviceForPoll(d)
 	var value float64
 	var raw string
 	var err error
 	switch d.Protocol {
 	case "modbus_tcp":
 		value, raw, err = readModbusTCP(d)
+	case "modbus_rtu_tcp":
+		value, raw, err = readModbusRTUOverTCP(d)
+	case "modbus_rtu", "modbus_rs485":
+		port := strings.TrimSpace(d.SerialPort)
+		mu := s.serialPortMu(port)
+		mu.Lock()
+		value, raw, err = readModbusRTU(d)
+		mu.Unlock()
 	default:
 		err = fmt.Errorf("protocol %q does not support active polling", d.Protocol)
 	}
 	if err != nil {
-		_, _ = s.db.Exec(`
+		slog.Error("[IoT] poll failed", "device_id", d.ID, "name", d.Name, "protocol", d.Protocol, "error", err)
+		_, _ = dbutils.ExecWithRetry(s.db, `
 			UPDATE iot_devices
 			SET last_error = ?, last_polled_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
 			WHERE id = ?
 		`, err.Error(), d.ID)
 		return err
 	}
-	value = (value * d.Scale) + d.Offset
+	if reading, ok := decodeTemperatureHumidityRaw(raw, d); ok {
+		slog.Info("[IoT] poll ok", "device_id", d.ID, "name", d.Name, "raw", raw, "temperature", reading.Temperature, "humidity", reading.Humidity)
+		if _, err := s.recordMeasurement(&d.ID, "", "temperature", reading.Temperature, raw); err != nil {
+			return err
+		}
+		if _, err := s.recordMeasurement(&d.ID, "", "humidity", reading.Humidity, raw); err != nil {
+			return err
+		}
+		_, err = dbutils.ExecWithRetry(s.db, `
+			UPDATE iot_devices
+			SET last_value = ?, last_raw = ?, last_seen = CURRENT_TIMESTAMP,
+			    last_polled_at = CURRENT_TIMESTAMP, last_error = '', updated_at = CURRENT_TIMESTAMP
+			WHERE id = ?
+		`, reading.Temperature, raw, d.ID)
+		return err
+	}
+
+	value = (value * effectiveScale(d)) + d.Offset
 	metric := strings.TrimSpace(d.Metric)
 	if metric == "" {
 		metric = "value"
 	}
+	slog.Info("[IoT] poll ok", "device_id", d.ID, "name", d.Name, "raw", raw, "value", value, "metric", metric)
 	if _, err := s.recordMeasurement(&d.ID, "", metric, value, raw); err != nil {
 		return err
 	}
-	_, err = s.db.Exec(`
+	_, err = dbutils.ExecWithRetry(s.db, `
 		UPDATE iot_devices
 		SET last_value = ?, last_raw = ?, last_seen = CURRENT_TIMESTAMP,
 		    last_polled_at = CURRENT_TIMESTAMP, last_error = '', updated_at = CURRENT_TIMESTAMP
@@ -545,6 +662,9 @@ func (s *Service) UpdateForwarderSettings(input ForwarderSettingsInput) error {
 }
 
 func (s *Service) FlushForwardQueue() (int, error) {
+	s.forwardMu.Lock()
+	defer s.forwardMu.Unlock()
+
 	if err := s.EnsureTables(); err != nil {
 		return 0, err
 	}
@@ -687,7 +807,10 @@ func retryDelaySeconds(attempts int) int {
 
 func (s *Service) getDevice(id string) (Device, error) {
 	row := s.db.QueryRow(`
-		SELECT id, name, protocol, host, port, unit_id, address, quantity, COALESCE(function_code, 3),
+		SELECT id, name, protocol, COALESCE(sensor_type,''), host, port,
+		       COALESCE(serial_port,''), COALESCE(baud_rate,9600), COALESCE(data_bits,8),
+		       COALESCE(parity,'N'), COALESCE(stop_bits,1),
+		       unit_id, address, quantity, COALESCE(function_code, 3),
 		       data_type, COALESCE(byte_order, 'big'), COALESCE(word_order, 'big'), scale, COALESCE(offset, 0),
 		       COALESCE(metric, 'value'), topic, enabled, last_value, COALESCE(last_raw, ''),
 		       COALESCE(last_seen, ''), COALESCE(last_polled_at, ''), COALESCE(last_error, ''),
@@ -731,7 +854,7 @@ func (s *Service) recordMeasurement(deviceID *int, externalID, metric string, va
 		id = *deviceID
 	}
 	eventID := uuid.NewString()
-	_, err := s.db.Exec(`
+	_, err := dbutils.ExecWithRetry(s.db, `
 		INSERT INTO iot_measurements (
 			event_id, device_id, external_id, metric, value, raw_json, forward_status, forward_attempts
 		)
@@ -749,8 +872,25 @@ func normalizeInput(input UpsertDeviceInput) UpsertDeviceInput {
 	if input.Protocol == "" {
 		input.Protocol = "modbus_tcp"
 	}
-	if input.Port == 0 && input.Protocol == "modbus_tcp" {
+	input.SensorType = strings.ToLower(strings.TrimSpace(input.SensorType))
+	if input.Port == 0 && (input.Protocol == "modbus_tcp" || input.Protocol == "modbus_rtu_tcp") {
 		input.Port = 502
+	}
+	// RTU serial defaults
+	if input.Protocol == "modbus_rtu" || input.Protocol == "modbus_rs485" {
+		if input.BaudRate <= 0 {
+			input.BaudRate = 9600
+		}
+		if input.DataBits <= 0 {
+			input.DataBits = 8
+		}
+		input.Parity = strings.ToUpper(strings.TrimSpace(input.Parity))
+		if input.Parity == "" {
+			input.Parity = "N"
+		}
+		if input.StopBits <= 0 {
+			input.StopBits = 1
+		}
 	}
 	if input.UnitID <= 0 {
 		input.UnitID = 1
@@ -758,18 +898,26 @@ func normalizeInput(input UpsertDeviceInput) UpsertDeviceInput {
 	if input.FunctionCode == 0 {
 		input.FunctionCode = 3
 	}
-	if input.FunctionCode != 3 && input.FunctionCode != 4 {
+	switch input.FunctionCode {
+	case 1, 2, 3, 4:
+	default:
 		input.FunctionCode = 3
-	}
-	if input.Quantity <= 0 {
-		input.Quantity = quantityForType(input.DataType)
-	}
-	if input.Scale == 0 {
-		input.Scale = 1
 	}
 	input.DataType = strings.ToLower(strings.TrimSpace(input.DataType))
 	if input.DataType == "" {
 		input.DataType = "uint16"
+	}
+	if input.Quantity <= 0 {
+		input.Quantity = quantityForType(input.DataType)
+	}
+	if input.SensorType == "temperature_humidity" && is16BitDataType(input.DataType) && input.Quantity < 2 {
+		input.Quantity = 2
+	}
+	if input.Scale == 0 {
+		input.Scale = 1
+	}
+	if isTemperatureHumiditySensor(input.SensorType) && is16BitDataType(input.DataType) && input.Scale == 1 {
+		input.Scale = 0.1
 	}
 	input.ByteOrder = normalizeEndian(input.ByteOrder)
 	input.WordOrder = normalizeEndian(input.WordOrder)
@@ -790,6 +938,12 @@ func normalizeProtocol(protocol string) string {
 	switch strings.ToLower(strings.TrimSpace(protocol)) {
 	case "modbus", "modbus-tcp", "modbus_tcp":
 		return "modbus_tcp"
+	case "modbus-rtu", "modbus_rtu", "rtu":
+		return "modbus_rtu"
+	case "modbus-rs485", "modbus_rs485", "rs485":
+		return "modbus_rs485"
+	case "modbus-rtu-tcp", "modbus_rtu_tcp", "rtu_tcp", "rtu-over-tcp", "rtu_over_tcp":
+		return "modbus_rtu_tcp"
 	case "mqtt":
 		return "mqtt"
 	case "rest", "http", "webhook":
@@ -817,11 +971,48 @@ func quantityForType(dataType string) int {
 	}
 }
 
+func normalizeDeviceForPoll(d Device) Device {
+	if strings.ToLower(strings.TrimSpace(d.SensorType)) == "temperature_humidity" && is16BitDataType(d.DataType) && d.Quantity < 2 {
+		d.Quantity = 2
+	}
+	return d
+}
+
+func effectiveScale(d Device) float64 {
+	if isTemperatureHumiditySensor(d.SensorType) && is16BitDataType(d.DataType) && d.Scale == 1 {
+		return 0.1
+	}
+	if d.Scale == 0 {
+		return 1
+	}
+	return d.Scale
+}
+
+func isTemperatureHumiditySensor(sensorType string) bool {
+	switch strings.ToLower(strings.TrimSpace(sensorType)) {
+	case "temperature", "humidity", "temperature_humidity":
+		return true
+	default:
+		return false
+	}
+}
+
+func is16BitDataType(dataType string) bool {
+	switch strings.ToLower(strings.TrimSpace(dataType)) {
+	case "uint16", "int16":
+		return true
+	default:
+		return false
+	}
+}
+
 func readModbusTCP(d Device) (float64, string, error) {
 	if strings.TrimSpace(d.Host) == "" {
 		return 0, "", errors.New("modbus host is required")
 	}
-	if d.FunctionCode != 3 && d.FunctionCode != 4 {
+	switch d.FunctionCode {
+	case 1, 2, 3, 4:
+	default:
 		return 0, "", fmt.Errorf("unsupported modbus function code %d", d.FunctionCode)
 	}
 	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", d.Host, d.Port), 4*time.Second)
@@ -862,50 +1053,303 @@ func readModbusTCP(d Device) (float64, string, error) {
 		return 0, fmt.Sprintf("%x", pdu), errors.New("unexpected modbus response")
 	}
 	data := pdu[2:]
+	if d.FunctionCode == 1 || d.FunctionCode == 2 {
+		value, raw := decodeCoilBits(data, d.Quantity)
+		return value, raw, nil
+	}
 	value, err := decodeRegisters(data, d.DataType, d.ByteOrder, d.WordOrder)
 	return value, fmt.Sprintf("%x", data), err
 }
 
+func readModbusRTUOverTCP(d Device) (float64, string, error) {
+	if strings.TrimSpace(d.Host) == "" {
+		return 0, "", errors.New("modbus RTU-over-TCP host is required")
+	}
+	if d.Port == 0 {
+		d.Port = 502
+	}
+	switch d.FunctionCode {
+	case 1, 2, 3, 4:
+	default:
+		return 0, "", fmt.Errorf("unsupported modbus function code %d", d.FunctionCode)
+	}
+
+	conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", d.Host, d.Port), 4*time.Second)
+	if err != nil {
+		return 0, "", err
+	}
+	defer conn.Close()
+	_ = conn.SetDeadline(time.Now().Add(5 * time.Second))
+
+	request := make([]byte, 8)
+	request[0] = byte(d.UnitID)
+	request[1] = byte(d.FunctionCode)
+	binary.BigEndian.PutUint16(request[2:4], uint16(d.Address))
+	binary.BigEndian.PutUint16(request[4:6], uint16(d.Quantity))
+	crc := modbusCRC16(request[:6])
+	binary.LittleEndian.PutUint16(request[6:8], crc)
+	if _, err := conn.Write(request); err != nil {
+		return 0, "", err
+	}
+
+	header := make([]byte, 3)
+	if _, err := readFull(conn, header); err != nil {
+		return 0, "", err
+	}
+	if header[0] != byte(d.UnitID) {
+		return 0, fmt.Sprintf("%x", header), fmt.Errorf("unexpected RTU unit id %d", header[0])
+	}
+	if header[1]&0x80 != 0 {
+		rest := make([]byte, 2)
+		_, _ = readFull(conn, rest)
+		return 0, fmt.Sprintf("%x%x", header, rest), fmt.Errorf("modbus exception code %d", header[2])
+	}
+	if header[1] != byte(d.FunctionCode) {
+		return 0, fmt.Sprintf("%x", header), errors.New("unexpected RTU response function code")
+	}
+
+	byteCount := int(header[2])
+	if byteCount > 252 {
+		return 0, fmt.Sprintf("%x", header), fmt.Errorf("invalid RTU byte count %d", byteCount)
+	}
+	rest := make([]byte, byteCount+2)
+	if _, err := readFull(conn, rest); err != nil {
+		return 0, "", err
+	}
+	frame := append(append([]byte(nil), header...), rest...)
+	got := binary.LittleEndian.Uint16(frame[len(frame)-2:])
+	want := modbusCRC16(frame[:len(frame)-2])
+	if got != want {
+		return 0, fmt.Sprintf("%x", frame), fmt.Errorf("RTU CRC mismatch got 0x%04x want 0x%04x", got, want)
+	}
+
+	data := rest[:byteCount]
+	if d.FunctionCode == 1 || d.FunctionCode == 2 {
+		value, raw := decodeCoilBits(data, d.Quantity)
+		return value, raw, nil
+	}
+	value, err := decodeRegisters(data, d.DataType, d.ByteOrder, d.WordOrder)
+	return value, fmt.Sprintf("%x", data), err
+}
+func readModbusRTU(d Device) (float64, string, error) {
+	port := strings.TrimSpace(d.SerialPort)
+	if port == "" {
+		return 0, "", errors.New("serial_port is required for Modbus RTU/RS485")
+	}
+	switch d.FunctionCode {
+	case 1, 2, 3, 4:
+	default:
+		return 0, "", fmt.Errorf("unsupported modbus function code %d", d.FunctionCode)
+	}
+
+	baud := uint(d.BaudRate)
+	if baud == 0 {
+		baud = 9600
+	}
+	dataBits := uint(d.DataBits)
+	if dataBits == 0 {
+		dataBits = 8
+	}
+	stopBits := uint(d.StopBits)
+	if stopBits == 0 {
+		stopBits = 1
+	}
+	// simonvetter/modbus: PARITY_NONE=0, PARITY_EVEN=1, PARITY_ODD=2
+	var parity uint
+	switch strings.ToUpper(strings.TrimSpace(d.Parity)) {
+	case "E":
+		parity = modbusclient.PARITY_EVEN
+	case "O":
+		parity = modbusclient.PARITY_ODD
+	default:
+		parity = modbusclient.PARITY_NONE
+	}
+
+	// rs485 is a physical-layer variant; framing is identical to RTU.
+	url := fmt.Sprintf("rtu://%s", port)
+
+	client, err := modbusclient.NewClient(&modbusclient.ClientConfiguration{
+		URL:      url,
+		Speed:    baud,
+		DataBits: dataBits,
+		Parity:   parity,
+		StopBits: stopBits,
+		Timeout:  5 * time.Second,
+	})
+	if err != nil {
+		return 0, "", fmt.Errorf("modbus RTU client init: %w", err)
+	}
+	if err := client.Open(); err != nil {
+		return 0, "", fmt.Errorf("open RTU %s: %w", port, err)
+	}
+	defer client.Close()
+
+	if err := client.SetUnitId(uint8(d.UnitID)); err != nil {
+		return 0, "", fmt.Errorf("set unit id: %w", err)
+	}
+
+	qty := uint16(d.Quantity)
+	if qty == 0 {
+		qty = 1
+	}
+	addr := uint16(d.Address)
+
+	if d.FunctionCode == 1 || d.FunctionCode == 2 {
+		var bools []bool
+		if d.FunctionCode == 2 {
+			bools, err = client.ReadDiscreteInputs(addr, qty)
+		} else {
+			bools, err = client.ReadCoils(addr, qty)
+		}
+		if err != nil {
+			return 0, "", err
+		}
+		value, raw := decodeCoilBools(bools)
+		return value, raw, nil
+	}
+
+	// ReadRawBytes quantity is in bytes, not registers — multiply by 2.
+	byteCount := qty * 2
+	var data []byte
+	if d.FunctionCode == 4 {
+		data, err = client.ReadRawBytes(addr, byteCount, modbusclient.INPUT_REGISTER)
+	} else {
+		data, err = client.ReadRawBytes(addr, byteCount, modbusclient.HOLDING_REGISTER)
+	}
+	if err != nil {
+		return 0, "", err
+	}
+
+	value, decErr := decodeRegisters(data, d.DataType, d.ByteOrder, d.WordOrder)
+	return value, fmt.Sprintf("%x", data), decErr
+}
+
+func modbusCRC16(data []byte) uint16 {
+	var crc uint16 = 0xFFFF
+	for _, b := range data {
+		crc ^= uint16(b)
+		for i := 0; i < 8; i++ {
+			if crc&0x0001 != 0 {
+				crc = (crc >> 1) ^ 0xA001
+			} else {
+				crc >>= 1
+			}
+		}
+	}
+	return crc
+}
 func readFull(conn net.Conn, buf []byte) (int, error) {
 	total := 0
 	for total < len(buf) {
 		n, err := conn.Read(buf[total:])
 		total += n
 		if err != nil {
+			if total == len(buf) {
+				return total, nil
+			}
 			return total, err
 		}
 	}
 	return total, nil
 }
 
+// decodeCoilBits parses packed coil bits (FC1/FC2) and returns the first coil value.
+func decodeCoilBits(data []byte, quantity int) (float64, string) {
+	if len(data) == 0 || quantity == 0 {
+		return 0, fmt.Sprintf("%x", data)
+	}
+	firstCoil := float64(data[0] & 1)
+	return firstCoil, fmt.Sprintf("%x", data)
+}
+
+func decodeCoilBools(bools []bool) (float64, string) {
+	if len(bools) == 0 {
+		return 0, ""
+	}
+	byteCount := (len(bools) + 7) / 8
+	packed := make([]byte, byteCount)
+	for i, b := range bools {
+		if b {
+			packed[i/8] |= 1 << uint(i%8)
+		}
+	}
+	var first float64
+	if bools[0] {
+		first = 1
+	}
+	return first, fmt.Sprintf("%x", packed)
+}
+
+type temperatureHumidityReading struct {
+	Temperature float64
+	Humidity    float64
+}
+
+func decodeTemperatureHumidityRaw(raw string, d Device) (temperatureHumidityReading, bool) {
+	if strings.ToLower(strings.TrimSpace(d.SensorType)) != "temperature_humidity" || !is16BitDataType(d.DataType) {
+		return temperatureHumidityReading{}, false
+	}
+	raw = strings.TrimSpace(raw)
+	if len(raw) < 8 {
+		return temperatureHumidityReading{}, false
+	}
+	data, err := hex.DecodeString(raw)
+	if err != nil || len(data) < 4 {
+		return temperatureHumidityReading{}, false
+	}
+	readRegister := func(offset int, signed bool) float64 {
+		var value uint16
+		if normalizeEndian(d.ByteOrder) == "little" {
+			value = binary.BigEndian.Uint16([]byte{data[offset+1], data[offset]})
+		} else {
+			value = binary.BigEndian.Uint16(data[offset : offset+2])
+		}
+		if signed {
+			return float64(int16(value))
+		}
+		return float64(value)
+	}
+	scale := effectiveScale(d)
+	temperatureOffset := 0
+	humidityOffset := 2
+	if normalizeEndian(d.WordOrder) == "little" {
+		temperatureOffset = 2
+		humidityOffset = 0
+	}
+	return temperatureHumidityReading{
+		Temperature: readRegister(temperatureOffset, true)*scale + d.Offset,
+		Humidity:    readRegister(humidityOffset, false) * scale,
+	}, true
+}
+
 func decodeRegisters(data []byte, dataType, byteOrder, wordOrder string) (float64, error) {
-	bytes := reorderRegisterBytes(data, byteOrder, wordOrder)
+	buf := reorderRegisterBytes(data, byteOrder, wordOrder)
 	switch strings.ToLower(dataType) {
 	case "uint16":
-		if len(bytes) < 2 {
+		if len(buf) < 2 {
 			return 0, errors.New("not enough data for uint16")
 		}
-		return float64(binary.BigEndian.Uint16(bytes[0:2])), nil
+		return float64(binary.BigEndian.Uint16(buf[0:2])), nil
 	case "int16":
-		if len(bytes) < 2 {
+		if len(buf) < 2 {
 			return 0, errors.New("not enough data for int16")
 		}
-		return float64(int16(binary.BigEndian.Uint16(bytes[0:2]))), nil
+		return float64(int16(binary.BigEndian.Uint16(buf[0:2]))), nil
 	case "uint32":
-		if len(bytes) < 4 {
+		if len(buf) < 4 {
 			return 0, errors.New("not enough data for uint32")
 		}
-		return float64(binary.BigEndian.Uint32(bytes[0:4])), nil
+		return float64(binary.BigEndian.Uint32(buf[0:4])), nil
 	case "int32":
-		if len(bytes) < 4 {
+		if len(buf) < 4 {
 			return 0, errors.New("not enough data for int32")
 		}
-		return float64(int32(binary.BigEndian.Uint32(bytes[0:4]))), nil
+		return float64(int32(binary.BigEndian.Uint32(buf[0:4]))), nil
 	case "float32":
-		if len(bytes) < 4 {
+		if len(buf) < 4 {
 			return 0, errors.New("not enough data for float32")
 		}
-		return float64(math.Float32frombits(binary.BigEndian.Uint32(bytes[0:4]))), nil
+		return float64(math.Float32frombits(binary.BigEndian.Uint32(buf[0:4]))), nil
 	default:
 		return 0, fmt.Errorf("unsupported data type %q", dataType)
 	}
@@ -935,8 +1379,10 @@ func scanDevice(row deviceScanner) (Device, error) {
 	var enabled bool
 	var last sql.NullFloat64
 	if err := row.Scan(
-		&d.ID, &d.Name, &d.Protocol, &d.Host, &d.Port, &d.UnitID, &d.Address, &d.Quantity,
-		&d.FunctionCode, &d.DataType, &d.ByteOrder, &d.WordOrder, &d.Scale, &d.Offset,
+		&d.ID, &d.Name, &d.Protocol, &d.SensorType, &d.Host, &d.Port,
+		&d.SerialPort, &d.BaudRate, &d.DataBits, &d.Parity, &d.StopBits,
+		&d.UnitID, &d.Address, &d.Quantity, &d.FunctionCode,
+		&d.DataType, &d.ByteOrder, &d.WordOrder, &d.Scale, &d.Offset,
 		&d.Metric, &d.Topic, &enabled, &last, &d.LastRaw, &d.LastSeen, &d.LastPolledAt,
 		&d.LastError, &d.CreatedAt, &d.UpdatedAt, &d.PollIntervalSeconds,
 	); err != nil {
@@ -947,7 +1393,54 @@ func scanDevice(row deviceScanner) (Device, error) {
 		value := last.Float64
 		d.LastValue = &value
 	}
+	populateLastReadings(&d)
 	return d, nil
+}
+
+func populateLastReadings(d *Device) {
+	if d == nil || strings.TrimSpace(d.LastRaw) == "" {
+		return
+	}
+	if d.FunctionCode == 1 || d.FunctionCode == 2 {
+		if readings, ok := decodeBitReadings(d.LastRaw, *d); ok {
+			d.LastReadings = readings
+			return
+		}
+	}
+	if reading, ok := decodeTemperatureHumidityRaw(d.LastRaw, *d); ok {
+		d.LastReadings = []SensorReading{
+			{Metric: "temperature", Value: reading.Temperature, Unit: "C", DataType: "int16"},
+			{Metric: "humidity", Value: reading.Humidity, Unit: "%", DataType: "uint16"},
+		}
+	}
+}
+
+func decodeBitReadings(raw string, d Device) ([]SensorReading, bool) {
+	data, err := hex.DecodeString(strings.TrimSpace(raw))
+	if err != nil || len(data) == 0 || d.Quantity <= 1 {
+		return nil, false
+	}
+	prefix := strings.TrimSpace(d.Metric)
+	if prefix == "" || prefix == "value" {
+		if d.FunctionCode == 2 {
+			prefix = "di"
+		} else {
+			prefix = "coil"
+		}
+	}
+	readings := make([]SensorReading, 0, d.Quantity)
+	for i := 0; i < d.Quantity; i++ {
+		var value float64
+		if data[i/8]&(1<<uint(i%8)) != 0 {
+			value = 1
+		}
+		readings = append(readings, SensorReading{
+			Metric:   fmt.Sprintf("%s_%d", prefix, d.Address+i),
+			Value:    value,
+			DataType: "bool",
+		})
+	}
+	return readings, true
 }
 
 type measurementScanner interface {

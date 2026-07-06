@@ -12,6 +12,8 @@ runtime/data/*
 runtime/bin/*
 !runtime/bin/.gitkeep
 apps/backend/data/
+runtime/gocache/
+runtime/localappdata/
 
 # Logs
 *.log

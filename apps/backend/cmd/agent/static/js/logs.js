@@ -1,3 +1,5 @@
+// Made by YTSworks
+// YTS工作室製作
 (function () {
     const RETENTION_CONFIG_KEYS = [
         { key: 'audit_log_retention_days', labelKey: 'logs.retention.audit', fallback: '稽核日誌' },

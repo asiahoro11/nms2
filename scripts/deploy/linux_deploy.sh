@@ -1,4 +1,6 @@
 #!/bin/bash
+# Made by YTSworks
+# YTS工作室製作
 # Complete NMS GitHub deployment script
 # Run this on Linux server
 

@@ -1,3 +1,5 @@
+// Made by YTSworks
+// YTS工作室製作
 package catalog
 
 import (
@@ -9,6 +11,7 @@ import (
 	"management-server/modules/contracts"
 	dashboardmodule "management-server/modules/dashboard"
 	devicesmodule "management-server/modules/devices"
+	iotmodule "management-server/modules/iot"
 	licensemodule "management-server/modules/license"
 	logsmodule "management-server/modules/logs"
 	notificationsmodule "management-server/modules/notifications"
@@ -27,6 +30,7 @@ func PlannedManifests() []contracts.ModuleManifest {
 		topologymodule.Manifest(),
 		cameramodule.Manifest(),
 		acmodule.Manifest(),
+		iotmodule.Manifest(),
 		pdumodule.Manifest(),
 		logsmodule.Manifest(),
 		licensemodule.Manifest(),

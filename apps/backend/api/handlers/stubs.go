@@ -1,3 +1,5 @@
+// Made by YTSworks
+// YTS工作室製作
 package handlers
 
 // stubs.go — 路由已宣告但尚未完整實作的 handler stub

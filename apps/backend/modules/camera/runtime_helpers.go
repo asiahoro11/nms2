@@ -1,7 +1,10 @@
+// Made by YTSworks
+// YTS工作室製作
 package camera
 
 import (
 	"archive/zip"
+	"context"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -126,24 +129,34 @@ var (
 
 // FindFFmpegBin returns the path to the ffmpeg binary.
 func FindFFmpegBin() string {
-	exe := "ffmpeg"
-	if runtime.GOOS == "windows" {
-		exe = "ffmpeg.exe"
+	names := []string{"ffmpeg"}
+	switch runtime.GOOS {
+	case "windows":
+		names = []string{"ffmpeg.exe", "ffmpeg"}
+	case "linux":
+		if runtime.GOARCH == "arm64" {
+			names = []string{"ffmpeg_linux_arm64", "ffmpeg"}
+		} else {
+			names = []string{"ffmpeg_linux_amd64", "ffmpeg"}
+		}
 	}
 
 	if self, err := os.Executable(); err == nil {
-		candidate := filepath.Join(filepath.Dir(self), "bin", exe)
-		if _, err := os.Stat(candidate); err == nil {
-			return candidate
-		}
-		candidate = filepath.Join(filepath.Dir(self), exe)
-		if _, err := os.Stat(candidate); err == nil {
-			return candidate
+		base := filepath.Dir(self)
+		for _, name := range names {
+			for _, dir := range []string{filepath.Join(base, "bin"), base} {
+				candidate := filepath.Join(dir, name)
+				if _, err := os.Stat(candidate); err == nil {
+					return candidate
+				}
+			}
 		}
 	}
 
-	if path, err := exec.LookPath(exe); err == nil {
-		return path
+	for _, name := range names {
+		if path, err := exec.LookPath(name); err == nil {
+			return path
+		}
 	}
 
 	log.Println("[Camera] ffmpeg not found, attempting auto-download...")
@@ -193,7 +206,8 @@ func autoDownloadFFmpeg() string {
 
 	archivePath := filepath.Join(binDir, archiveName)
 	log.Printf("[Camera] downloading ffmpeg from %s ...", downloadURL)
-	resp, err := http.Get(downloadURL)
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Get(downloadURL)
 	if err != nil {
 		log.Printf("[Camera] download failed: %v", err)
 		return ""
@@ -279,22 +293,51 @@ func extractFFmpegFromTarXz(archivePath, destDir, targetName string) string {
 	return ""
 }
 
-// ProbeGPU runs "ffmpeg -hwaccels" once and caches results.
+// probeHwaccel tests whether a given hwaccel is actually usable on the current
+// hardware by asking ffmpeg to decode one frame from a synthetic source.
+// "-hwaccels" only lists backends compiled into the binary, not what the host
+// GPU supports, so we must verify each candidate independently.
+func probeHwaccel(ffmpegBin, name string, extraArgs []string) bool {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	args := append([]string{"-hide_banner", "-loglevel", "error"}, extraArgs...)
+	args = append(args, "-f", "lavfi", "-i", "nullsrc=s=16x16:r=1", "-frames:v", "1", "-f", "null", "-")
+	cmd := exec.CommandContext(ctx, ffmpegBin, args...)
+	err := cmd.Run()
+	if err != nil {
+		log.Printf("[Camera] hwaccel probe %s: not available (%v)", name, err)
+		return false
+	}
+	log.Printf("[Camera] hwaccel probe %s: available", name)
+	return true
+}
+
+// ProbeGPU tests each hwaccel backend once and caches results.
 func ProbeGPU(ffmpegBin string) {
 	hwAccel.once.Do(func() {
-		out, err := exec.Command(ffmpegBin, "-hwaccels").Output()
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		out, err := exec.CommandContext(ctx, ffmpegBin, "-hwaccels").Output()
 		if err != nil {
 			log.Printf("[Camera] GPU probe failed: %v, CPU decode will be used", err)
 			return
 		}
 		s := string(out)
-		has := func(sub string) bool {
-			return strings.Contains(s, sub)
+		has := func(sub string) bool { return strings.Contains(s, sub) }
+
+		if has("cuda") {
+			hwAccel.cuda = probeHwaccel(ffmpegBin, "cuda", []string{"-hwaccel", "cuda", "-hwaccel_output_format", "cuda"})
 		}
-		hwAccel.cuda = has("cuda")
-		hwAccel.qsv = has("qsv")
-		hwAccel.vaapi = has("vaapi")
-		hwAccel.d3d11 = has("d3d11va")
+		if has("qsv") {
+			hwAccel.qsv = probeHwaccel(ffmpegBin, "qsv", []string{"-hwaccel", "qsv"})
+		}
+		if has("vaapi") {
+			hwAccel.vaapi = probeHwaccel(ffmpegBin, "vaapi", []string{"-hwaccel", "vaapi", "-vaapi_device", "/dev/dri/renderD128"})
+		}
+		if has("d3d11va") {
+			hwAccel.d3d11 = probeHwaccel(ffmpegBin, "d3d11va", []string{"-hwaccel", "d3d11va"})
+		}
+
 		log.Printf("[Camera] GPU hwaccel probe: cuda=%v qsv=%v vaapi=%v d3d11va=%v",
 			hwAccel.cuda, hwAccel.qsv, hwAccel.vaapi, hwAccel.d3d11)
 	})

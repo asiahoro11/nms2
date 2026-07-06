@@ -1,3 +1,5 @@
+// Made by YTSworks
+// YTS工作室製作
 package handlers
 
 import (
@@ -19,6 +21,7 @@ import (
 	toolsmodule "management-server/modules/tools"
 	topologymodule "management-server/modules/topology"
 	websshmodule "management-server/modules/webssh"
+	"management-server/pkg/loginlimiter"
 	"management-server/services/snmp"
 	"time"
 )
@@ -44,6 +47,11 @@ type Handler struct {
 	tools         *toolsmodule.Service
 	webssh        *websshmodule.Service
 	startTime     time.Time
+
+	// loginAccountLimiter throttles failures per client-IP + username;
+	// loginIPLimiter caps total failures per client-IP across all usernames.
+	loginAccountLimiter *loginlimiter.Limiter
+	loginIPLimiter      *loginlimiter.Limiter
 }
 
 func New(cfg *config.Config, db *sql.DB, collector *snmp.Collector) *Handler {
@@ -73,6 +81,9 @@ func New(cfg *config.Config, db *sql.DB, collector *snmp.Collector) *Handler {
 			return ip, nil
 		}),
 		startTime: time.Now(),
+
+		loginAccountLimiter: loginlimiter.New(5, 15*time.Minute, 15*time.Minute),
+		loginIPLimiter:      loginlimiter.New(30, 15*time.Minute, 15*time.Minute),
 	}
 	h.camera = cameramodule.NewService(db, cfg.Security.JWTSecret, cameramodule.RuntimeHooks{
 		DeviceLog: h.WriteDeviceLog,
@@ -81,7 +92,7 @@ func New(cfg *config.Config, db *sql.DB, collector *snmp.Collector) *Handler {
 	return h
 }
 
-// Response ?�用?��?結�?
+// Response is the standard API response wrapper
 type Response struct {
 	Success bool        `json:"success"`
 	Data    interface{} `json:"data,omitempty"`
@@ -89,7 +100,7 @@ type Response struct {
 	Error   string      `json:"error,omitempty"`
 }
 
-// PaginatedResponse ?��??��?結�?
+// PaginatedResponse wraps paginated API results
 type PaginatedResponse struct {
 	Success bool        `json:"success"`
 	Data    interface{} `json:"data"`

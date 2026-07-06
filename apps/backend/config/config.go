@@ -1,8 +1,15 @@
+// Made by YTSworks
+// YTS工作室製作
 package config
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
+	"log"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -80,11 +87,9 @@ type LoggingConfig struct {
 }
 
 // Version variable can be overridden by ldflags
-var Version = "v1.2.4.8"
+var Version = "v1.2.4.9sp0001"
 
 func Load() (*Config, error) {
-
-	// ??澈?桀??
 	cfg := &Config{
 		Server: ServerConfig{
 			Port: "8080",
@@ -110,7 +115,7 @@ func Load() (*Config, error) {
 			StartTime: fmt.Sprintf("%d", time.Now().Unix()),
 		},
 		Security: SecurityConfig{
-			JWTSecret:      "system-secret-key-2026-CHANGE-ME", // Default secret
+			JWTSecret:      "",
 			EnableTLS:      false,
 			AllowedOrigins: []string{"*"},
 			FrameAncestors: []string{"'self'", "http:", "https:"},
@@ -132,7 +137,6 @@ func Load() (*Config, error) {
 		},
 	}
 
-	// ?謅疵???config.yaml
 	data, err := os.ReadFile("config.yaml")
 	if err == nil {
 		if err := yaml.Unmarshal(data, cfg); err != nil {
@@ -140,9 +144,68 @@ func Load() (*Config, error) {
 		}
 	}
 
-	// ????謅???蟡???⊿豲??瞏秧???(?頦config.yaml ?謘餉爸)
-	// Version is injected via ldflags, fallback to default
 	cfg.System.Version = Version
 
+	if err := ensureJWTSecret(cfg); err != nil {
+		return nil, err
+	}
+
 	return cfg, nil
+}
+
+// legacyDefaultJWTSecret is the secret that older builds shipped as a hardcoded
+// default. It is publicly known, so it must never be used to sign tokens on a
+// new installation.
+const legacyDefaultJWTSecret = "system-secret-key-2026-CHANGE-ME"
+
+// jwtSecretFilename stores the generated secret next to the database so it
+// survives restarts. The JWT secret also derives the encryption key for stored
+// camera/door credentials and 2FA secrets, so it must stay stable once data
+// has been written with it.
+const jwtSecretFilename = "jwt.secret"
+
+func ensureJWTSecret(cfg *Config) error {
+	if cfg.Security.JWTSecret != "" && cfg.Security.JWTSecret != legacyDefaultJWTSecret {
+		return nil
+	}
+
+	dataDir := filepath.Dir(cfg.Database.Path)
+	secretPath := filepath.Join(dataDir, jwtSecretFilename)
+
+	if raw, err := os.ReadFile(secretPath); err == nil {
+		if secret := strings.TrimSpace(string(raw)); secret != "" {
+			cfg.Security.JWTSecret = secret
+			return nil
+		}
+	}
+
+	// No stored secret. If a database already exists, this is an upgrade of a
+	// deployment that ran with the legacy default; rotating the secret here
+	// would make its encrypted camera/door passwords and 2FA secrets
+	// unreadable, so keep the legacy value and warn loudly instead.
+	if _, err := os.Stat(cfg.Database.Path); err == nil {
+		cfg.Security.JWTSecret = legacyDefaultJWTSecret
+		log.Printf("SECURITY WARNING: running with the publicly known default JWT secret. " +
+			"Set security.jwt_secret in config.yaml to a random value. " +
+			"Note: rotating the secret invalidates sessions and requires re-entering camera/door passwords and re-enrolling 2FA.")
+		return nil
+	}
+
+	// Fresh installation: generate a random secret and persist it.
+	buf := make([]byte, 48)
+	if _, err := rand.Read(buf); err != nil {
+		return fmt.Errorf("failed to generate JWT secret: %v", err)
+	}
+	secret := base64.RawURLEncoding.EncodeToString(buf)
+
+	if err := os.MkdirAll(dataDir, 0755); err != nil {
+		return fmt.Errorf("failed to create data directory for JWT secret: %v", err)
+	}
+	if err := os.WriteFile(secretPath, []byte(secret+"\n"), 0600); err != nil {
+		return fmt.Errorf("failed to persist JWT secret: %v", err)
+	}
+
+	cfg.Security.JWTSecret = secret
+	log.Printf("Generated new JWT secret at %s", secretPath)
+	return nil
 }

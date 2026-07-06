@@ -1,3 +1,5 @@
+/* Made by YTSworks */
+/* YTS工作室製作 */
 /* ===== Components Styles ===== */
 
 /* ===== Admin Tabs ===== */
@@ -69,12 +71,17 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    min-width: 0;
+    max-width: 100%;
     margin-bottom: 20px;
 }
 
 .section-header h2 {
     font-size: 18px;
     font-weight: 600;
+    min-width: 0;
 }
 
 /* ===== License Cards ===== */

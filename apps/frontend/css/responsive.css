@@ -1,3 +1,5 @@
+/* Made by YTSworks */
+/* YTS工作室製作 */
 /* ===== PWA Responsive CSS ===== */
 /* Breakpoints: phone <768, tablet 768-1024, desktop >1024 */
 
@@ -665,6 +667,7 @@
 
     .devices-table-container,
     .logs-container,
+    .audit-table-wrap,
     .embed-table-wrap,
     .ac-table-wrap,
     .switch-rack {
@@ -693,7 +696,7 @@
     }
 
     #audit-table {
-        min-width: 860px;
+        min-width: 720px;
     }
 
     #users-table {

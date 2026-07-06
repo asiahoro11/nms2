@@ -1,3 +1,5 @@
+// Made by YTSworks
+// YTS工作室製作
 // 管理功能
 
 // 使用者管理
@@ -194,7 +196,7 @@ async function deleteUser(id) {
 
 async function loadLicenseStatus() {
     try {
-        const response = await apiGet('/license/status');
+        const response = await apiGet('/license/status', { timeoutMs: 5000 });
         if (response.success) {
             renderLicenseStatus(response.data);
         }
@@ -205,7 +207,7 @@ async function loadLicenseStatus() {
 
 async function loadMachineID() {
     try {
-        const response = await apiGet('/license/machine-id');
+        const response = await apiGet('/license/machine-id', { timeoutMs: 5000 });
         if (response.success) {
             const machineIdEl = document.getElementById('machine-id-display');
             if (machineIdEl) {
@@ -559,7 +561,7 @@ async function loadLicenses() {
 // Store settings globally
 let currentAlertSettings = [];
 
-async function loadAlertSettings() {
+async function legacyLoadAlertSettingsUnused() {
     if (typeof isAdmin === 'function' && !isAdmin()) return;
     try {
         const response = await apiGet('/alerts/settings');
@@ -577,6 +579,7 @@ async function loadAlertSettings() {
 }
 
 function checkSecurityTabVisibility(settings) {
+    if (!Array.isArray(settings)) return;
     const emailSetting = settings.find(s => s.alert_type === 'email');
     // Check if enabled AND has some config (basic check)
     let isConfigured = false;
@@ -602,11 +605,43 @@ function checkSecurityTabVisibility(settings) {
             securityTabBtn.removeAttribute('title');
 
             // If currently on security tab, switch away
-            if (securityTabBtn.classList.contains('active')) {
-                document.querySelector('.tab-btn[data-tab="alerts"]').click();
+            if (securityTabBtn.classList.contains('active') && typeof activateAdminTab === 'function') {
+                activateAdminTab('alerts');
             }
         }
     }
+}
+
+async function loadAlertSettings() {
+    if (typeof isAdmin === 'function' && !isAdmin()) return;
+    try {
+        const response = await apiGet('/alerts/settings', { timeoutMs: 5000 });
+        if (response.success) {
+            const settings = Array.isArray(response.data) ? response.data : [];
+            currentAlertSettings = settings;
+            renderAlertCards(settings);
+            checkSecurityTabVisibility(settings);
+            return;
+        }
+
+        renderAlertSettingsError(response.error || t('admin.toast.load_alert_failed'));
+    } catch (error) {
+        console.error('Failed to load alert settings:', error);
+        renderAlertSettingsError(error.message || t('admin.toast.load_alert_failed'));
+        showToast(error.message || t('admin.toast.load_alert_failed'), 'error');
+    }
+}
+
+function renderAlertSettingsError(message) {
+    const container = document.getElementById('alert-settings-container');
+    if (!container) return;
+
+    container.innerHTML = `
+        <div class="empty-message" style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-secondary);">
+            <div style="font-weight:600;margin-bottom:10px;color:var(--warning-color);">${escapeHtml(message || '告警設定載入失敗')}</div>
+            <button class="btn btn-secondary btn-sm" onclick="loadAlertSettings()">${t('common.retry') || '重試'}</button>
+        </div>
+    `;
 }
 
 // Make toggleAlert globally available for the onchange event in HTML
@@ -644,7 +679,7 @@ window.toggleAlert = async function (type, enabled) {
     }
 };
 
-function renderAlertCards(settings) {
+function legacyRenderAlertCardsUnused(settings) {
     const container = document.getElementById('alert-settings-container');
     if (!container) return;
 
@@ -685,17 +720,21 @@ function renderAlertCards(settings) {
         const hasLicense = alertDef.requireLicense === null ? true : (setting.has_license === true);
 
         // No license → hide completely (do not show locked state)
-        if (!hasLicense) continue;
-
         // "只顯示已啟用" filter
         if (showOpenOnly && !isEnabled) continue;
 
         visibleCount++;
         const typeName = t(alertDef.nameKey) || alertDef.type;
         const description = t(alertDef.descKey) || '';
+        const isLocked = !hasLicense;
+        const statusBadge = alertDef.requireLicense === null
+            ? `<span class="free-badge">${t('admin.alerts.free')}</span>`
+            : isLocked
+                ? `<span class="license-badge">&#128274; ${t('common.locked') || '已鎖定'}</span>`
+                : `<span class="free-badge" style="background:var(--success-color,#22c55e);">&#10003; ${t('admin.licenses.status_active') || '已授權'}</span>`;
 
         html += `
-        <div class="alert-card ${isEnabled ? 'enabled' : ''}">
+        <div class="alert-card ${isEnabled ? 'enabled' : ''} ${isLocked ? 'locked' : ''}">
             <div class="alert-card-header">
                 <span class="alert-icon">${alertDef.icon}</span>
                 <h3>${typeName}</h3>
@@ -723,6 +762,82 @@ function renderAlertCards(settings) {
     // Show empty state when filter yields no results
     if (visibleCount === 0) {
         html += `<div style="padding:40px;text-align:center;color:var(--text-muted);">${t('admin.alerts.no_open_alerts') || '目前沒有已啟用的告警管道'}</div>`;
+    }
+
+    container.innerHTML = html;
+}
+
+function renderAlertCards(settings) {
+    const container = document.getElementById('alert-settings-container');
+    if (!container) return;
+
+    const rows = Array.isArray(settings) ? settings : [];
+    const alertTypes = [
+        { type: 'email', icon: '&#9993;', nameKey: 'admin.alerts.email', descKey: 'admin.alerts.desc_email', requireLicense: null },
+        { type: 'telegram', icon: '&#128172;', nameKey: 'admin.alerts.telegram', descKey: 'admin.alerts.desc_telegram', requireLicense: 'telegram' },
+        { type: 'discord', icon: '&#127911;', nameKey: 'admin.alerts.discord', descKey: 'admin.alerts.desc_discord', requireLicense: 'discord' },
+        { type: 'slack', icon: '#', nameKey: 'admin.alerts.slack', descKey: 'admin.alerts.desc_slack', requireLicense: 'slack' },
+        { type: 'line', icon: 'LINE', nameKey: 'admin.alerts.line', descKey: 'admin.alerts.desc_line', requireLicense: 'line' },
+        { type: 'whatsapp', icon: '&#9742;', nameKey: 'admin.alerts.whatsapp', descKey: 'admin.alerts.desc_whatsapp', requireLicense: 'whatsapp' },
+        { type: 'pdu_alert', icon: 'PDU', nameKey: 'admin.alerts.pdu_alert', descKey: 'admin.alerts.desc_pdu_alert', requireLicense: 'pdu' },
+        { type: 'access_control_alert', icon: 'AC', nameKey: 'admin.alerts.access_control_alert', descKey: 'admin.alerts.desc_access_control_alert', requireLicense: 'access_control' },
+    ];
+
+    const showOpenOnly = !!window._alertFilterOpenOnly;
+    let html = `
+    <div id="alert-filter-toolbar" style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding:10px 14px;background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:8px;flex-wrap:wrap;">
+        <span style="font-size:0.85rem;font-weight:500;color:var(--text-primary);">${t('admin.tabs.alerts') || '告警設定'}</span>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;margin-left:auto;font-size:0.82rem;color:var(--text-secondary);">
+            <input type="checkbox" id="alert-open-only-chk" ${showOpenOnly ? 'checked' : ''}
+                onchange="window._alertFilterOpenOnly = this.checked; renderAlertCards(currentAlertSettings);"
+                style="width:15px;height:15px;cursor:pointer;">
+            <span>${t('admin.alerts.show_open_only') || '只顯示已開啟'}</span>
+        </label>
+    </div>`;
+    let visibleCount = 0;
+
+    for (const alertDef of alertTypes) {
+        const setting = rows.find(s => s.alert_type === alertDef.type) || {};
+        const isEnabled = !!setting.is_enabled;
+        if (showOpenOnly && !isEnabled) continue;
+
+        const hasLicense = alertDef.requireLicense === null ? true : setting.has_license === true;
+        const isLocked = !hasLicense;
+        visibleCount++;
+
+        const typeName = t(alertDef.nameKey) || alertDef.type;
+        const description = t(alertDef.descKey) || '';
+        const statusBadge = alertDef.requireLicense === null
+            ? `<span class="free-badge">${t('admin.alerts.free') || '免費'}</span>`
+            : isLocked
+                ? `<span class="license-badge">&#128274; ${t('common.locked') || '已鎖定'}</span>`
+                : `<span class="free-badge" style="background:var(--success-color,#22c55e);">&#10003; ${t('admin.licenses.status_active') || '已授權'}</span>`;
+
+        html += `
+        <div class="alert-card ${isEnabled ? 'enabled' : ''} ${isLocked ? 'locked' : ''}">
+            <div class="alert-card-header">
+                <span class="alert-icon">${alertDef.icon}</span>
+                <h3>${typeName}</h3>
+                ${statusBadge}
+            </div>
+            <p class="alert-description">${description}</p>
+            ${isLocked ? `<div class="locked-message">&#128274; ${t('admin.licenses.required') || '此功能需要授權'}</div>` : ''}
+            <div class="alert-card-toggle">
+                <label class="toggle-switch">
+                    <input type="checkbox" ${isEnabled ? 'checked' : ''} ${isLocked ? 'disabled' : ''} onchange="toggleAlert('${alertDef.type}', this.checked)">
+                    <span class="toggle-slider"></span>
+                </label>
+                <span>${isEnabled ? t('common.enabled') : t('common.disabled')}</span>
+            </div>
+            <div class="alert-card-actions">
+                <button class="btn btn-secondary btn-sm" ${isLocked ? 'disabled' : ''} onclick="showAlertConfigModal('${alertDef.type}')">${t('common.settings')}</button>
+                <button class="btn btn-primary btn-sm" ${isLocked ? 'disabled' : ''} onclick="testAlert('${alertDef.type}')">${t('common.test')}</button>
+            </div>
+        </div>`;
+    }
+
+    if (visibleCount === 0) {
+        html += `<div style="padding:40px;text-align:center;color:var(--text-muted);">${t('admin.alerts.no_open_alerts') || '目前沒有已開啟的告警通道'}</div>`;
     }
 
     container.innerHTML = html;
@@ -1311,71 +1426,28 @@ document.addEventListener('DOMContentLoaded', () => {
         })
         .catch(() => { });
 
-    // Admin tab switching
-    document.querySelectorAll('.admin-tabs .tab-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const tabName = btn.dataset.tab;
-
-            if (typeof isLicenseLockActive === 'function' && isLicenseLockActive() &&
-                typeof isAllowedLockedAdminTab === 'function' && !isAllowedLockedAdminTab(tabName)) {
-                if (typeof activateAdminTab === 'function' && typeof getPreferredLockedAdminTab === 'function') {
-                    activateAdminTab(getPreferredLockedAdminTab());
-                }
-                return;
-            }
-
-            // Update active button
-            document.querySelectorAll('.admin-tabs .tab-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-
-            // Update active tab content
-            document.querySelectorAll('.admin-tab-content').forEach(tc => tc.classList.remove('active'));
-            const tabContent = document.getElementById(tabName + '-tab');
-            if (tabContent) tabContent.classList.add('active');
-
-            // Load data for the tab
-            switch (tabName) {
-                case 'users':
-                    loadUsers();
-                    break;
-                case 'licenses':
-                    loadLicenses();
-                    break;
-                case 'alerts':
-                    loadAlertSettings();
-                    break;
-                case 'branding':
-                    loadBrandingSettings();
-                    break;
-                case 'security':
-                    loadSecuritySettings();
-                    break;
-                case 'host-status':
-                    loadHostStatus();
-                    break;
-                case 'tools':
-                    // No initial data to load for tools
-                    break;
-                case 'modules':
-                    loadModuleConfigs();
-                    break;
-            }
-        });
-    });
-
-    // Default load: Active tab
+    // Default view only: avoid automatic admin data fetches on page entry.
+    // Tab clicks are handled centrally in app.js, where data loads are explicit.
     const preferredLockedBtn = (typeof isLicenseLockActive === 'function' && isLicenseLockActive() &&
         typeof getPreferredLockedAdminTab === 'function')
         ? document.querySelector(`.admin-tabs .tab-btn[data-tab="${getPreferredLockedAdminTab()}"]`)
         : null;
-    const activeTabBtn = preferredLockedBtn || document.querySelector('.admin-tabs .tab-btn.active');
+    let activeTabBtn = preferredLockedBtn || document.querySelector('.admin-tabs .tab-btn.active');
+    if (activeTabBtn && activeTabBtn.dataset.tab === 'host-status') {
+        activeTabBtn = document.querySelector('.admin-tabs .tab-btn[data-tab="licenses"]') ||
+            document.querySelector('.admin-tabs .tab-btn[data-tab="users"]') ||
+            activeTabBtn;
+    }
     if (activeTabBtn) {
-        // Trigger click to load initial data and set view
-        activeTabBtn.click();
-    } else {
-        // Fallback if no active class in HTML
-        const firstBtn = document.querySelector('.admin-tabs .tab-btn');
-        if (firstBtn) firstBtn.click();
+        if (typeof activateAdminTab === 'function') {
+            activateAdminTab(activeTabBtn.dataset.tab);
+        } else {
+            document.querySelectorAll('.admin-tabs .tab-btn').forEach(b => b.classList.remove('active'));
+            activeTabBtn.classList.add('active');
+            document.querySelectorAll('.admin-tab-content').forEach(tc => tc.classList.remove('active'));
+            const tabContent = document.getElementById(activeTabBtn.dataset.tab + '-tab');
+            if (tabContent) tabContent.classList.add('active');
+        }
     }
 });
 
@@ -1536,6 +1608,7 @@ function promptAdminAuth(onSuccess) {
 
 // Helper for Host Status Gauge
 function renderUsageGauge(value, label, color, textValue) {
+    value = Math.max(0, Math.min(100, Number.isFinite(Number(value)) ? Number(value) : 0));
     const circumference = 2 * Math.PI * 40; // r=40
     const offset = circumference - (value / 100) * circumference;
 
@@ -1560,19 +1633,24 @@ async function loadHostStatus() {
     // host-status is admin-only — silently skip for non-admin roles
     if (typeof isAdmin === 'function' && !isAdmin()) return;
     try {
-        const response = await apiGet('/system/host-status');
+        const response = await apiGet('/system/host-status', { timeoutMs: 5000 });
         if (response.success) {
             const data = response.data;
 
             // Update Info
             const setVal = (id, val) => {
                 const el = document.getElementById(id);
-                if (el) el.textContent = val;
+                if (el) el.textContent = (val === null || val === undefined || val === '') ? '-' : val;
             };
+            const num = (value, fallback = 0) => {
+                const n = Number(value);
+                return Number.isFinite(n) ? n : fallback;
+            };
+            const percent = (value) => Math.max(0, Math.min(100, num(value, 0)));
 
-            setVal('host-os', data.os);
-            setVal('host-platform', data.platform + ' ' + data.platform_version);
-            setVal('host-hostname', data.hostname);
+            setVal('host-os', data.os || '-');
+            setVal('host-platform', `${data.platform || '-'} ${data.platform_version || ''}`.trim());
+            setVal('host-hostname', data.hostname || '-');
 
             // GPU Info
             if (data.gpu) {
@@ -1585,33 +1663,38 @@ async function loadHostStatus() {
                     methodEl.style.color = g.available ? 'var(--success-color)' : 'var(--text-secondary)';
                 }
                 setVal('host-gpu-maxcams', g.available ? `${g.max_cams} ch` : `${g.max_cams} ch (CPU 限制)`);
+            } else {
+                setVal('host-gpu-name', '-');
+                setVal('host-gpu-method', '-');
+                setVal('host-gpu-maxcams', '-');
             }
 
             // Format uptime
-            const uptimeHours = Math.floor(data.uptime / 3600);
-            const uptimeMins = Math.floor((data.uptime % 3600) / 60);
+            const uptime = Math.max(0, num(data.uptime, 0));
+            const uptimeHours = Math.floor(uptime / 3600);
+            const uptimeMins = Math.floor((uptime % 3600) / 60);
             setVal('host-uptime', `${uptimeHours}${t('common.hour')} ${uptimeMins}${t('common.minute')}`);
 
             // CPU Gauge
             // CPU Gauge
-            const cpu = Number((data.cpu_usage || 0).toFixed(1));
+            const cpu = Number(percent(data.cpu_usage).toFixed(1));
             const cpuColor = cpu > 80 ? 'var(--danger-color)' : (cpu > 60 ? 'var(--warning-color)' : 'var(--success-color)');
             const cpuBox = document.getElementById('host-cpu-gauge-box');
             if (cpuBox) cpuBox.innerHTML = renderUsageGauge(cpu, 'CPU', cpuColor, cpu + '%');
 
             // Memory Gauge & Text
-            const memTotal = data.mem_total || 1;
-            const memUsed = data.mem_used || 0;
-            const memP = Number(((memUsed / memTotal) * 100).toFixed(1));
+            const memTotal = Math.max(1, num(data.mem_total, 1));
+            const memUsed = Math.max(0, num(data.mem_used, 0));
+            const memP = Number(percent((memUsed / memTotal) * 100).toFixed(1));
             const memColor = memP > 85 ? 'var(--danger-color)' : (memP > 70 ? 'var(--warning-color)' : 'var(--primary-color)');
             const memBox = document.getElementById('host-mem-gauge-box');
             if (memBox) memBox.innerHTML = renderUsageGauge(memP, 'Memory', memColor, formatBytes(memUsed));
             setVal('host-mem-val', `${formatBytes(memUsed)} / ${formatBytes(memTotal)} (${memP}%)`);
 
             // Disk Gauge & Text
-            const diskTotal = data.disk_total || 1;
-            const diskUsed = data.disk_used || 0;
-            const diskP = Number(((diskUsed / diskTotal) * 100).toFixed(1));
+            const diskTotal = Math.max(1, num(data.disk_total, 1));
+            const diskUsed = Math.max(0, num(data.disk_used, 0));
+            const diskP = Number(percent((diskUsed / diskTotal) * 100).toFixed(1));
             const diskColor = diskP > 90 ? 'var(--danger-color)' : (diskP > 75 ? 'var(--warning-color)' : '#8b5cf6');
             const diskBox = document.getElementById('host-disk-gauge-box');
             if (diskBox) diskBox.innerHTML = renderUsageGauge(diskP, 'Disk', diskColor, formatBytes(diskUsed));
@@ -2126,7 +2209,9 @@ function updateAdminTabVisibility(tabName, visible) {
         // If the current tab became hidden, switch to the first visible tab
         if (!visible && tabBtn.classList.contains('active')) {
             const firstVisible = document.querySelector('.admin-tabs .tab-btn:not([style*="display: none"])');
-            if (firstVisible) firstVisible.click();
+            if (firstVisible && typeof activateAdminTab === 'function') {
+                activateAdminTab(firstVisible.dataset.tab);
+            }
         }
     }
 }
@@ -2135,8 +2220,8 @@ async function loadModuleConfigs() {
     try {
         const timestamp = new Date().getTime();
         const [configRes, licenseRes] = await Promise.all([
-            apiGet(`/system/config?_ts=${timestamp}`),
-            apiGet(`/license/status?_ts=${timestamp}`)
+            apiGet(`/system/config?_ts=${timestamp}`, { timeoutMs: 5000 }),
+            apiGet(`/license/status?_ts=${timestamp}`, { timeoutMs: 5000 })
         ]);
 
         if (configRes.success) {
@@ -2170,9 +2255,9 @@ async function loadModuleConfigs() {
 
 async function loadChannelStatus() {
     try {
-        const response = await apiGet('/alerts/settings');
+        const response = await apiGet('/alerts/settings', { timeoutMs: 5000 });
         if (response.success) {
-            const settings = response.data;
+            const settings = Array.isArray(response.data) ? response.data : [];
             settings.forEach(s => {
                 const toggle = document.getElementById(`channel-${s.alert_type}-toggle`);
                 if (toggle) {

@@ -1,4 +1,6 @@
 #!/bin/bash
+# Made by YTSworks
+# YTS工作室製作
 # NMS GitHub Deployment Preparation Script
 # Run this on your Linux NMS server to prepare files for GitHub deployment
 

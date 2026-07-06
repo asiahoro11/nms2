@@ -1,3 +1,5 @@
+# Made by YTSworks
+# YTS工作室製作
 $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $PSScriptRoot

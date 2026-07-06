@@ -1,3 +1,5 @@
+// Made by YTSworks
+// YTS工作室製作
 const API_BASE = '/api/v1';
 
 function apiNormalizeEndpoint(endpoint) {
@@ -54,6 +56,7 @@ function getAuthToken() {
 async function api(endpoint, options = {}) {
     const url = apiBuildURL(endpoint);
     const token = getAuthToken();
+    const timeoutMs = options.timeoutMs === 0 ? 0 : (options.timeoutMs || 15000);
 
     const defaultOptions = {
         cache: 'no-store',
@@ -76,9 +79,19 @@ async function api(endpoint, options = {}) {
             ...options.headers
         }
     };
+    delete mergedOptions.timeoutMs;
+
+    let timeoutId = null;
+    let controller = null;
+    if (timeoutMs > 0 && !mergedOptions.signal && typeof AbortController !== 'undefined') {
+        controller = new AbortController();
+        mergedOptions.signal = controller.signal;
+        timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    }
 
     try {
         const response = await fetch(url, mergedOptions);
+        if (timeoutId) clearTimeout(timeoutId);
 
         if (response.status === 401) {
             if (options.skipRedirectOn401) {
@@ -145,6 +158,7 @@ async function api(endpoint, options = {}) {
 
         return data;
     } catch (error) {
+        if (timeoutId) clearTimeout(timeoutId);
         console.error('API Error:', error);
         throw error;
     }

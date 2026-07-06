@@ -1,3 +1,5 @@
+// Made by YTSworks
+// YTS工作室製作
 package camera
 
 import (
@@ -751,7 +753,8 @@ func (s *Service) runMjpegFFmpeg(rtspURL, ffmpegBin string, stream *mjpegStream,
 							break
 						}
 						chunk := accumulated[:idx]
-						accumulated = accumulated[idx+len(sep):]
+						tail := accumulated[idx+len(sep):]
+						accumulated = append(accumulated[:0], tail...)
 						if frame := ExtractJPEG(chunk); len(frame) > 0 {
 							frameSeq++
 							now := time.Now()

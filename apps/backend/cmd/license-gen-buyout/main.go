@@ -4,75 +4,61 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"management-server/services/license"
 	"strings"
+
+	"management-server/cmd/internal/licensegen"
+	"management-server/services/license"
 )
 
 func main() {
-	machineIDPtr := flag.String("id", "", "Target Machine ID (Required)")
-	typePtr := flag.String("type", "device", "License Type: device, alert, combined")
-	deviceCountPtr := flag.Int("count", 0, "Device Count (Required for device/combined types)")
+	machineID := flag.String("id", "", "Target Machine ID. Required.")
+	licenseType := flag.String("type", "device", "Buyout type: device, alert, camera, camera_recording, access_control, pdu, iot, combined, full, custom.")
+	featureCSV := flag.String("features", "", "Comma-separated feature keys for custom buyout licenses.")
+	deviceCount := flag.Int("count", 0, "Device count. Required when device_management is selected.")
+	cameraCount := flag.Int("cameras", 0, "Camera count. Required when camera_viewer or camera_recording is selected.")
 	flag.Parse()
 
-	if *machineIDPtr == "" {
+	if strings.TrimSpace(*machineID) == "" {
 		log.Fatal("Error: Machine ID is required. Use -id <MACHINE_ID>")
 	}
 
-	machineID := strings.ToLower(strings.TrimSpace(*machineIDPtr))
-	licenseType := strings.ToLower(*typePtr)
-
-	// Derive the same secret key as the backend (NMS-LICENSE + MachineID)
-	secretKey := license.DeriveKey("NMS-LICENSE-" + machineID)
-
-	var features []string
-
-	// Buyout version always uses Permanent validity (empty string)
-	validUntil := ""
-
-	// Determine features based on type
-	switch licenseType {
-	case "device":
-		if *deviceCountPtr <= 0 {
-			log.Fatal("Error: Device count must be > 0 for device license")
-		}
-		// Device buy-out: Only devices, no extra alert features (unless covered by separate alert license)
-		features = []string{"device_management", "email"}
-
-	case "alert":
-		// Alert buy-out: Enables advanced features. Device count is irrelevant (usually 0)
-		features = []string{"email", "line", "telegram", "whatsapp", "discord", "slack"}
-		*deviceCountPtr = 0
-
-	case "combined":
-		// Combined: Devices + Alerts
-		if *deviceCountPtr <= 0 {
-			log.Fatal("Error: Device count must be > 0 for combined license")
-		}
-		features = []string{"device_management", "email", "line", "telegram", "whatsapp", "discord", "slack"}
-
-	default:
-		log.Fatalf("Unknown license type: %s", licenseType)
+	result, err := licensegen.Generate(licensegen.GenerateInput{
+		Mode:        license.FormalLicenseMode,
+		MachineID:   *machineID,
+		LicenseType: *licenseType,
+		Features:    parseCSV(*featureCSV),
+		DeviceCount: *deviceCount,
+		CameraCount: *cameraCount,
+		Years:       license.PermanentYearCut,
+	})
+	if err != nil {
+		log.Fatalf("Error generating buyout license: %v", err)
 	}
 
-	fmt.Printf("Generating Buyout (Permanent) License...\n")
-	fmt.Printf("Machine ID: %s\n", machineID)
-	fmt.Printf("Type: %s\n", licenseType)
-	fmt.Printf("Device Count: %d\n", *deviceCountPtr)
-	fmt.Printf("Features: %v\n", features)
+	fmt.Printf("Generating Management System %s Buyout License\n", licensegen.ProductVersion)
+	fmt.Printf("Machine ID: %s\n", strings.ToLower(strings.TrimSpace(*machineID)))
+	fmt.Printf("Type: %s\n", result.LicenseType)
+	fmt.Printf("Features: %v\n", result.Features)
+	fmt.Printf("Device Count: %d\n", result.DeviceCount)
+	fmt.Printf("Camera Count: %d\n", result.CameraCount)
 	fmt.Printf("Valid Until: Permanent\n")
 
-	key, err := license.GenerateLicenseKey(
-		machineID,
-		*deviceCountPtr,
-		features,
-		validUntil,
-		secretKey,
-	)
-	if err != nil {
-		log.Fatalf("Error generating key: %v", err)
-	}
-
 	fmt.Println("\n================ BUYOUT LICENSE KEY ================")
-	fmt.Println(key)
+	fmt.Println(result.Key)
 	fmt.Println("====================================================")
+}
+
+func parseCSV(raw string) []string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil
+	}
+	parts := strings.Split(raw, ",")
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if value := strings.TrimSpace(part); value != "" {
+			out = append(out, value)
+		}
+	}
+	return out
 }
