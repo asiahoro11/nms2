@@ -1,0 +1,431 @@
+{
+  "schema": "openai.presentation.layout/v4",
+  "unit": "px",
+  "slide": {
+    "aid": "sl/bu7aik",
+    "id": "bu7aik",
+    "slide": 10,
+    "layoutId": "43a9815b-8f45-48eb-a9a2-d1dfa2efdc44",
+    "layoutName": "Title Slide",
+    "layoutType": "title",
+    "masterLayoutId": "e326cf4e-3446-4b17-a01a-9e66d2912776",
+    "masterLayoutName": "Master",
+    "backgroundColor": "#08111F",
+    "frame": {
+      "left": 0,
+      "top": 0,
+      "width": 1280,
+      "height": 720
+    }
+  },
+  "theme": {
+    "colorSchemeName": "ChatGPT",
+    "colors": {
+      "accent1": "#156082",
+      "accent2": "#E97132",
+      "accent3": "#196B24",
+      "accent4": "#0F9ED5",
+      "accent5": "#A02B93",
+      "accent6": "#4EA72E",
+      "bg1": "#FFFFFF",
+      "bg2": "#000000",
+      "tx1": "#1F1F1F",
+      "tx2": "#FFFFFF",
+      "dk1": "#000000",
+      "lt1": "#FFFFFF",
+      "dk2": "#0E2841",
+      "lt2": "#E8E8E8",
+      "hlink": "#467886",
+      "folHlink": "#96607D"
+    },
+    "typefaces": [
+      "+mn-lt"
+    ]
+  },
+  "inheritedLayers": [
+    {
+      "scope": "layout",
+      "id": "43a9815b-8f45-48eb-a9a2-d1dfa2efdc44",
+      "name": "Title Slide",
+      "type": "title",
+      "parentLayoutId": "e326cf4e-3446-4b17-a01a-9e66d2912776",
+      "elements": []
+    },
+    {
+      "scope": "master",
+      "id": "e326cf4e-3446-4b17-a01a-9e66d2912776",
+      "name": "Master",
+      "type": "master",
+      "elements": []
+    }
+  ],
+  "elements": [
+    {
+      "order": 1,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/xczed8v6",
+      "id": "1",
+      "bbox": [
+        0,
+        0,
+        1280,
+        720
+      ],
+      "geometry": "rect",
+      "fillColor": "#08111F",
+      "lineWidth": 0
+    },
+    {
+      "order": 2,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/qpg3ex0n",
+      "id": "2",
+      "bbox": [
+        0,
+        0,
+        1280,
+        10
+      ],
+      "geometry": "rect",
+      "fillColor": "#7C5CFF",
+      "lineWidth": 0
+    },
+    {
+      "order": 3,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/fa9w3m94",
+      "id": "3",
+      "bbox": [
+        56,
+        44,
+        850,
+        48
+      ],
+      "geometry": "rect",
+      "text": "功能頁面：新增設備 Modbus TCP",
+      "textPreview": "功能頁面：新增設備 Modbus TCP",
+      "resolvedFontSize": 35,
+      "resolvedTextStyle": {
+        "fontSize": 35,
+        "typeface": "+mn-lt",
+        "color": "#F8FAFC",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "功能頁面：新增設備 Modbus TCP"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "功能頁面：新增設備 Modbus TCP",
+          "resolvedTextStyle": {
+            "fontSize": 35,
+            "color": "#F8FAFC",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "功能頁面：新增設備 Modbus TCP",
+              "fontSize": 35,
+              "color": "#F8FAFC",
+              "bold": true,
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 4,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/8jqh0fep",
+      "id": "4",
+      "bbox": [
+        56,
+        94,
+        980,
+        28
+      ],
+      "geometry": "rect",
+      "text": "TCP 類設備以 Host / IP 與 Port 作為目標。",
+      "textPreview": "TCP 類設備以 Host / IP 與 Port 作為目標。",
+      "resolvedFontSize": 17,
+      "resolvedTextStyle": {
+        "fontSize": 17,
+        "typeface": "+mn-lt",
+        "color": "#B9C2D3",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "TCP 類設備以 Host / IP 與 Port 作為目標。"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "TCP 類設備以 Host / IP 與 Port 作為目標。",
+          "resolvedTextStyle": {
+            "fontSize": 17,
+            "color": "#B9C2D3",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "TCP 類設備以 Host / IP 與 Port 作為目標。",
+              "fontSize": 17,
+              "color": "#B9C2D3",
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 5,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/x4nap4r6",
+      "id": "5",
+      "bbox": [
+        56,
+        684,
+        360,
+        20
+      ],
+      "geometry": "rect",
+      "text": "IoT / Modbus 圖文操作手冊",
+      "textPreview": "IoT / Modbus 圖文操作手冊",
+      "resolvedFontSize": 12,
+      "resolvedTextStyle": {
+        "fontSize": 12,
+        "typeface": "+mn-lt",
+        "color": "#7F8AA3",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "IoT / Modbus 圖文操作手冊"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "IoT / Modbus 圖文操作手冊",
+          "resolvedTextStyle": {
+            "fontSize": 12,
+            "color": "#7F8AA3",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "IoT / Modbus 圖文操作手冊",
+              "fontSize": 12,
+              "color": "#7F8AA3",
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 6,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/qd4vmtwr",
+      "id": "6",
+      "bbox": [
+        1184,
+        678,
+        40,
+        24
+      ],
+      "geometry": "rect",
+      "text": "10",
+      "textPreview": "10",
+      "resolvedFontSize": 14,
+      "resolvedTextStyle": {
+        "fontSize": 14,
+        "typeface": "+mn-lt",
+        "color": "#7F8AA3",
+        "alignment": "right",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "10"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "10",
+          "resolvedTextStyle": {
+            "fontSize": 14,
+            "color": "#7F8AA3",
+            "alignment": "right"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "10",
+              "fontSize": 14,
+              "color": "#7F8AA3",
+              "alignment": "right"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 7,
+      "kind": "image",
+      "scope": "slide",
+      "aid": "im/6hcrmhk3",
+      "id": "7",
+      "bbox": [
+        56,
+        132,
+        1168,
+        510
+      ],
+      "geometry": "roundRect",
+      "alt": "功能頁面：新增設備 Modbus TCP",
+      "contentType": "image/png",
+      "imageFit": "contain",
+      "imageMask": {
+        "geometry": "roundRect",
+        "adjustmentList": [
+          {
+            "name": "adj",
+            "formula": "val 2353"
+          }
+        ]
+      },
+      "asset": {
+        "assetId": "cdb7c75f-5c46-4cb3-bcb3-6540c8713a94",
+        "contentType": "image/png",
+        "byteLength": 131299
+      }
+    },
+    {
+      "order": 8,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/87ed8bat",
+      "id": "8",
+      "bbox": [
+        80,
+        646,
+        1050,
+        22
+      ],
+      "geometry": "rect",
+      "text": "新增設備視窗會依分頁切換不同通訊欄位。",
+      "textPreview": "新增設備視窗會依分頁切換不同通訊欄位。",
+      "resolvedFontSize": 15,
+      "resolvedTextStyle": {
+        "fontSize": 15,
+        "typeface": "+mn-lt",
+        "color": "#B9C2D3",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "新增設備視窗會依分頁切換不同通訊欄位。"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "新增設備視窗會依分頁切換不同通訊欄位。",
+          "resolvedTextStyle": {
+            "fontSize": 15,
+            "color": "#B9C2D3",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "新增設備視窗會依分頁切換不同通訊欄位。",
+              "fontSize": 15,
+              "color": "#B9C2D3",
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    }
+  ],
+  "composeRuns": []
+}

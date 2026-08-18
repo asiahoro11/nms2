@@ -150,7 +150,8 @@ func (h *Handler) legacyRestoreEncryptedBackup(c *gin.Context) {
 	}
 
 	dbPath := h.config.Database.Path
-	if err := os.WriteFile(dbPath, decryptedData, 0644); err != nil {
+	// #nosec G703 -- dbPath is the operator-controlled configured database path, never request input.
+	if err := os.WriteFile(dbPath, decryptedData, 0600); err != nil {
 		h.WriteSystemLog("error", "backup", "restore_encrypted_backup_write_failed", "restored backup write failed", map[string]interface{}{
 			"file":  file.Filename,
 			"error": err.Error(),

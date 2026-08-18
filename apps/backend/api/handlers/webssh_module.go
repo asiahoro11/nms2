@@ -20,3 +20,16 @@ func (h *Handler) WebSSHTerminal(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, Response{Success: false, Error: err.Error()})
 	}
 }
+
+func (h *Handler) CreateWebSSHTicket(c *gin.Context) {
+	ticket, expiresAt, err := h.webssh.IssueTicket(c.Param("id"))
+	if err != nil {
+		if errors.Is(err, websshmodule.ErrDeviceNotFound) {
+			c.JSON(http.StatusNotFound, Response{Success: false, Error: "device not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, Response{Success: false, Error: "failed to issue terminal ticket"})
+		return
+	}
+	c.JSON(http.StatusOK, Response{Success: true, Data: gin.H{"ticket": ticket, "expires_at": expiresAt.Unix()}})
+}

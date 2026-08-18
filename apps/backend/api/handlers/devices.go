@@ -78,6 +78,17 @@ func (h *Handler) GetDeviceInterfaces(c *gin.Context) {
 	c.JSON(http.StatusOK, Response{Success: true, Data: interfaces})
 }
 
+func (h *Handler) GetDeviceTraffic(c *gin.Context) {
+	id := c.Param("id")
+	hours, _ := strconv.Atoi(c.DefaultQuery("hours", "24"))
+	traffic, err := h.devices.ListTrafficSamples(id, hours)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, Response{Success: false, Error: err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, Response{Success: true, Data: traffic})
+}
+
 func (h *Handler) CreateDevice(c *gin.Context) {
 	var input DeviceInput
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -88,11 +99,18 @@ func (h *Handler) CreateDevice(c *gin.Context) {
 	if input.DeviceType == "" {
 		input.DeviceType = "unknown"
 	}
-	if input.SNMPCommunity == "" {
-		input.SNMPCommunity = h.config.SNMP.DefaultCommunity
-	}
-	if input.SNMPVersion == 0 {
-		input.SNMPVersion = 2
+	// The form sends monitor_type explicitly. Keep Ping-only devices at
+	// snmp_version=0; otherwise the UI and collector will treat them as SNMP.
+	if strings.EqualFold(input.MonitorType, "ping") {
+		input.SNMPCommunity = ""
+		input.SNMPVersion = 0
+	} else {
+		if input.SNMPCommunity == "" {
+			input.SNMPCommunity = h.config.SNMP.DefaultCommunity
+		}
+		if input.SNMPVersion == 0 {
+			input.SNMPVersion = 2
+		}
 	}
 
 	maxDevices := h.getMaxDeviceLimit()

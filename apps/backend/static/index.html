@@ -123,6 +123,9 @@
         <!-- 全域頂部導航列 -->
         <div class="global-header">
             <div class="global-header-right">
+                <button class="header-action-btn quick-search-trigger" type="button" onclick="openQuickSearch()" title="Search devices and pages (Ctrl+K)" aria-label="Search devices and pages">
+                    &#128269;<span class="quick-search-shortcut" aria-hidden="true">Ctrl K</span>
+                </button>
                 <button onclick="openDemoMode()" class="demo-mode-btn" title="返回主控台選擇畫面">
                     🏠 主控台
                 </button>
@@ -165,9 +168,12 @@
             <section id="dashboard" class="page active">
                 <header class="page-header">
                     <h1 data-i18n="nav.dashboard">儀表板</h1>
-                    <button class="btn btn-secondary" onclick="location.reload(true)" title="強制重新載入頁面 (Ctrl+F5)">
+                    <div class="dashboard-refresh-actions">
+                        <span class="dashboard-last-updated" id="dashboard-last-updated" aria-live="polite"></span>
+                        <button class="btn btn-secondary" onclick="refreshDashboard()" title="Refresh dashboard data">
                         <span>🔄</span> <span data-i18n="dashboard.reload_page">重整網頁</span>
-                    </button>
+                        </button>
+                    </div>
                 </header>
 
                 <!-- 系統摘要 -->
@@ -422,7 +428,6 @@
 
             </section>
 
-            <!-- 系統日誌頁面 -->
             <section id="logs" class="page">
                 <header class="page-header">
                     <h1 data-i18n="nav.logs">日誌與稽核</h1>
@@ -523,11 +528,19 @@
                     <!-- 篩選列 -->
                     <div class="audit-filters">
                         <input type="text" id="audit-filter-username" placeholder="使用者" data-i18n="[placeholder]admin.audit.filter_user" class="form-input" style="width:120px;" oninput="loadAuditLogs(1)">
+                        <input type="text" id="audit-filter-search" placeholder="搜尋動作、資源或內容" class="form-input" style="width:180px;" oninput="debounceAuditSearch()">
+                        <input type="text" id="audit-filter-module" placeholder="模組" class="form-input" style="width:110px;" oninput="loadAuditLogs(1)">
+                        <input type="text" id="audit-filter-action" placeholder="動作" class="form-input" style="width:130px;" oninput="loadAuditLogs(1)">
                         <select id="audit-filter-status" class="form-input" style="width:110px;" onchange="loadAuditLogs(1)">
                             <option value="" data-i18n="admin.audit.status_all">全部狀態</option>
                             <option value="success" data-i18n="common.success">成功</option>
                             <option value="failed" data-i18n="common.failed">失敗</option>
                             <option value="warning" data-i18n="admin.audit.status_warning">警告</option>
+                        </select>
+                        <select id="audit-filter-review" class="form-input" style="width:110px;" onchange="loadAuditLogs(1)">
+                            <option value="">審閱狀態</option>
+                            <option value="pending">待審閱</option>
+                            <option value="reviewed">已審閱</option>
                         </select>
                         <input type="date" id="audit-filter-from" class="form-input" style="width:140px;" onchange="loadAuditLogs(1)">
                         <span style="color:var(--text-muted)" data-i18n="admin.audit.to">至</span>
@@ -671,6 +684,7 @@
                             <div class="report-actions">
                                 <button class="btn btn-secondary" onclick="exportInterfaceReport('csv')">📄 CSV</button>
                                 <button class="btn btn-secondary" onclick="exportInterfaceReport('pdf')">📄 PDF</button>
+                                <button class="btn btn-secondary" onclick="exportInterfaceReport('json')">📄 JSON</button>
                             </div>
                         </div>
                         <div class="report-card">
@@ -679,6 +693,7 @@
                             <div class="report-actions">
                                 <button class="btn btn-secondary" onclick="exportHealthTrendReport('csv')">📄 CSV</button>
                                 <button class="btn btn-secondary" onclick="exportHealthTrendReport('pdf')">📄 PDF</button>
+                                <button class="btn btn-secondary" onclick="exportHealthTrendReport('json')">📄 JSON</button>
                             </div>
                         </div>
                         <div class="report-card">
@@ -687,6 +702,7 @@
                             <div class="report-actions">
                                 <button class="btn btn-secondary" onclick="exportSLAReport('csv')">📄 CSV</button>
                                 <button class="btn btn-secondary" onclick="exportSLAReport('pdf')">📄 PDF</button>
+                                <button class="btn btn-secondary" onclick="exportSLAReport('json')">📄 JSON</button>
                             </div>
                         </div>
                         <div class="report-card">
@@ -695,6 +711,7 @@
                             <div class="report-actions">
                                 <button class="btn btn-secondary" onclick="exportAuditReport('csv')">📄 CSV</button>
                                 <button class="btn btn-secondary" onclick="exportAuditReport('pdf')">📄 PDF</button>
+                                <button class="btn btn-secondary" onclick="exportAuditReport('json')">📄 JSON</button>
                             </div>
                         </div>
                         <div class="report-card">
@@ -703,6 +720,7 @@
                             <div class="report-actions">
                                 <button class="btn btn-secondary" onclick="exportLicenseCapacityReport('csv')">📄 CSV</button>
                                 <button class="btn btn-secondary" onclick="exportLicenseCapacityReport('pdf')">📄 PDF</button>
+                                <button class="btn btn-secondary" onclick="exportLicenseCapacityReport('json')">📄 JSON</button>
                             </div>
                         </div>
                         <div class="report-card">
@@ -711,6 +729,7 @@
                             <div class="report-actions">
                                 <button class="btn btn-secondary" onclick="exportCameraReport('csv')">📄 CSV</button>
                                 <button class="btn btn-secondary" onclick="exportCameraReport('pdf')">📄 PDF</button>
+                                <button class="btn btn-secondary" onclick="exportCameraReport('json')">📄 JSON</button>
                             </div>
                         </div>
                         <div class="report-card">
@@ -719,6 +738,7 @@
                             <div class="report-actions">
                                 <button class="btn btn-secondary" onclick="exportPDUReport('csv')">📄 CSV</button>
                                 <button class="btn btn-secondary" onclick="exportPDUReport('pdf')">📄 PDF</button>
+                                <button class="btn btn-secondary" onclick="exportPDUReport('json')">📄 JSON</button>
                             </div>
                         </div>
                         <div class="report-card">
@@ -727,6 +747,106 @@
                             <div class="report-actions">
                                 <button class="btn btn-secondary" onclick="exportAccessControlReport('csv')">📄 CSV</button>
                                 <button class="btn btn-secondary" onclick="exportAccessControlReport('pdf')">📄 PDF</button>
+                                <button class="btn btn-secondary" onclick="exportAccessControlReport('json')">📄 JSON</button>
+                            </div>
+                        </div>
+                        <div class="report-card">
+                            <h3 data-i18n="admin.reports.topology_report">網路拓樸連線報表</h3>
+                            <p data-i18n="admin.reports.topology_report_desc">匯出設備連線、介面、速率與拓樸來源</p>
+                            <div class="report-actions">
+                                <button class="btn btn-secondary" onclick="exportStandardReport('topology', 'csv')">📄 CSV</button>
+                                <button class="btn btn-secondary" onclick="exportStandardReport('topology', 'pdf')">📄 PDF</button>
+                                <button class="btn btn-secondary" onclick="exportStandardReport('topology', 'json')">📄 JSON</button>
+                            </div>
+                        </div>
+                        <div class="report-card">
+                            <h3 data-i18n="admin.reports.event_report">設備事件報表</h3>
+                            <p data-i18n="admin.reports.event_report_desc">匯出設備事件、嚴重度與訊息</p>
+                            <div class="report-actions">
+                                <button class="btn btn-secondary" onclick="exportStandardReport('events', 'csv')">📄 CSV</button>
+                                <button class="btn btn-secondary" onclick="exportStandardReport('events', 'pdf')">📄 PDF</button>
+                                <button class="btn btn-secondary" onclick="exportStandardReport('events', 'json')">📄 JSON</button>
+                            </div>
+                        </div>
+                        <div class="report-card">
+                            <h3 data-i18n="admin.reports.syslog_report">Syslog 報表</h3>
+                            <p data-i18n="admin.reports.syslog_report_desc">匯出來源、Facility、嚴重度與訊息</p>
+                            <div class="report-actions">
+                                <button class="btn btn-secondary" onclick="exportStandardReport('syslog', 'csv')">📄 CSV</button>
+                                <button class="btn btn-secondary" onclick="exportStandardReport('syslog', 'pdf')">📄 PDF</button>
+                                <button class="btn btn-secondary" onclick="exportStandardReport('syslog', 'json')">📄 JSON</button>
+                            </div>
+                        </div>
+                        <div class="report-card">
+                            <h3 data-i18n="admin.reports.notification_report">通知紀錄報表</h3>
+                            <p data-i18n="admin.reports.notification_report_desc">匯出 v1 通知、分類與已讀狀態</p>
+                            <div class="report-actions">
+                                <button class="btn btn-secondary" onclick="exportStandardReport('notifications', 'csv')">📄 CSV</button>
+                                <button class="btn btn-secondary" onclick="exportStandardReport('notifications', 'pdf')">📄 PDF</button>
+                                <button class="btn btn-secondary" onclick="exportStandardReport('notifications', 'json')">📄 JSON</button>
+                            </div>
+                        </div>
+                        <div class="report-card">
+                            <h3 data-i18n="admin.reports.iot_device_report">IoT 設備與訊號報表</h3>
+                            <p data-i18n="admin.reports.iot_device_report_desc">匯出設備協定、連線與多暫存器訊號</p>
+                            <div class="report-actions">
+                                <button class="btn btn-secondary" onclick="exportStandardReport('iot-devices', 'csv')">📄 CSV</button>
+                                <button class="btn btn-secondary" onclick="exportStandardReport('iot-devices', 'pdf')">📄 PDF</button>
+                                <button class="btn btn-secondary" onclick="exportStandardReport('iot-devices', 'json')">📄 JSON</button>
+                            </div>
+                        </div>
+                        <div class="report-card">
+                            <h3 data-i18n="admin.reports.iot_measurement_report">IoT 訊號與拋轉報表</h3>
+                            <p data-i18n="admin.reports.iot_measurement_report_desc">匯出量測值、樣本與離線續傳狀態</p>
+                            <div class="report-actions">
+                                <button class="btn btn-secondary" onclick="exportStandardReport('iot-measurements', 'csv')">📄 CSV</button>
+                                <button class="btn btn-secondary" onclick="exportStandardReport('iot-measurements', 'pdf')">📄 PDF</button>
+                                <button class="btn btn-secondary" onclick="exportStandardReport('iot-measurements', 'json')">📄 JSON</button>
+                            </div>
+                        </div>
+                        <div class="report-card">
+                            <h3 data-i18n="admin.reports.camera_recording_report">攝影機錄影報表</h3>
+                            <p data-i18n="admin.reports.camera_recording_report_desc">匯出錄影時間、長度、大小與狀態</p>
+                            <div class="report-actions">
+                                <button class="btn btn-secondary" onclick="exportStandardReport('camera-recordings', 'csv')">📄 CSV</button>
+                                <button class="btn btn-secondary" onclick="exportStandardReport('camera-recordings', 'pdf')">📄 PDF</button>
+                                <button class="btn btn-secondary" onclick="exportStandardReport('camera-recordings', 'json')">📄 JSON</button>
+                            </div>
+                        </div>
+                        <div class="report-card">
+                            <h3 data-i18n="admin.reports.access_event_report">門禁事件報表</h3>
+                            <p data-i18n="admin.reports.access_event_report_desc">匯出通行、拒絕、警報與開關門紀錄</p>
+                            <div class="report-actions">
+                                <button class="btn btn-secondary" onclick="exportStandardReport('access-events', 'csv')">📄 CSV</button>
+                                <button class="btn btn-secondary" onclick="exportStandardReport('access-events', 'pdf')">📄 PDF</button>
+                                <button class="btn btn-secondary" onclick="exportStandardReport('access-events', 'json')">📄 JSON</button>
+                            </div>
+                        </div>
+                        <div class="report-card">
+                            <h3 data-i18n="admin.reports.access_card_report">門禁卡片報表</h3>
+                            <p data-i18n="admin.reports.access_card_report_desc">匯出持卡人、部門、有效期限與狀態</p>
+                            <div class="report-actions">
+                                <button class="btn btn-secondary" onclick="exportStandardReport('access-cards', 'csv')">📄 CSV</button>
+                                <button class="btn btn-secondary" onclick="exportStandardReport('access-cards', 'pdf')">📄 PDF</button>
+                                <button class="btn btn-secondary" onclick="exportStandardReport('access-cards', 'json')">📄 JSON</button>
+                            </div>
+                        </div>
+                        <div class="report-card">
+                            <h3 data-i18n="admin.reports.access_schedule_report">門禁排程報表</h3>
+                            <p data-i18n="admin.reports.access_schedule_report_desc">匯出允許日、時段、核准與有效期限</p>
+                            <div class="report-actions">
+                                <button class="btn btn-secondary" onclick="exportStandardReport('access-schedules', 'csv')">📄 CSV</button>
+                                <button class="btn btn-secondary" onclick="exportStandardReport('access-schedules', 'pdf')">📄 PDF</button>
+                                <button class="btn btn-secondary" onclick="exportStandardReport('access-schedules', 'json')">📄 JSON</button>
+                            </div>
+                        </div>
+                        <div class="report-card">
+                            <h3 data-i18n="admin.reports.config_backup_report">設備設定備份歷程報表</h3>
+                            <p data-i18n="admin.reports.config_backup_report_desc">僅匯出備份時間、備註與大小，不含設定內容</p>
+                            <div class="report-actions">
+                                <button class="btn btn-secondary" onclick="exportStandardReport('config-backups', 'csv')">📄 CSV</button>
+                                <button class="btn btn-secondary" onclick="exportStandardReport('config-backups', 'pdf')">📄 PDF</button>
+                                <button class="btn btn-secondary" onclick="exportStandardReport('config-backups', 'json')">📄 JSON</button>
                             </div>
                         </div>
                     </div>
@@ -1322,6 +1442,7 @@
                     <button class="iot-nav-tab active" onclick="iotSwitchTab('overview', this)" data-i18n="iot.tab_overview">Function Pages</button>
                     <button class="iot-nav-tab" onclick="iotSwitchTab('online_modules', this)" data-i18n="iot.tab_online_modules">Online Module Overview</button>
                     <button class="iot-nav-tab" onclick="iotSwitchTab('devices', this)" data-i18n="iot.tab_devices">Devices</button>
+                    <button class="iot-nav-tab" onclick="iotSwitchTab('forwarder', this)" data-i18n="iot.tab_forwarder">訊號拋轉</button>
                     <button class="iot-nav-tab" onclick="iotSwitchTab('integration', this)" data-i18n="iot.tab_integration">Integration</button>
                 </div>
 
@@ -1376,7 +1497,7 @@
                             <thead>
                                 <tr>
                                     <th data-i18n="iot.devices.col_name">Name</th>
-                                    <th data-i18n="iot.devices.col_type">Type</th>
+                                    <th data-i18n="iot.modal.external_id">設備 ID／UUID</th>
                                     <th data-i18n="iot.devices.col_protocol">Protocol</th>
                                     <th data-i18n="iot.devices.col_target">Target</th>
                                     <th data-i18n="iot.devices.col_register">Register</th>
@@ -1410,23 +1531,75 @@
                     </div>
                 </div>
 
-                <div class="iot-tab-pane" id="iot-tab-integration">
-                    <div class="iot-grid">
+                <div class="iot-tab-pane" id="iot-tab-forwarder">
+                    <div class="iot-forward-layout">
                         <div class="status-card" data-permission="admin">
-                            <h3 data-i18n="iot.forward.title">Forward Queue</h3>
-                            <div class="iot-form-grid">
-                                <select class="select-input" id="iot-forward-enabled">
-                                    <option value="false" data-i18n="iot.forward.mode_disabled">Forward disabled</option>
-                                    <option value="true" data-i18n="iot.forward.mode_enabled">Forward enabled</option>
-                                </select>
-                                <input class="text-input" id="iot-forward-url" placeholder="Webhook URL">
-                                <input class="text-input" id="iot-forward-token" placeholder="Bearer token - leave blank to keep existing">
-                                <input class="text-input" id="iot-forward-batch" type="number" min="1" max="500" value="50">
-                                <button class="btn btn-primary" onclick="iotSaveForwarderSettings()" data-i18n="iot.forward.save">Save Forwarder</button>
-                                <button class="btn btn-secondary" onclick="iotFlushQueue()" data-i18n="iot.forward.flush">Flush Now</button>
+                            <h3 data-i18n="iot.forward.title">IoT 訊號拋轉設定</h3>
+                            <div class="iot-forward-form">
+                                <div class="iot-form-field">
+                                    <label class="iot-form-label" data-i18n="iot.forward.mode">拋轉功能</label>
+                                    <select class="select-input" id="iot-forward-enabled">
+                                        <option value="false" data-i18n="iot.forward.mode_disabled">停用</option>
+                                        <option value="true" data-i18n="iot.forward.mode_enabled">啟用</option>
+                                    </select>
+                                </div>
+                                <div class="iot-form-field">
+                                    <label class="iot-form-label" data-i18n="iot.forward.protocol">傳送方式</label>
+                                    <select class="select-input" id="iot-forward-protocol">
+                                        <option value="http">HTTP</option>
+                                        <option value="https">HTTPS</option>
+                                    </select>
+                                </div>
+                                <div class="iot-form-field">
+                                    <label class="iot-form-label" data-i18n="iot.forward.host">主機 IP／網域</label>
+                                    <input class="text-input" id="iot-forward-host" placeholder="192.168.1.100">
+                                </div>
+                                <div class="iot-form-field">
+                                    <label class="iot-form-label" data-i18n="iot.forward.port">Port</label>
+                                    <input class="text-input" id="iot-forward-port" type="number" min="1" max="65535" value="8080">
+                                </div>
+                                <div class="iot-form-field span-full">
+                                    <label class="iot-form-label" data-i18n="iot.forward.path">API 路徑</label>
+                                    <input class="text-input" id="iot-forward-path" placeholder="/api/iot/measurements">
+                                </div>
+                                <div class="iot-form-field span-full">
+                                    <label class="iot-form-label" data-i18n="iot.forward.token">Bearer Token（留白保留原設定）</label>
+                                    <input class="text-input" id="iot-forward-token" type="password" autocomplete="new-password">
+                                </div>
+                                <div class="iot-form-field">
+                                    <label class="iot-form-label" data-i18n="iot.forward.interval">定期拋轉間隔（毫秒）</label>
+                                    <input class="text-input" id="iot-forward-interval" type="number" min="100" max="86400000" step="100" value="30000">
+                                </div>
+                                <div class="iot-form-field">
+                                    <label class="iot-form-label" data-i18n="iot.forward.batch_size">每批筆數</label>
+                                    <input class="text-input" id="iot-forward-batch" type="number" min="1" max="500" value="50">
+                                </div>
+                            </div>
+                            <div class="iot-forward-preview">
+                                <span data-i18n="iot.forward.target_preview">目標網址</span>
+                                <code id="iot-forward-url-preview">http://192.168.1.100:8080/api/iot/measurements</code>
+                            </div>
+                            <div class="iot-action-row">
+                                <button class="btn btn-primary" onclick="iotSaveForwarderSettings()" data-i18n="iot.forward.save">儲存設定</button>
+                                <button class="btn btn-secondary" onclick="iotFlushQueue()" data-i18n="iot.forward.flush">立即拋轉</button>
                             </div>
                         </div>
 
+                        <div class="status-card">
+                            <h3 data-i18n="iot.forward.queue_status">離線佇列狀態</h3>
+                            <div class="iot-status-row"><span data-i18n="iot.summary.forward_pending">等待拋轉</span><strong id="iot-forward-page-pending">0</strong></div>
+                            <div class="iot-status-row"><span data-i18n="iot.summary.forward_failed">傳送失敗</span><strong id="iot-forward-page-failed">0</strong></div>
+                            <div class="iot-status-row"><span data-i18n="iot.summary.sent_hold">已傳送保留</span><strong id="iot-forward-page-sent">0</strong></div>
+                            <div class="iot-status-row"><span data-i18n="iot.forward.last_attempt">上次嘗試</span><strong id="iot-forward-last-attempt">-</strong></div>
+                            <div class="iot-status-row"><span data-i18n="iot.forward.last_success">上次成功</span><strong id="iot-forward-last-success">-</strong></div>
+                            <div class="iot-forward-error" id="iot-forward-last-error"></div>
+                            <p class="iot-forward-note" data-i18n="iot.forward.offline_note">連線中斷時，訊號會保存在 NMS 的 SQLite；收到 HTTP 2xx 後才標記為已送達。</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="iot-tab-pane" id="iot-tab-integration">
+                    <div class="iot-grid">
                         <div class="status-card">
                             <h3 data-i18n="iot.embed.title">iframe Embed Token</h3>
                             <div class="iot-form-grid">
@@ -1476,105 +1649,88 @@
                 </div>
 
                 <div class="modal-overlay" id="iot-add-modal" style="display:none;" onclick="if(event.target===this)iotCloseAddModal()">
-                    <div class="modal" style="max-width:620px;width:95%;">
+                    <div class="modal iot-device-modal">
                         <button class="modal-close" onclick="iotCloseAddModal()">&times;</button>
                         <div class="modal-body">
                             <h3 id="iot-modal-title" style="margin:0 0 16px;" data-i18n="iot.modal.add_title">Add IoT Device</h3>
+                            <div class="iot-section-title" data-i18n="iot.modal.basic_settings">基本設定</div>
+                            <div class="iot-device-form-grid">
+                                <div class="iot-form-field">
+                                    <label class="iot-form-label" data-i18n="iot.modal.device_name">設備名稱</label>
+                                    <input class="text-input" id="iot-name" placeholder="例如：冰水主機">
+                                </div>
+                                <div class="iot-form-field">
+                                    <label class="iot-form-label" data-i18n="iot.modal.external_id">設備 ID／UUID</label>
+                                    <input class="text-input" id="iot-external-id" placeholder="DEV001">
+                                </div>
+                                <div class="iot-form-field">
+                                    <label class="iot-form-label" data-i18n="iot.modal.poll_interval">輪詢週期（秒）</label>
+                                    <input class="text-input" id="iot-poll-interval" type="number" min="5" value="60">
+                                </div>
+                            </div>
+
+                            <div class="iot-section-title" data-i18n="iot.modal.connection_settings">連線設定</div>
                             <div class="iot-protocol-tabs">
-                                <button class="iot-protocol-tab active" onclick="iotSwitchProtocol('modbus_tcp',this)" data-i18n="iot.modal.tab_tcp">Modbus TCP</button>
-                                <button class="iot-protocol-tab" onclick="iotSwitchProtocol('modbus_rtu',this)" data-i18n="iot.modal.tab_rtu">Modbus RTU</button>
-                                <button class="iot-protocol-tab" onclick="iotSwitchProtocol('modbus_rs485',this)" data-i18n="iot.modal.tab_rs485">Modbus RS485</button>
-                                <button class="iot-protocol-tab" onclick="iotSwitchProtocol('modbus_rtu_tcp',this)">RTU over TCP</button>
+                                <button type="button" class="iot-protocol-tab active" data-iot-protocol="modbus_tcp" onclick="iotSwitchProtocol('modbus_tcp',this)" data-i18n="iot.modal.tab_tcp">Modbus TCP</button>
+                                <button type="button" class="iot-protocol-tab" data-iot-protocol="modbus_rtu_tcp" onclick="iotSwitchProtocol('modbus_rtu_tcp',this)">RTU over TCP</button>
+                                <button type="button" class="iot-protocol-tab" data-iot-protocol="modbus_rs485" onclick="iotSwitchProtocol('modbus_rs485',this)" data-i18n="iot.modal.tab_rs485">RS485</button>
                             </div>
                             <input type="hidden" id="iot-protocol" value="modbus_tcp">
-                            <div class="iot-form-grid iot-device-form" style="grid-template-columns:1fr 1fr;gap:10px;">
-                                <div class="iot-form-field span-full">
-                                    <label class="iot-form-label" data-i18n="iot.modal.device_name">Device name</label>
-                                    <input class="text-input" id="iot-name" placeholder="e.g. Temp sensor - Floor 1">
-                                </div>
+                            <div class="iot-protocol-fields iot-device-form-grid" id="iot-tcp-fields">
                                 <div class="iot-form-field">
-                                    <label class="iot-form-label" data-i18n="iot.modal.sensor_type">Sensor type</label>
-                                    <select class="select-input" id="iot-sensor-type">
-                                        <option value="" data-i18n="iot.modal.sensor_general">General</option>
-                                        <option value="temperature" data-i18n="iot.sensor_type.temperature">Temperature</option>
-                                        <option value="humidity" data-i18n="iot.sensor_type.humidity">Humidity</option>
-                                        <option value="temperature_humidity" data-i18n="iot.sensor_type.temperature_humidity">Temperature + Humidity</option>
-                                        <option value="power" data-i18n="iot.sensor_type.power">Power</option>
-                                        <option value="voltage" data-i18n="iot.sensor_type.voltage">Voltage</option>
-                                        <option value="current" data-i18n="iot.sensor_type.current">Current</option>
-                                        <option value="pressure" data-i18n="iot.sensor_type.pressure">Pressure</option>
-                                        <option value="co2" data-i18n="iot.sensor_type.co2">CO2</option>
-                                        <option value="pm25" data-i18n="iot.sensor_type.pm25">PM2.5</option>
-                                    </select>
-                                </div>
-                                <div class="iot-form-field">
-                                    <label class="iot-form-label" data-i18n="iot.modal.metric">Metric name</label>
-                                    <input class="text-input" id="iot-metric" placeholder="temperature" value="temperature">
-                                </div>
-                                <div class="iot-form-field iot-field-group iot-field-tcp visible">
                                     <label class="iot-form-label" data-i18n="iot.modal.host">Host / IP</label>
                                     <input class="text-input" id="iot-host" placeholder="192.168.1.100">
                                 </div>
-                                <div class="iot-form-field iot-field-group iot-field-tcp visible">
+                                <div class="iot-form-field">
                                     <label class="iot-form-label" data-i18n="iot.modal.port">Port</label>
                                     <input class="text-input" id="iot-port" type="number" value="502">
                                 </div>
-                                <div class="iot-form-field iot-field-group iot-field-rtu">
+                            </div>
+                            <div class="iot-protocol-fields iot-device-form-grid" id="iot-rs485-fields" hidden>
+                                <div class="iot-form-field">
                                     <label class="iot-form-label" data-i18n="iot.modal.serial_port">Serial port</label>
                                     <input class="text-input" id="iot-serial-port" placeholder="COM3 or /dev/ttyUSB0">
                                 </div>
-                                <div class="iot-form-field iot-field-group iot-field-rtu">
+                                <div class="iot-form-field">
                                     <label class="iot-form-label" data-i18n="iot.modal.baud_rate">Baud rate</label>
                                     <select class="select-input" id="iot-baud-rate"><option value="9600">9600</option><option value="19200">19200</option><option value="38400">38400</option><option value="57600">57600</option><option value="115200">115200</option></select>
                                 </div>
-                                <div class="iot-form-field iot-field-group iot-field-rtu">
+                                <div class="iot-form-field">
                                     <label class="iot-form-label" data-i18n="iot.modal.data_bits">Data bits</label>
                                     <select class="select-input" id="iot-data-bits"><option value="8" selected>8</option><option value="7">7</option></select>
                                 </div>
-                                <div class="iot-form-field iot-field-group iot-field-rtu">
+                                <div class="iot-form-field">
                                     <label class="iot-form-label" data-i18n="iot.modal.parity">Parity</label>
                                     <select class="select-input" id="iot-parity"><option value="N" data-i18n="iot.modal.parity_none">None (N)</option><option value="E" data-i18n="iot.modal.parity_even">Even (E)</option><option value="O" data-i18n="iot.modal.parity_odd">Odd (O)</option></select>
                                 </div>
-                                <div class="iot-form-field iot-field-group iot-field-rtu">
+                                <div class="iot-form-field">
                                     <label class="iot-form-label" data-i18n="iot.modal.stop_bits">Stop bits</label>
                                     <select class="select-input" id="iot-stop-bits"><option value="1" selected>1</option><option value="2">2</option></select>
                                 </div>
+                            </div>
+                            <div class="iot-device-form-grid">
                                 <div class="iot-form-field">
                                     <label class="iot-form-label" data-i18n="iot.modal.unit_id">Unit ID (Slave)</label>
                                     <input class="text-input" id="iot-unit" type="number" value="1" min="1" max="247">
                                 </div>
-                                <div class="iot-form-field">
-                                    <label class="iot-form-label" data-i18n="iot.modal.register_address">Register address</label>
-                                    <input class="text-input" id="iot-address" type="number" value="0" min="0">
+                            </div>
+
+                            <div class="iot-section-title" data-i18n="iot.modal.signal_settings">訊號／暫存器設定</div>
+                            <div class="iot-signal-table-wrap">
+                                <div class="iot-signal-table-header" aria-hidden="true">
+                                    <span data-i18n="iot.modal.signal_name">訊號名稱</span>
+                                    <span data-i18n="iot.modal.metric">JSON Tag</span>
+                                    <span data-i18n="iot.modal.function_code">暫存器類型</span>
+                                    <span data-i18n="iot.modal.register_address">位址</span>
+                                    <span data-i18n="iot.modal.data_type">資料格式</span>
+                                    <span data-i18n="iot.modal.byte_order">Byte</span>
+                                    <span data-i18n="iot.modal.word_order">Word</span>
+                                    <span data-i18n="iot.modal.scale">倍率</span>
+                                    <span data-i18n="iot.modal.offset">偏移</span>
+                                    <span data-i18n="iot.modal.unit">單位</span>
+                                    <span></span>
                                 </div>
-                                <div class="iot-form-field">
-                                    <label class="iot-form-label" data-i18n="iot.modal.function_code">Function code</label>
-                                    <select class="select-input" id="iot-function-code"><option value="1" data-i18n="iot.modal.fc_01">FC01 Read Coil Status</option><option value="2" data-i18n="iot.modal.fc_02">FC02 Read Discrete Input</option><option value="3" data-i18n="iot.modal.fc_03" selected>FC03 Holding Register</option><option value="4" data-i18n="iot.modal.fc_04">FC04 Input Register</option></select>
-                                </div>
-                                <div class="iot-form-field">
-                                    <label class="iot-form-label" data-i18n="iot.modal.data_type">Data type</label>
-                                    <select class="select-input" id="iot-data-type"><option value="uint16">uint16</option><option value="int16">int16</option><option value="uint32">uint32</option><option value="int32">int32</option><option value="float32">float32</option></select>
-                                </div>
-                                <div class="iot-form-field">
-                                    <label class="iot-form-label" data-i18n="iot.modal.scale">Scale</label>
-                                    <input class="text-input" id="iot-scale" type="number" step="0.001" value="1">
-                                </div>
-                                <div class="iot-form-field">
-                                    <label class="iot-form-label" data-i18n="iot.modal.offset">Offset</label>
-                                    <input class="text-input" id="iot-offset" type="number" step="0.001" value="0">
-                                </div>
-                                <div class="iot-form-field">
-                                    <label class="iot-form-label" data-i18n="iot.modal.poll_interval">Poll interval (sec)</label>
-                                    <input class="text-input" id="iot-poll-interval" type="number" min="5" value="60">
-                                </div>
-                                <div class="iot-form-field">
-                                    <label class="iot-form-label" data-i18n="iot.modal.byte_order">Byte order</label>
-                                    <select class="select-input" id="iot-byte-order"><option value="big">Big endian</option><option value="little">Little endian</option></select>
-                                </div>
-                                <div class="iot-form-field">
-                                    <label class="iot-form-label" data-i18n="iot.modal.word_order">Word order</label>
-                                    <select class="select-input" id="iot-word-order"><option value="big">Big endian</option><option value="little">Little endian</option></select>
-                                </div>
+                                <div id="iot-signal-rows"></div>
                             </div>
                             <div class="iot-action-row" style="margin-top:16px;">
                                 <button class="btn btn-secondary" onclick="iotCloseAddModal()" data-i18n="iot.modal.cancel">Cancel</button>

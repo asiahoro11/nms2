@@ -87,7 +87,7 @@ type LoggingConfig struct {
 }
 
 // Version variable can be overridden by ldflags
-var Version = "v1.2.4.9sp0001"
+var Version = "v1.2.4.11"
 
 func Load() (*Config, error) {
 	cfg := &Config{

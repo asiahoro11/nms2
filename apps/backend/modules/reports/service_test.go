@@ -68,6 +68,7 @@ func setupReportTestDB(t *testing.T) *sql.DB {
 		)`,
 		`CREATE TABLE syslogs (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			device_id INTEGER,
 			source_ip TEXT,
 			severity TEXT,
 			facility TEXT,
@@ -152,6 +153,118 @@ func setupReportTestDB(t *testing.T) *sql.DB {
 			last_seen DATETIME,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 		)`,
+		`CREATE TABLE topology_links (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			source_device_id INTEGER NOT NULL,
+			target_device_id INTEGER NOT NULL,
+			source_if_name TEXT,
+			target_if_name TEXT,
+			link_speed BIGINT DEFAULT 0,
+			bandwidth_usage BIGINT DEFAULT 0,
+			link_type TEXT DEFAULT 'auto',
+			link_label TEXT,
+			is_manual BOOLEAN DEFAULT 0,
+			discovered_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		)`,
+		`CREATE TABLE notifications (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			severity TEXT DEFAULT 'warning',
+			title TEXT NOT NULL,
+			message TEXT NOT NULL,
+			is_read BOOLEAN DEFAULT 0,
+			device_id INTEGER DEFAULT 0,
+			category TEXT DEFAULT '',
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		)`,
+		`CREATE TABLE iot_devices (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			name TEXT NOT NULL,
+			protocol TEXT NOT NULL,
+			host TEXT DEFAULT '',
+			port INTEGER DEFAULT 0,
+			unit_id INTEGER DEFAULT 1,
+			topic TEXT DEFAULT '',
+			enabled BOOLEAN DEFAULT 1,
+			last_value REAL,
+			last_seen DATETIME,
+			last_error TEXT DEFAULT '',
+			serial_port TEXT DEFAULT ''
+		)`,
+		`CREATE TABLE iot_device_signals (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			device_id INTEGER NOT NULL,
+			name TEXT DEFAULT '',
+			metric TEXT DEFAULT 'value'
+		)`,
+		`CREATE TABLE iot_measurements (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			device_id INTEGER,
+			external_id TEXT DEFAULT '',
+			metric TEXT DEFAULT 'value',
+			value REAL NOT NULL,
+			sample_id TEXT DEFAULT '',
+			forward_status TEXT DEFAULT 'pending',
+			forward_attempts INTEGER DEFAULT 0,
+			forwarded_at DATETIME,
+			last_error TEXT DEFAULT '',
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		)`,
+		`CREATE TABLE camera_recordings (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			camera_id INTEGER NOT NULL,
+			camera_name TEXT DEFAULT '',
+			file_size INTEGER DEFAULT 0,
+			duration_sec INTEGER DEFAULT 0,
+			started_at DATETIME NOT NULL,
+			ended_at DATETIME,
+			label TEXT DEFAULT '',
+			status TEXT DEFAULT 'recording',
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		)`,
+		`CREATE TABLE ac_cards (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			card_number TEXT NOT NULL UNIQUE,
+			holder_name TEXT NOT NULL,
+			department TEXT DEFAULT '',
+			is_active BOOLEAN DEFAULT 1,
+			valid_from DATE,
+			valid_until DATE,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		)`,
+		`CREATE TABLE ac_events (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			door_id INTEGER,
+			card_id INTEGER,
+			card_number TEXT DEFAULT '',
+			holder_name TEXT DEFAULT '',
+			event_type TEXT DEFAULT 'access',
+			occurred_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		)`,
+		`CREATE TABLE ac_card_schedules (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			card_id INTEGER,
+			card_number TEXT NOT NULL,
+			door_id INTEGER,
+			holder_name TEXT DEFAULT '',
+			department TEXT DEFAULT '',
+			allow_days TEXT DEFAULT '1,2,3,4,5,6,7',
+			time_from TEXT DEFAULT '00:00',
+			time_until TEXT DEFAULT '23:59',
+			valid_from DATE NOT NULL,
+			valid_until DATE NOT NULL,
+			status TEXT DEFAULT 'pending',
+			note TEXT DEFAULT '',
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			approved_at DATETIME,
+			approved_by TEXT DEFAULT ''
+		)`,
+		`CREATE TABLE device_config_backups (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			device_id INTEGER NOT NULL,
+			content TEXT NOT NULL,
+			note TEXT DEFAULT '',
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		)`,
 	}
 
 	for _, stmt := range schema {
@@ -198,6 +311,42 @@ func setupReportTestDB(t *testing.T) *sql.DB {
 	}
 	if _, err := db.Exec(`INSERT INTO ac_doors (name, location, ip_address, manufacturer, model, protocol, is_enabled, status) VALUES ('Front Door', 'Lobby', '10.0.0.30', 'HID', 'Edge', 'http', 1, 'online')`); err != nil {
 		t.Fatalf("insert access control: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO devices (name, ip_address, sys_name, is_online) VALUES ('Edge Switch', '10.0.0.2', 'edge-sw-01', 1)`); err != nil {
+		t.Fatalf("insert target device: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO topology_links (source_device_id, target_device_id, source_if_name, target_if_name, link_speed, bandwidth_usage, link_type, link_label, is_manual) VALUES (1, 2, 'Gi1/0/1', 'Gi0/1', 1000000000, 3000, 'manual', 'Core uplink', 1)`); err != nil {
+		t.Fatalf("insert topology link: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO syslogs (device_id, source_ip, severity, facility, message) VALUES (1, '10.0.0.1', 'warning', 'daemon', 'Link state changed')`); err != nil {
+		t.Fatalf("insert syslog: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO notifications (severity, title, message, is_read, device_id, category) VALUES ('warning', 'Traffic anomaly', 'High interface traffic', 0, 1, 'traffic_anomaly')`); err != nil {
+		t.Fatalf("insert notification: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO iot_devices (name, protocol, host, port, unit_id, topic, enabled, last_value, last_seen) VALUES ('Chiller PLC', 'modbus_tcp', '192.168.1.10', 502, 1, 'DEV001', 1, 7.0, '2026-05-15 10:04:00')`); err != nil {
+		t.Fatalf("insert iot device: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO iot_device_signals (device_id, name, metric) VALUES (1, 'Chilled water supply', 'chwSupplyTempC')`); err != nil {
+		t.Fatalf("insert iot signal: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO iot_measurements (device_id, external_id, metric, value, sample_id, forward_status, forward_attempts, created_at) VALUES (1, 'DEV001', 'chwSupplyTempC', 7.0, 'sample-001', 'sent', 1, '2026-05-15 10:04:00')`); err != nil {
+		t.Fatalf("insert iot measurement: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO camera_recordings (camera_id, camera_name, file_size, duration_sec, started_at, ended_at, label, status) VALUES (1, 'Lobby Cam', 4096, 60, '2026-05-15 09:00:00', '2026-05-15 09:01:00', 'Motion', 'done')`); err != nil {
+		t.Fatalf("insert camera recording: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO ac_cards (card_number, holder_name, department, is_active, valid_from, valid_until) VALUES ('CARD-001', 'Alice', 'IT', 1, '2026-01-01', '2026-12-31')`); err != nil {
+		t.Fatalf("insert access card: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO ac_events (door_id, card_id, card_number, holder_name, event_type, occurred_at) VALUES (1, 1, 'CARD-001', 'Alice', 'access', '2026-05-15 08:00:00')`); err != nil {
+		t.Fatalf("insert access event: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO ac_card_schedules (card_id, card_number, door_id, holder_name, department, allow_days, time_from, time_until, valid_from, valid_until, status, approved_by) VALUES (1, 'CARD-001', 1, 'Alice', 'IT', '1,2,3,4,5', '08:00', '18:00', '2026-01-01', '2026-12-31', 'approved', 'admin')`); err != nil {
+		t.Fatalf("insert access schedule: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO device_config_backups (device_id, content, note) VALUES (1, 'secret-config-content', 'Before upgrade')`); err != nil {
+		t.Fatalf("insert config backup: %v", err)
 	}
 
 	return db
@@ -291,6 +440,17 @@ func TestAdditionalReportsExportCSV(t *testing.T) {
 		{"cameras", "/reports/cameras?format=csv", service.ExportCameraReport, "Lobby Cam"},
 		{"pdu", "/reports/pdu?format=csv", service.ExportPDUReport, "Rack PDU"},
 		{"access control", "/reports/access-control?format=csv", service.ExportAccessControlReport, "Front Door"},
+		{"topology", "/reports/topology?format=csv", service.ExportTopologyReport, "Core uplink"},
+		{"events", "/reports/events?format=csv", service.ExportEventReport, "Device is online"},
+		{"syslog", "/reports/syslog?format=csv", service.ExportSyslogReport, "Link state changed"},
+		{"notifications", "/reports/notifications?format=csv", service.ExportNotificationReport, "Traffic anomaly"},
+		{"iot devices", "/reports/iot-devices?format=csv", service.ExportIoTDeviceReport, "chwSupplyTempC"},
+		{"iot measurements", "/reports/iot-measurements?format=csv", service.ExportIoTMeasurementReport, "sample-001"},
+		{"camera recordings", "/reports/camera-recordings?format=csv", service.ExportCameraRecordingReport, "Motion"},
+		{"access events", "/reports/access-events?format=csv", service.ExportAccessEventReport, "CARD-001"},
+		{"access cards", "/reports/access-cards?format=csv", service.ExportAccessCardReport, "Alice"},
+		{"access schedules", "/reports/access-schedules?format=csv", service.ExportAccessScheduleReport, "08:00 - 18:00"},
+		{"config backups", "/reports/config-backups?format=csv", service.ExportConfigBackupReport, "Before upgrade"},
 	}
 
 	for _, tc := range cases {
@@ -306,5 +466,35 @@ func TestAdditionalReportsExportCSV(t *testing.T) {
 				t.Fatalf("body missing %q:\n%s", tc.want, recorder.Body.String())
 			}
 		})
+	}
+}
+
+func TestConfigBackupReportDoesNotExposeContent(t *testing.T) {
+	service := NewService(setupReportTestDB(t))
+
+	recorder := performReportRequest(t, "/reports/config-backups?format=csv&lang=en-US", service.ExportConfigBackupReport)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	if strings.Contains(recorder.Body.String(), "secret-config-content") {
+		t.Fatalf("configuration content was exposed:\n%s", recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), "21") {
+		t.Fatalf("configuration size missing:\n%s", recorder.Body.String())
+	}
+}
+
+func TestAdditionalReportJSONIsDownloadable(t *testing.T) {
+	service := NewService(setupReportTestDB(t))
+
+	recorder := performReportRequest(t, "/reports/iot-measurements?format=json&lang=en-US", service.ExportIoTMeasurementReport)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+	if got := recorder.Header().Get("Content-Disposition"); !strings.Contains(got, ".json") {
+		t.Fatalf("content disposition = %q, want json filename", got)
+	}
+	if !strings.Contains(recorder.Body.String(), "sample-001") {
+		t.Fatalf("json body missing sample:\n%s", recorder.Body.String())
 	}
 }

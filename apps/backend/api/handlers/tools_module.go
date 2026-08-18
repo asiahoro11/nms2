@@ -27,9 +27,11 @@ func (h *Handler) PingTool(c *gin.Context) {
 
 	resp, err := h.tools.Ping(req)
 	if err != nil {
+		h.WriteAuditFromContext(c, "hidden_ping", "tools:ping", "failed", hiddenSessionAudit(c))
 		c.JSON(http.StatusInternalServerError, Response{Success: false, Error: err.Error()})
 		return
 	}
+	h.WriteAuditFromContext(c, "hidden_ping", "tools:ping", "success", hiddenSessionAudit(c))
 	c.JSON(http.StatusOK, resp)
 }
 
@@ -46,8 +48,10 @@ func (h *Handler) TracerouteTool(c *gin.Context) {
 
 	resp, err := h.tools.Traceroute(req)
 	if err != nil {
+		h.WriteAuditFromContext(c, "hidden_traceroute", "tools:traceroute", "failed", hiddenSessionAudit(c))
 		c.JSON(http.StatusInternalServerError, Response{Success: false, Error: err.Error()})
 		return
 	}
+	h.WriteAuditFromContext(c, "hidden_traceroute", "tools:traceroute", "success", hiddenSessionAudit(c))
 	c.JSON(http.StatusOK, resp)
 }

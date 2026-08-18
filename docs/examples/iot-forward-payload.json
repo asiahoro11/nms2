@@ -1,0 +1,10 @@
+{
+  "deviceId": "DEV001",
+  "sendTime": 1781231400000,
+  "tagData": {
+    "chwSupplyTempC": 7.0,
+    "chwDeltaTempC": 5.0,
+    "cwSupplyTempC": 30.0,
+    "compressor2RunHours": 15288
+  }
+}

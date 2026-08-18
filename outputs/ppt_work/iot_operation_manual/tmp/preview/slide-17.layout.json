@@ -1,0 +1,976 @@
+{
+  "schema": "openai.presentation.layout/v4",
+  "unit": "px",
+  "slide": {
+    "aid": "sl/pkm42c",
+    "id": "pkm42c",
+    "slide": 17,
+    "layoutId": "0c602837-8416-457a-95fd-92cccea63e87",
+    "layoutName": "Title Slide",
+    "layoutType": "title",
+    "masterLayoutId": "81304b5b-7767-4fa0-a02e-ccab4e772057",
+    "masterLayoutName": "Master",
+    "backgroundColor": "#08111F",
+    "frame": {
+      "left": 0,
+      "top": 0,
+      "width": 1280,
+      "height": 720
+    }
+  },
+  "theme": {
+    "colorSchemeName": "ChatGPT",
+    "colors": {
+      "accent1": "#156082",
+      "accent2": "#E97132",
+      "accent3": "#196B24",
+      "accent4": "#0F9ED5",
+      "accent5": "#A02B93",
+      "accent6": "#4EA72E",
+      "bg1": "#FFFFFF",
+      "bg2": "#000000",
+      "tx1": "#1F1F1F",
+      "tx2": "#FFFFFF",
+      "dk1": "#000000",
+      "lt1": "#FFFFFF",
+      "dk2": "#0E2841",
+      "lt2": "#E8E8E8",
+      "hlink": "#467886",
+      "folHlink": "#96607D"
+    },
+    "typefaces": [
+      "+mn-lt"
+    ]
+  },
+  "inheritedLayers": [
+    {
+      "scope": "layout",
+      "id": "0c602837-8416-457a-95fd-92cccea63e87",
+      "name": "Title Slide",
+      "type": "title",
+      "parentLayoutId": "81304b5b-7767-4fa0-a02e-ccab4e772057",
+      "elements": []
+    },
+    {
+      "scope": "master",
+      "id": "81304b5b-7767-4fa0-a02e-ccab4e772057",
+      "name": "Master",
+      "type": "master",
+      "elements": []
+    }
+  ],
+  "elements": [
+    {
+      "order": 1,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/fil0rqd4",
+      "id": "1",
+      "bbox": [
+        0,
+        0,
+        1280,
+        720
+      ],
+      "geometry": "rect",
+      "fillColor": "#08111F",
+      "lineWidth": 0
+    },
+    {
+      "order": 2,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/83itgfml",
+      "id": "2",
+      "bbox": [
+        0,
+        0,
+        1280,
+        12
+      ],
+      "geometry": "rect",
+      "fillColor": "#7C5CFF",
+      "lineWidth": 0
+    },
+    {
+      "order": 3,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/xobm58z2",
+      "id": "3",
+      "bbox": [
+        56,
+        50,
+        800,
+        58
+      ],
+      "geometry": "rect",
+      "text": "iframe Allowlist 控制誰可以嵌入 NMS",
+      "textPreview": "iframe Allowlist 控制誰可以嵌入 NMS",
+      "resolvedFontSize": 35,
+      "resolvedTextStyle": {
+        "fontSize": 35,
+        "typeface": "+mn-lt",
+        "color": "#F8FAFC",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "iframe Allowlist 控制誰可以嵌入 NMS"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "iframe Allowlist 控制誰可以嵌入 NMS",
+          "resolvedTextStyle": {
+            "fontSize": 35,
+            "color": "#F8FAFC",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "iframe Allowlist 控制誰可以嵌入 NMS",
+              "fontSize": 35,
+              "color": "#F8FAFC",
+              "bold": true,
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 4,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/m94fu18j",
+      "id": "4",
+      "bbox": [
+        56,
+        108,
+        900,
+        34
+      ],
+      "geometry": "rect",
+      "text": "Token 控制內容權限，Allowlist 控制來源網站。兩者都要設定。",
+      "textPreview": "Token 控制內容權限，Allowlist 控制來源網站。兩者都要設定。",
+      "resolvedFontSize": 18,
+      "resolvedTextStyle": {
+        "fontSize": 18,
+        "typeface": "+mn-lt",
+        "color": "#B9C2D3",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Token 控制內容權限，Allowlist 控制來源網站。兩者都要設定。"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Token 控制內容權限，Allowlist 控制來源網站。兩者都要設定。",
+          "resolvedTextStyle": {
+            "fontSize": 18,
+            "color": "#B9C2D3",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Token 控制內容權限，Allowlist 控制來源網站。兩者都要設定。",
+              "fontSize": 18,
+              "color": "#B9C2D3",
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 5,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/fu18jqh0",
+      "id": "5",
+      "bbox": [
+        56,
+        682,
+        360,
+        20
+      ],
+      "geometry": "rect",
+      "text": "NMS IoT / Modbus 操作手冊",
+      "textPreview": "NMS IoT / Modbus 操作手冊",
+      "resolvedFontSize": 12,
+      "resolvedTextStyle": {
+        "fontSize": 12,
+        "typeface": "+mn-lt",
+        "color": "#7F8AA3",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "NMS IoT / Modbus 操作手冊"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "NMS IoT / Modbus 操作手冊",
+          "resolvedTextStyle": {
+            "fontSize": 12,
+            "color": "#7F8AA3",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "NMS IoT / Modbus 操作手冊",
+              "fontSize": 12,
+              "color": "#7F8AA3",
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 6,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/4fu18jqh",
+      "id": "6",
+      "bbox": [
+        1190,
+        676,
+        40,
+        24
+      ],
+      "geometry": "rect",
+      "text": "17",
+      "textPreview": "17",
+      "resolvedFontSize": 14,
+      "resolvedTextStyle": {
+        "fontSize": 14,
+        "typeface": "+mn-lt",
+        "color": "#7F8AA3",
+        "alignment": "right",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "17"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "17",
+          "resolvedTextStyle": {
+            "fontSize": 14,
+            "color": "#7F8AA3",
+            "alignment": "right"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "17",
+              "fontSize": 14,
+              "color": "#7F8AA3",
+              "alignment": "right"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 7,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/x0nuxc3y",
+      "id": "7",
+      "bbox": [
+        92,
+        174,
+        500,
+        135
+      ],
+      "geometry": "roundRect",
+      "fillColor": "#101B2C",
+      "lineColor": "#2A3B55",
+      "lineWidth": 1
+    },
+    {
+      "order": 8,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/mlkjm1cf",
+      "id": "8",
+      "bbox": [
+        92,
+        174,
+        6,
+        135
+      ],
+      "geometry": "rect",
+      "fillColor": "#7C5CFF",
+      "lineWidth": 0
+    },
+    {
+      "order": 9,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/f6dcbulw",
+      "id": "9",
+      "bbox": [
+        114,
+        192,
+        458,
+        30
+      ],
+      "geometry": "rect",
+      "text": "frame ancestors",
+      "textPreview": "frame ancestors",
+      "resolvedFontSize": 22,
+      "resolvedTextStyle": {
+        "fontSize": 22,
+        "typeface": "+mn-lt",
+        "color": "#F8FAFC",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "frame ancestors"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "frame ancestors",
+          "resolvedTextStyle": {
+            "fontSize": 22,
+            "color": "#F8FAFC",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "frame ancestors",
+              "fontSize": 22,
+              "color": "#F8FAFC",
+              "bold": true,
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 10,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/vixczed8",
+      "id": "10",
+      "bbox": [
+        114,
+        232,
+        458,
+        63
+      ],
+      "geometry": "rect",
+      "text": "加入允許嵌入 NMS 的來源，例如 'self' 或 https://portal.example.com。",
+      "textPreview": "加入允許嵌入 NMS 的來源，例如 'self' 或 https://portal.example.com。",
+      "resolvedFontSize": 16,
+      "resolvedTextStyle": {
+        "fontSize": 16,
+        "typeface": "+mn-lt",
+        "color": "#B9C2D3",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "加入允許嵌入 NMS 的來源，例如 'self' 或"
+          },
+          {
+            "index": 2,
+            "text": "https://portal.example.com。"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "加入允許嵌入 NMS 的來源，例如 'self' 或 https://portal.example.com。",
+          "resolvedTextStyle": {
+            "fontSize": 16,
+            "color": "#B9C2D3",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "加入允許嵌入 NMS 的來源，例如 'self' 或 https://portal.example.com。",
+              "fontSize": 16,
+              "color": "#B9C2D3",
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 11,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/2x4nap4r",
+      "id": "11",
+      "bbox": [
+        92,
+        340,
+        500,
+        135
+      ],
+      "geometry": "roundRect",
+      "fillColor": "#101B2C",
+      "lineColor": "#2A3B55",
+      "lineWidth": 1
+    },
+    {
+      "order": 12,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/donyd0z6",
+      "id": "12",
+      "bbox": [
+        92,
+        340,
+        6,
+        135
+      ],
+      "geometry": "rect",
+      "fillColor": "#14B8A6",
+      "lineWidth": 0
+    },
+    {
+      "order": 13,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/k3q5o7qp",
+      "id": "13",
+      "bbox": [
+        114,
+        358,
+        458,
+        30
+      ],
+      "geometry": "rect",
+      "text": "Reload / Save",
+      "textPreview": "Reload / Save",
+      "resolvedFontSize": 22,
+      "resolvedTextStyle": {
+        "fontSize": 22,
+        "typeface": "+mn-lt",
+        "color": "#F8FAFC",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Reload / Save"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Reload / Save",
+          "resolvedTextStyle": {
+            "fontSize": 22,
+            "color": "#F8FAFC",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Reload / Save",
+              "fontSize": 22,
+              "color": "#F8FAFC",
+              "bold": true,
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 14,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/val87ed8",
+      "id": "14",
+      "bbox": [
+        114,
+        398,
+        458,
+        63
+      ],
+      "geometry": "rect",
+      "text": "修改前先 Reload 確認現值，修改後 Save 並重新測試客戶入口。",
+      "textPreview": "修改前先 Reload 確認現值，修改後 Save 並重新測試客戶入口。",
+      "resolvedFontSize": 16,
+      "resolvedTextStyle": {
+        "fontSize": 16,
+        "typeface": "+mn-lt",
+        "color": "#B9C2D3",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "修改前先 Reload 確認現值，修改後 Save 並重新測試客戶入口。"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "修改前先 Reload 確認現值，修改後 Save 並重新測試客戶入口。",
+          "resolvedTextStyle": {
+            "fontSize": 16,
+            "color": "#B9C2D3",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "修改前先 Reload 確認現值，修改後 Save 並重新測試客戶入口。",
+              "fontSize": 16,
+              "color": "#B9C2D3",
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 15,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/6psfil0r",
+      "id": "15",
+      "bbox": [
+        690,
+        174,
+        430,
+        135
+      ],
+      "geometry": "roundRect",
+      "fillColor": "#101B2C",
+      "lineColor": "#2A3B55",
+      "lineWidth": 1
+    },
+    {
+      "order": 16,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/dcbulwva",
+      "id": "16",
+      "bbox": [
+        690,
+        174,
+        6,
+        135
+      ],
+      "geometry": "rect",
+      "fillColor": "#F59E0B",
+      "lineWidth": 0
+    },
+    {
+      "order": 17,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/kre1w7mp",
+      "id": "17",
+      "bbox": [
+        712,
+        192,
+        388,
+        30
+      ],
+      "geometry": "rect",
+      "text": "安全建議",
+      "textPreview": "安全建議",
+      "resolvedFontSize": 22,
+      "resolvedTextStyle": {
+        "fontSize": 22,
+        "typeface": "+mn-lt",
+        "color": "#F8FAFC",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "安全建議"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "安全建議",
+          "resolvedTextStyle": {
+            "fontSize": 22,
+            "color": "#F8FAFC",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "安全建議",
+              "fontSize": 22,
+              "color": "#F8FAFC",
+              "bold": true,
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 18,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/v6psfil0",
+      "id": "18",
+      "bbox": [
+        712,
+        232,
+        388,
+        63
+      ],
+      "geometry": "rect",
+      "text": "使用 HTTPS、避免萬用字元、不要把 Token URL 放在公開文件。",
+      "textPreview": "使用 HTTPS、避免萬用字元、不要把 Token URL 放在公開文件。",
+      "resolvedFontSize": 16,
+      "resolvedTextStyle": {
+        "fontSize": 16,
+        "typeface": "+mn-lt",
+        "color": "#B9C2D3",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "使用 HTTPS、避免萬用字元、不要把 Token URL"
+          },
+          {
+            "index": 2,
+            "text": "放在公開文件。"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "使用 HTTPS、避免萬用字元、不要把 Token URL 放在公開文件。",
+          "resolvedTextStyle": {
+            "fontSize": 16,
+            "color": "#B9C2D3",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "使用 HTTPS、避免萬用字元、不要把 Token URL 放在公開文件。",
+              "fontSize": 16,
+              "color": "#B9C2D3",
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 19,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/2lszqtcj",
+      "id": "19",
+      "bbox": [
+        690,
+        340,
+        430,
+        135
+      ],
+      "geometry": "roundRect",
+      "fillColor": "#101B2C",
+      "lineColor": "#2A3B55",
+      "lineWidth": 1
+    },
+    {
+      "order": 20,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/ap4r65wj",
+      "id": "20",
+      "bbox": [
+        690,
+        340,
+        6,
+        135
+      ],
+      "geometry": "rect",
+      "fillColor": "#EF4444",
+      "lineWidth": 0
+    },
+    {
+      "order": 21,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/za1gvy90",
+      "id": "21",
+      "bbox": [
+        712,
+        358,
+        388,
+        30
+      ],
+      "geometry": "rect",
+      "text": "空白頁排查",
+      "textPreview": "空白頁排查",
+      "resolvedFontSize": 22,
+      "resolvedTextStyle": {
+        "fontSize": 22,
+        "typeface": "+mn-lt",
+        "color": "#F8FAFC",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "空白頁排查"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "空白頁排查",
+          "resolvedTextStyle": {
+            "fontSize": 22,
+            "color": "#F8FAFC",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "空白頁排查",
+              "fontSize": 22,
+              "color": "#F8FAFC",
+              "bold": true,
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 22,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/svu9knih",
+      "id": "22",
+      "bbox": [
+        712,
+        398,
+        388,
+        63
+      ],
+      "geometry": "rect",
+      "text": "若 iframe 空白，檢查 Token 是否過期，以及瀏覽器 console 是否被 CSP / frame-ancestors 擋下。",
+      "textPreview": "若 iframe 空白，檢查 Token 是否過期，以及瀏覽器 console 是否被 CSP / frame-ancestors 擋下。",
+      "resolvedFontSize": 16,
+      "resolvedTextStyle": {
+        "fontSize": 16,
+        "typeface": "+mn-lt",
+        "color": "#B9C2D3",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "若 iframe 空白，檢查 Token 是否過期，以及瀏覽器"
+          },
+          {
+            "index": 2,
+            "text": "console 是否被 CSP / frame-ancestors 擋下。"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "若 iframe 空白，檢查 Token 是否過期，以及瀏覽器 console 是否被 CSP / frame-ancestors 擋下。",
+          "resolvedTextStyle": {
+            "fontSize": 16,
+            "color": "#B9C2D3",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "若 iframe 空白，檢查 Token 是否過期，以及瀏覽器 console 是否被 CSP / frame-ancestors 擋下。",
+              "fontSize": 16,
+              "color": "#B9C2D3",
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    }
+  ],
+  "composeRuns": []
+}

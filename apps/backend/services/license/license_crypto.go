@@ -195,6 +195,29 @@ func ParseLicenseTime(value string) (time.Time, error) {
 
 // ValidateLicenseKey validates and decrypts a license key.
 func ValidateLicenseKey(encryptedKey string, systemMachineID string, formalSecretKey []byte, pocSecretKey []byte) (*LicensePayload, error) {
+	if strings.HasPrefix(strings.TrimSpace(encryptedKey), Ed25519LicensePrefix) {
+		signed, err := VerifyEd25519License(encryptedKey, formalSecretKey)
+		if err != nil {
+			return nil, errors.New("invalid license key")
+		}
+		payload := LicensePayload{
+			LicenseMode: signed.LicenseMode, MachineID: signed.MachineID,
+			DeviceCount: signed.DeviceCount, CameraCount: signed.CameraCount,
+			DurationDays: signed.DurationDays, Features: signed.Features,
+			IssuedAt: signed.IssuedAt, ValidUntil: signed.ValidUntil,
+		}
+		payload.LicenseMode = normalizeLicenseMode(payload.LicenseMode)
+		if payload.LicenseMode != PoCLicenseMode && payload.MachineID != systemMachineID {
+			return nil, errors.New("license is bound to a different machine")
+		}
+		if payload.ValidUntil != "" {
+			validUntil, err := ParseLicenseTime(payload.ValidUntil)
+			if err != nil || time.Now().After(validUntil) {
+				return nil, errors.New("license has expired or invalid expiry")
+			}
+		}
+		return &payload, nil
+	}
 	mode, rawKey := DetectLicenseEnvelope(encryptedKey)
 
 	secretKey := formalSecretKey
@@ -237,6 +260,20 @@ func ValidateLicenseKey(encryptedKey string, systemMachineID string, formalSecre
 	}
 
 	return &payload, nil
+}
+
+// ValidateLicenseKeyWithPolicy is the production validation boundary. New
+// installations should set allowLegacy=false and provide only the Ed25519
+// public key. Legacy AES validation exists solely for controlled migration.
+func ValidateLicenseKeyWithPolicy(encryptedKey, systemMachineID string, publicKey, legacyFormalKey, legacyPoCKey []byte, allowLegacy bool) (*LicensePayload, error) {
+	key := strings.TrimSpace(encryptedKey)
+	if strings.HasPrefix(key, Ed25519LicensePrefix) {
+		return ValidateLicenseKey(key, systemMachineID, publicKey, nil)
+	}
+	if !allowLegacy {
+		return nil, errors.New("legacy license format is disabled")
+	}
+	return ValidateLicenseKey(key, systemMachineID, legacyFormalKey, legacyPoCKey)
 }
 
 // GenerateTrialLicense creates a 14-day trial license.

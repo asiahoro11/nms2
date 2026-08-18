@@ -182,7 +182,7 @@ func (s *Service) loadDevice(id string) (Device, error) {
 }
 
 func normalizeDeviceRequest(req *DeviceRequest) {
-	if req.Port == 0 {
+	if req.Port <= 0 || req.Port > 65535 {
 		req.Port = 161
 	}
 	if req.SNMPCommunity == "" {
@@ -216,7 +216,7 @@ func connect(ip string, port int, community string, version int) (*gosnmp.GoSNMP
 	}
 	g := &gosnmp.GoSNMP{
 		Target:    ip,
-		Port:      uint16(port),
+		Port:      uint16(port), // #nosec G115 -- normalizeDeviceRequest constrains the port to 1..65535.
 		Community: community,
 		Version:   v,
 		Timeout:   5 * time.Second,

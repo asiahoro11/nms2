@@ -8,6 +8,7 @@
 const NOTIF_POLL_INTERVAL = 30000; // 30 秒輪詢一次
 let notifPollTimer = null;
 let notifPanelOpen = false;
+let globalIncidentShown = new Set();
 
 // 初始化：登入後呼叫
 function initNotifications() {
@@ -36,6 +37,7 @@ async function fetchUnreadCount() {
         const res = await apiGet('/notifications?unread=1');
         if (res && res.success !== undefined) {
             updateBadge(res.unread_count || 0);
+            evaluateGlobalIncidents(res.data || []);
             // 若面板開著，同步更新內容
             if (notifPanelOpen) {
                 renderNotifList(res.data || []);
@@ -45,6 +47,32 @@ async function fetchUnreadCount() {
         // 靜默失敗，不影響主介面
     }
 }
+
+function evaluateGlobalIncidents(items) {
+    const critical = items.filter(item => item.severity === 'critical' || item.severity === 'alert');
+    const warningBurst = items.filter(item => item.severity === 'warning').length >= 5;
+    const incident = critical[0] || (warningBurst ? items.find(item => item.severity === 'warning') : null);
+    if (!incident || globalIncidentShown.has(incident.id)) return;
+    globalIncidentShown.add(incident.id);
+    showGlobalIncidentModal(incident, critical.length, warningBurst);
+}
+
+function showGlobalIncidentModal(incident, criticalCount, warningBurst) {
+    const existing = document.getElementById('global-incident-modal');
+    if (existing) existing.remove();
+    const modal = document.createElement('div');
+    modal.id = 'global-incident-modal';
+    modal.className = 'global-incident-modal';
+    const title = escapeHtmlNotif(incident.title || 'Critical incident');
+    const message = escapeHtmlNotif(incident.message || 'An abnormal condition requires attention.');
+    const summary = criticalCount > 1 ? `${criticalCount} critical alerts are active.` : (warningBurst ? 'A burst of warning alerts was detected.' : 'A critical alert was detected.');
+    const deviceAction = incident.device_id > 0 ? `<button class="btn btn-primary" onclick="openIncidentDevice(${Number(incident.device_id)})">Open device</button>` : '';
+    modal.innerHTML = `<div class="global-incident-backdrop"></div><section class="global-incident-card" role="alertdialog" aria-modal="true"><div class="global-incident-icon">!</div><div><p class="global-incident-kicker">Immediate attention</p><h2>${title}</h2><p>${message}</p><p class="global-incident-summary">${summary}</p></div><div class="global-incident-actions">${deviceAction}<button class="btn btn-secondary" onclick="closeGlobalIncidentModal()">Dismiss</button></div></section>`;
+    document.body.appendChild(modal);
+}
+
+function closeGlobalIncidentModal() { document.getElementById('global-incident-modal')?.remove(); }
+function openIncidentDevice(id) { closeGlobalIncidentModal(); if (typeof viewDevice === 'function') viewDevice(id); }
 
 function updateBadge(count) {
     const badge = document.getElementById('notif-badge');

@@ -1,0 +1,8 @@
+{
+  "enabled": true,
+  "url": "http://192.168.1.100:8080/api/iot/signals",
+  "token": "replace-with-customer-bearer-token",
+  "clear_token": false,
+  "batch_size": 100,
+  "interval_ms": 30000
+}

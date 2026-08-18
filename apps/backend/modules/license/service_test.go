@@ -5,8 +5,10 @@ package license
 import (
 	"database/sql"
 	"testing"
+	"time"
 
 	"management-server/config"
+	licensesvc "management-server/services/license"
 
 	_ "modernc.org/sqlite"
 )
@@ -50,10 +52,29 @@ func newTestService(t *testing.T, version string) (*Service, *sql.DB) {
 
 func insertActiveLicense(t *testing.T, db *sql.DB, licenseType string) {
 	t.Helper()
+	pub, priv, err := licensesvc.GenerateEd25519KeyPair()
+	if err != nil {
+		t.Fatal(err)
+	}
+	licensesvc.SetRuntimeValidationForTest("test-machine", pub, false)
+	mode := licensesvc.FormalLicenseMode
+	machineID := "test-machine"
+	if licenseType == "poc" {
+		mode = licensesvc.PoCLicenseMode
+		machineID = ""
+	}
+	key, err := licensesvc.SignEd25519License(licensesvc.SignedLicense{
+		LicenseMode: mode, MachineID: machineID, DeviceCount: 10,
+		IssuedAt:   time.Now().UTC().Format(time.RFC3339),
+		ValidUntil: time.Now().Add(time.Hour).UTC().Format(time.RFC3339),
+	}, priv)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if _, err := db.Exec(`
 		INSERT INTO licenses (license_key, license_type, enabled_features, is_active)
 		VALUES (?, ?, '[]', 1)
-	`, "test-"+licenseType, licenseType); err != nil {
+	`, key, licenseType); err != nil {
 		t.Fatalf("insert %s license: %v", licenseType, err)
 	}
 }

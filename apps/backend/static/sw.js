@@ -1,7 +1,7 @@
 // Made by YTSworks
 // YTS工作室製作
-const SW_VERSION = new URL(self.location.href).searchParams.get('v') || 'v1.2.4.9sp0001';
-const CACHE_NAME = `sync-${SW_VERSION}`;
+const SW_VERSION = new URL(self.location.href).searchParams.get('v') || 'v1.2.4.9sp00022';
+const CACHE_NAME = `sync-${SW_VERSION}-iot-protocol-r2`;
 const STATIC_ASSETS = [
     '/',
     '/index.html',

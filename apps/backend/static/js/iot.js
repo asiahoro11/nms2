@@ -113,6 +113,13 @@ async function iotLoadStatus() {
         setText('iot-forward-pending-count', data.forward_pending_count || 0);
         setText('iot-forward-failed-count',  data.forward_failed_count || 0);
         setText('iot-forward-sent-count',    data.forward_sent_hold_count || 0);
+        setText('iot-forward-page-pending',  data.forward_pending_count || 0);
+        setText('iot-forward-page-failed',   data.forward_failed_count || 0);
+        setText('iot-forward-page-sent',     data.forward_sent_hold_count || 0);
+        setText('iot-forward-last-attempt',  data.forward_last_attempt_at ? iotRelativeTime(data.forward_last_attempt_at) : '-');
+        setText('iot-forward-last-success',  data.forward_last_success_at ? iotRelativeTime(data.forward_last_success_at) : '-');
+        const errorEl = document.getElementById('iot-forward-last-error');
+        if (errorEl) errorEl.textContent = data.forward_last_error ? `${t('common.error') || '錯誤'}：${data.forward_last_error}` : '';
     } catch (error) {
         _iotLicensed = false;
         iotApplyLicenseUI();
@@ -169,7 +176,9 @@ async function iotLoadDevices() {
             return;
         }
         tbody.innerHTML = devices.map((d) => {
-            const target = (d.protocol === 'modbus_tcp' || d.protocol === 'modbus_rtu_tcp')
+            const signals = Array.isArray(d.signals) ? d.signals : [];
+            const normalizedProtocol = iotNormalizeFormProtocol(d.protocol);
+            const target = (normalizedProtocol === 'modbus_tcp' || normalizedProtocol === 'modbus_rtu_tcp')
                 ? `${escapeIot(d.host || '-')}:${d.port || 502}`
                 : escapeIot(d.serial_port || '-');
             const hasError = !!d.last_error;
@@ -180,11 +189,11 @@ async function iotLoadDevices() {
             return `
             <tr>
                 <td><strong>${escapeIot(d.name)}</strong></td>
-                <td style="font-size:12px">${escapeIot(iotSensorTypeLabel(d.sensor_type))}</td>
-                <td><span class="iot-protocol-badge">${escapeIot(iotProtocolLabel(d.protocol))}</span></td>
+                <td style="font-size:12px">${escapeIot(d.external_id || d.topic || '-')}</td>
+                <td><span class="iot-protocol-badge">${escapeIot(iotProtocolLabel(normalizedProtocol))}</span></td>
                 <td style="font-size:12px;color:var(--text-muted)">${target}</td>
-                <td style="font-size:12px">FC${d.function_code || 3} @${d.address ?? 0} / ${escapeIot(iotRegisterDataTypeLabel(d))}</td>
-                <td>${escapeIot(d.metric || 'value')}</td>
+                <td style="font-size:12px">${signals.length > 1 ? `${signals.length} ${t('iot.modal.signals') || 'signals'}` : `FC${d.function_code || 3} @${d.address ?? 0} / ${escapeIot(iotRegisterDataTypeLabel(d))}`}</td>
+                <td>${escapeIot(signals.length ? signals.map((signal) => signal.metric).join(', ') : (d.metric || 'value'))}</td>
                 <td style="${errStyle}"><strong>${iotFormatDeviceLastValue(d)}</strong></td>
                 <td style="font-size:11px;color:var(--text-muted)">
                     <div class="iot-device-status-cell">
@@ -266,6 +275,16 @@ function iotBuildReadings(d) {
             <div class="iot-sensor-reading-label">${t('iot.sensor_type.humidity')}</div>
             <div class="iot-sensor-reading-value">${fmt(humidity,'%')}<span class="iot-sensor-reading-unit">%</span></div>
         </div>`;
+    }
+    if (bitReadings.length > 1) {
+        return bitReadings.map((reading) => {
+            const readingUnit = reading.unit || iotUnitForMetric(reading.metric);
+            return `
+            <div class="iot-sensor-reading">
+                <div class="iot-sensor-reading-label">${escapeIot(reading.metric)}</div>
+                <div class="iot-sensor-reading-value">${fmt(reading.value, readingUnit)}${readingUnit ? `<span class="iot-sensor-reading-unit">${escapeIot(readingUnit)}</span>` : ''}</div>
+            </div>`;
+        }).join('');
     }
     const meta  = IOT_SENSOR_META[d.sensor_type] || null;
     const label = d.sensor_type ? iotSensorTypeLabel(d.sensor_type) : (d.metric || t('iot.ingest.value'));
@@ -365,6 +384,99 @@ async function iotLoadMeasurements() {
 // ─── Add / Edit device modal ────────────────────────────────────────────────
 
 let _iotEditId = null;
+let _iotSignalRows = [];
+
+function iotNormalizeSignalRow(signal = {}, index = 0) {
+    const metric = String(signal.metric || signal.name || `signal_${index + 1}`).trim();
+    return {
+        name: String(signal.name || metric).trim(),
+        metric,
+        function_code: Number(signal.function_code || 3),
+        address: Number(signal.address ?? 0),
+        data_type: String(signal.data_type || 'uint16'),
+        byte_order: String(signal.byte_order || 'big'),
+        word_order: String(signal.word_order || 'big'),
+        scale: Number(signal.scale ?? 1),
+        offset: Number(signal.offset ?? 0),
+        unit: String(signal.unit || ''),
+    };
+}
+
+function iotSignalInput(value, field, index, type = 'text', extra = '') {
+    return `<input class="text-input" type="${type}" value="${escapeIotAttribute(value)}" ${extra}
+        oninput="iotUpdateSignalRow(${index},'${field}',this.value)">`;
+}
+
+function iotRenderSignalRows() {
+    const container = document.getElementById('iot-signal-rows');
+    if (!container) return;
+    if (!_iotSignalRows.length) _iotSignalRows = [iotNormalizeSignalRow()];
+    container.innerHTML = _iotSignalRows.map((signal, index) => {
+        const isLast = index === _iotSignalRows.length - 1;
+        return `
+        <div class="iot-signal-row">
+            ${iotSignalInput(signal.name, 'name', index)}
+            ${iotSignalInput(signal.metric, 'metric', index)}
+            <select class="select-input" onchange="iotUpdateSignalRow(${index},'function_code',this.value)">
+                <option value="3" ${signal.function_code === 3 ? 'selected' : ''}>FC03 Holding</option>
+                <option value="4" ${signal.function_code === 4 ? 'selected' : ''}>FC04 Input</option>
+            </select>
+            ${iotSignalInput(signal.address, 'address', index, 'number', 'min="0"')}
+            <select class="select-input" onchange="iotUpdateSignalRow(${index},'data_type',this.value)">
+                ${['uint16','int16','uint32','int32','float32','float64'].map((type) =>
+                    `<option value="${type}" ${signal.data_type === type ? 'selected' : ''}>${type}</option>`).join('')}
+            </select>
+            <select class="select-input" onchange="iotUpdateSignalRow(${index},'byte_order',this.value)">
+                <option value="big" ${signal.byte_order === 'big' ? 'selected' : ''}>Big</option>
+                <option value="little" ${signal.byte_order === 'little' ? 'selected' : ''}>Little</option>
+            </select>
+            <select class="select-input" onchange="iotUpdateSignalRow(${index},'word_order',this.value)">
+                <option value="big" ${signal.word_order === 'big' ? 'selected' : ''}>Big</option>
+                <option value="little" ${signal.word_order === 'little' ? 'selected' : ''}>Little</option>
+            </select>
+            ${iotSignalInput(signal.scale, 'scale', index, 'number', 'step="0.001"')}
+            ${iotSignalInput(signal.offset, 'offset', index, 'number', 'step="0.001"')}
+            ${iotSignalInput(signal.unit, 'unit', index)}
+            <button type="button" class="iot-signal-action ${isLast ? 'add' : 'remove'}"
+                onclick="${isLast ? 'iotAddSignalRow()' : `iotRemoveSignalRow(${index})`}"
+                title="${isLast ? '新增訊號' : '刪除訊號'}">${isLast ? '+' : '−'}</button>
+        </div>`;
+    }).join('');
+}
+
+function iotUpdateSignalRow(index, field, value) {
+    if (!_iotSignalRows[index]) return;
+    if (['function_code', 'address', 'scale', 'offset'].includes(field)) {
+        _iotSignalRows[index][field] = Number(value);
+    } else {
+        _iotSignalRows[index][field] = value;
+    }
+}
+
+function iotAddSignalRow() {
+    _iotSignalRows.push(iotNormalizeSignalRow({}, _iotSignalRows.length));
+    iotRenderSignalRows();
+}
+
+function iotRemoveSignalRow(index) {
+    if (_iotSignalRows.length <= 1) return;
+    _iotSignalRows.splice(index, 1);
+    iotRenderSignalRows();
+}
+
+function iotCollectSignals() {
+    const seen = new Set();
+    const signals = _iotSignalRows.map((signal, index) => iotNormalizeSignalRow(signal, index));
+    for (const signal of signals) {
+        if (!signal.metric) throw new Error('每筆訊號都必須填寫 JSON Tag');
+        if (!/^[A-Za-z_][A-Za-z0-9_.-]*$/.test(signal.metric)) {
+            throw new Error(`JSON Tag「${signal.metric}」格式不正確`);
+        }
+        if (seen.has(signal.metric)) throw new Error(`JSON Tag「${signal.metric}」不可重複`);
+        seen.add(signal.metric);
+    }
+    return signals;
+}
 
 function iotOpenAddModal() {
     _iotEditId = null;
@@ -374,7 +486,7 @@ function iotOpenAddModal() {
     if (btnEl)   btnEl.setAttribute('data-i18n', 'iot.modal.add'), btnEl.textContent = t('iot.modal.add') || 'Add Device';
     // Reset form to defaults
     setVal('iot-name', '');
-    setVal('iot-sensor-type', '');
+    setVal('iot-external-id', '');
     setVal('iot-host', '');
     setVal('iot-port', '502');
     setVal('iot-serial-port', '');
@@ -383,17 +495,10 @@ function iotOpenAddModal() {
     setVal('iot-parity', 'N');
     setVal('iot-stop-bits', '1');
     setVal('iot-unit', '1');
-    setVal('iot-address', '0');
-    setVal('iot-function-code', '3');
-    setVal('iot-data-type', 'uint16');
-    setVal('iot-scale', '1');
-    setVal('iot-offset', '0');
-    setVal('iot-metric', 'value');
     setVal('iot-poll-interval', '60');
-    setVal('iot-byte-order', 'big');
-    setVal('iot-word-order', 'big');
-    iotSyncDataTypeFields();
-    iotSwitchProtocol('modbus_tcp', document.querySelector('.iot-protocol-tab'));
+    _iotSignalRows = [iotNormalizeSignalRow({ name: '訊號 1', metric: 'signal_1' })];
+    iotRenderSignalRows();
+    iotSwitchProtocol('modbus_tcp');
     const modal = document.getElementById('iot-add-modal');
     if (modal) modal.style.display = 'flex';
 }
@@ -410,14 +515,11 @@ function iotOpenEditModal(idOrObj) {
     if (btnEl)   btnEl.setAttribute('data-i18n', 'iot.modal.save'), btnEl.textContent = t('iot.modal.save') || 'Save';
 
     // Fill protocol tab first
-    const protocol = d.protocol || 'modbus_tcp';
-    const tabMap = { modbus_tcp: 0, modbus_rtu: 1, modbus_rs485: 2, modbus_rtu_tcp: 3 };
-    const tabs = document.querySelectorAll('.iot-protocol-tab');
-    const tabIdx = tabMap[protocol] ?? 0;
-    iotSwitchProtocol(protocol, tabs[tabIdx] || null);
+    const protocol = iotNormalizeFormProtocol(d.protocol);
+    iotSwitchProtocol(protocol);
 
     setVal('iot-name',          d.name || '');
-    setVal('iot-sensor-type',   d.sensor_type || '');
+    setVal('iot-external-id',   d.external_id || d.topic || '');
     setVal('iot-host',          d.host || '');
     setVal('iot-port',          String(d.port || 502));
     setVal('iot-serial-port',   d.serial_port || '');
@@ -426,16 +528,18 @@ function iotOpenEditModal(idOrObj) {
     setVal('iot-parity',        d.parity || 'N');
     setVal('iot-stop-bits',     String(d.stop_bits || 1));
     setVal('iot-unit',          String(d.unit_id || 1));
-    setVal('iot-address',       String(d.address ?? 0));
-    setVal('iot-function-code', String(d.function_code || 3));
-    setVal('iot-data-type',     d.data_type || 'uint16');
-    setVal('iot-scale',         String(d.scale ?? 1));
-    setVal('iot-offset',        String(d.offset ?? 0));
-    setVal('iot-metric',        d.metric || 'value');
     setVal('iot-poll-interval', String(d.poll_interval_seconds || 60));
-    setVal('iot-byte-order',    d.byte_order || 'big');
-    setVal('iot-word-order',    d.word_order || 'big');
-    iotSyncDataTypeFields();
+    if (Array.isArray(d.signals) && d.signals.length) {
+        _iotSignalRows = d.signals.map(iotNormalizeSignalRow);
+    } else if (d.sensor_type === 'temperature_humidity') {
+        _iotSignalRows = [
+            iotNormalizeSignalRow({ name: '冰水供水溫度', metric: 'chwSupplyTempC', address: d.address ?? 0, function_code: d.function_code || 4, data_type: 'int16', scale: d.scale ?? 0.1, offset: d.offset ?? 0 }),
+            iotNormalizeSignalRow({ name: '冰水回水溫度', metric: 'chwReturnTempC', address: (d.address ?? 0) + 1, function_code: d.function_code || 4, data_type: 'uint16', scale: d.scale ?? 0.1, offset: 0 }),
+        ];
+    } else {
+        _iotSignalRows = [iotNormalizeSignalRow(d)];
+    }
+    iotRenderSignalRows();
 
     const modal = document.getElementById('iot-add-modal');
     if (modal) modal.style.display = 'flex';
@@ -447,37 +551,68 @@ function iotCloseAddModal() {
     if (modal) modal.style.display = 'none';
 }
 
-function iotSwitchProtocol(protocol, btn) {
-    document.querySelectorAll('.iot-protocol-tab').forEach((t) => t.classList.remove('active'));
-    if (btn) btn.classList.add('active');
-    const input = document.getElementById('iot-protocol');
-    if (input) input.value = protocol;
-    const isTCP = protocol === 'modbus_tcp' || protocol === 'modbus_rtu_tcp';
-    document.querySelectorAll('.iot-field-tcp').forEach((el) => el.classList.toggle('visible', isTCP));
-    document.querySelectorAll('.iot-field-rtu').forEach((el) => el.classList.toggle('visible', !isTCP));
+function iotNormalizeFormProtocol(protocol) {
+    switch (String(protocol || '').trim().toLowerCase()) {
+        case 'modbus_rtu_tcp':
+        case 'modbus-rtu-tcp':
+        case 'rtu_tcp':
+        case 'rtu-over-tcp':
+        case 'rtu_over_tcp':
+            return 'modbus_rtu_tcp';
+        case 'modbus_rtu':
+        case 'modbus-rtu':
+        case 'modbus_rs485':
+        case 'modbus-rs485':
+        case 'rtu':
+        case 'rs485':
+            return 'modbus_rs485';
+        default:
+            return 'modbus_tcp';
+    }
 }
 
-async function iotCreateDevice() {
-    const protocol = valueOf('iot-protocol') || 'modbus_tcp';
-    const isRTU    = protocol === 'modbus_rtu' || protocol === 'modbus_rs485';
-    const sensorType = valueOf('iot-sensor-type');
-    const dataType = iotDataTypeForSelection(sensorType);
+function iotSetProtocolFieldGroup(groupId, enabled) {
+    const group = document.getElementById(groupId);
+    if (!group) return;
+    group.hidden = !enabled;
+    group.setAttribute('aria-hidden', enabled ? 'false' : 'true');
+    group.querySelectorAll('input, select, textarea').forEach((field) => {
+        field.disabled = !enabled;
+    });
+}
+
+function iotSwitchProtocol(protocol, btn) {
+    const normalizedProtocol = iotNormalizeFormProtocol(protocol);
+    const modal = document.getElementById('iot-add-modal') || document;
+    const tabs = modal.querySelectorAll('.iot-protocol-tab');
+    tabs.forEach((tab) => tab.classList.remove('active'));
+    const activeTab = btn && btn.dataset.iotProtocol === normalizedProtocol
+        ? btn
+        : modal.querySelector(`.iot-protocol-tab[data-iot-protocol="${normalizedProtocol}"]`);
+    if (activeTab) activeTab.classList.add('active');
+    const input = document.getElementById('iot-protocol');
+    if (input) input.value = normalizedProtocol;
+    const isTCP = normalizedProtocol === 'modbus_tcp' || normalizedProtocol === 'modbus_rtu_tcp';
+    iotSetProtocolFieldGroup('iot-tcp-fields', isTCP);
+    iotSetProtocolFieldGroup('iot-rs485-fields', !isTCP);
+}
+
+function iotBuildDevicePayload(currentDevice = null) {
+    const protocol = iotNormalizeFormProtocol(valueOf('iot-protocol'));
+    const isRTU    = protocol === 'modbus_rs485';
+    const signals = iotCollectSignals();
+    const externalID = valueOf('iot-external-id');
+    if (!valueOf('iot-name')) throw new Error(t('iot.modal.name_required') || '設備名稱為必填');
+    if (!externalID) throw new Error('設備 ID／UUID 為必填');
     const payload  = {
-        name:                  valueOf('iot-name') || 'IoT Device',
+        name:                  valueOf('iot-name'),
+        external_id:           externalID,
         protocol,
-        sensor_type:           sensorType,
+        sensor_type:           '',
         unit_id:               Number(valueOf('iot-unit') || 1),
-        address:               Number(valueOf('iot-address') || 0),
-        function_code:         Number(valueOf('iot-function-code') || 3),
-        quantity:              iotQuantityForSelection(sensorType, dataType),
-        data_type:             dataType,
-        byte_order:            valueOf('iot-byte-order') || 'big',
-        word_order:            valueOf('iot-word-order') || 'big',
-        scale:                 Number(valueOf('iot-scale') || 1),
-        offset:                Number(valueOf('iot-offset') || 0),
-        metric:                valueOf('iot-metric') || 'value',
         poll_interval_seconds: Number(valueOf('iot-poll-interval') || 60),
-        enabled:               true,
+        enabled:               currentDevice ? currentDevice.enabled : true,
+        signals,
     };
     if (isRTU) {
         payload.serial_port = valueOf('iot-serial-port');
@@ -485,13 +620,18 @@ async function iotCreateDevice() {
         payload.data_bits   = Number(valueOf('iot-data-bits') || 8);
         payload.parity      = valueOf('iot-parity') || 'N';
         payload.stop_bits   = Number(valueOf('iot-stop-bits') || 1);
-        if (!payload.serial_port) { showToast(t('iot.modal.serial_required'), 'warning'); return; }
+        if (!payload.serial_port) throw new Error(t('iot.modal.serial_required'));
     } else {
         payload.host = valueOf('iot-host');
         payload.port = Number(valueOf('iot-port') || 502);
-        if (!payload.host) { showToast(t('iot.modal.host_required'), 'warning'); return; }
+        if (!payload.host) throw new Error(t('iot.modal.host_required'));
     }
+    return payload;
+}
+
+async function iotCreateDevice() {
     try {
+        const payload = iotBuildDevicePayload();
         await apiPost('/iot/devices', payload);
         showToast(t('iot.modal.add_success'), 'success');
         iotCloseAddModal();
@@ -510,41 +650,9 @@ async function iotSaveDevice() {
 }
 
 async function iotUpdateDevice(id) {
-    const protocol = valueOf('iot-protocol') || 'modbus_tcp';
-    const isRTU    = protocol === 'modbus_rtu' || protocol === 'modbus_rs485';
-    const sensorType = valueOf('iot-sensor-type');
-    const dataType = iotDataTypeForSelection(sensorType);
     const currentDevice = _iotDevices.find((d) => d.id === Number(id));
-    const payload  = {
-        name:                  valueOf('iot-name') || 'IoT Device',
-        protocol,
-        sensor_type:           sensorType,
-        unit_id:               Number(valueOf('iot-unit') || 1),
-        address:               Number(valueOf('iot-address') || 0),
-        function_code:         Number(valueOf('iot-function-code') || 3),
-        quantity:              iotQuantityForSelection(sensorType, dataType),
-        data_type:             dataType,
-        byte_order:            valueOf('iot-byte-order') || 'big',
-        word_order:            valueOf('iot-word-order') || 'big',
-        scale:                 Number(valueOf('iot-scale') || 1),
-        offset:                Number(valueOf('iot-offset') || 0),
-        metric:                valueOf('iot-metric') || 'value',
-        poll_interval_seconds: Number(valueOf('iot-poll-interval') || 60),
-        enabled:               currentDevice ? currentDevice.enabled : true,
-    };
-    if (isRTU) {
-        payload.serial_port = valueOf('iot-serial-port');
-        payload.baud_rate   = Number(valueOf('iot-baud-rate') || 9600);
-        payload.data_bits   = Number(valueOf('iot-data-bits') || 8);
-        payload.parity      = valueOf('iot-parity') || 'N';
-        payload.stop_bits   = Number(valueOf('iot-stop-bits') || 1);
-        if (!payload.serial_port) { showToast(t('iot.modal.serial_required'), 'warning'); return; }
-    } else {
-        payload.host = valueOf('iot-host');
-        payload.port = Number(valueOf('iot-port') || 502);
-        if (!payload.host) { showToast(t('iot.modal.host_required'), 'warning'); return; }
-    }
     try {
+        const payload = iotBuildDevicePayload(currentDevice);
         await apiPut(`/iot/devices/${id}`, payload);
         showToast(t('iot.modal.edit_success') || 'Device updated', 'success');
         iotCloseAddModal();
@@ -580,34 +688,70 @@ async function iotDeleteDevice(id) {
 // ─── Forwarder ──────────────────────────────────────────────────────────────
 
 async function iotLoadForwarderSettings(options = {}) {
-    const url = document.getElementById('iot-forward-url');
-    if (!url) return;
+    const host = document.getElementById('iot-forward-host');
+    if (!host) return;
     try {
         const response = await apiGet('/iot/forwarder/settings');
         const data = response.data || {};
         const enabled = document.getElementById('iot-forward-enabled');
         const batch   = document.getElementById('iot-forward-batch');
+        const interval = document.getElementById('iot-forward-interval');
         if (enabled) enabled.value = data.enabled ? 'true' : 'false';
-        url.value = data.url || '';
         if (batch) batch.value = data.batch_size || 50;
+        if (interval) interval.value = data.interval_ms || ((data.interval_seconds || 30) * 1000);
+        if (data.url) {
+            try {
+                const parsed = new URL(data.url);
+                setVal('iot-forward-protocol', parsed.protocol.replace(':', '') || 'http');
+                setVal('iot-forward-host', parsed.hostname || '');
+                setVal('iot-forward-port', parsed.port || (parsed.protocol === 'https:' ? '443' : '80'));
+                setVal('iot-forward-path', `${parsed.pathname || '/'}${parsed.search || ''}`);
+            } catch (_) {
+                setVal('iot-forward-host', data.url);
+            }
+        }
+        setText('iot-forward-last-attempt', data.last_attempt_at ? iotRelativeTime(data.last_attempt_at) : '-');
+        setText('iot-forward-last-success', data.last_success_at ? iotRelativeTime(data.last_success_at) : '-');
+        const errorEl = document.getElementById('iot-forward-last-error');
+        if (errorEl) errorEl.textContent = data.last_error ? `${t('common.error') || '錯誤'}：${data.last_error}` : '';
+        iotUpdateForwardURLPreview();
     } catch (error) {
         if (!options.quiet) showToast(error.message || 'Load forwarder settings failed', 'error');
     }
 }
 
+function iotBuildForwardURL() {
+    const protocol = valueOf('iot-forward-protocol') || 'http';
+    const host = valueOf('iot-forward-host');
+    const port = Number(valueOf('iot-forward-port') || (protocol === 'https' ? 443 : 80));
+    let path = valueOf('iot-forward-path') || '/';
+    if (!path.startsWith('/')) path = '/' + path;
+    return host ? `${protocol}://${host}:${port}${path}` : '';
+}
+
+function iotUpdateForwardURLPreview() {
+    setText('iot-forward-url-preview', iotBuildForwardURL() || '-');
+}
+
 async function iotSaveForwarderSettings() {
+    const url = iotBuildForwardURL();
+    if (valueOf('iot-forward-enabled') === 'true' && !url) {
+        showToast('請輸入拋轉主機 IP／網域', 'warning');
+        return;
+    }
     const payload = {
         enabled:    valueOf('iot-forward-enabled') === 'true',
-        url:        valueOf('iot-forward-url'),
+        url,
         token:      valueOf('iot-forward-token'),
         batch_size: Number(valueOf('iot-forward-batch') || 50),
+        interval_ms: Number(valueOf('iot-forward-interval') || 30000),
     };
     try {
         await apiPut('/iot/forwarder/settings', payload);
         const token = document.getElementById('iot-forward-token');
         if (token) token.value = '';
         showToast(t('iot.forward.save_success'), 'success');
-        await iotLoadStatus();
+        await Promise.all([iotLoadStatus(), iotLoadForwarderSettings({ quiet: true })]);
     } catch (error) {
         showToast(error.message || t('iot.forward.save_failed'), 'error');
     }
@@ -618,7 +762,7 @@ async function iotFlushQueue() {
         const response = await apiPost('/iot/queue/flush', {});
         const sent = response.data ? response.data.sent : 0;
         showToast(`${t('iot.forward.flush_success')} — ${sent}`, 'success');
-        await iotLoad();
+        await Promise.all([iotLoadStatus(), iotLoadMeasurements(), iotLoadForwarderSettings({ quiet: true })]);
     } catch (error) {
         showToast(error.message || t('iot.forward.flush_failed'), 'error');
     }
@@ -753,6 +897,7 @@ function iotEnsureSecurityNotes() {
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 function iotQuantityForType(type) {
+    if (type === 'float64') return 4;
     return ['uint32', 'int32', 'float32'].includes(type) ? 2 : 1;
 }
 
@@ -845,6 +990,15 @@ function iotDecodeTemperatureHumidityRaw(d) {
 document.addEventListener('change', (event) => {
     if (event.target && event.target.id === 'iot-sensor-type') {
         iotApplySensorDefaults();
+    }
+    if (event.target && ['iot-forward-protocol', 'iot-forward-host', 'iot-forward-port', 'iot-forward-path'].includes(event.target.id)) {
+        iotUpdateForwardURLPreview();
+    }
+});
+
+document.addEventListener('input', (event) => {
+    if (event.target && ['iot-forward-host', 'iot-forward-port', 'iot-forward-path'].includes(event.target.id)) {
+        iotUpdateForwardURLPreview();
     }
 });
 

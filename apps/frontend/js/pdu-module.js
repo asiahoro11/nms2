@@ -340,7 +340,7 @@ window.pduSave = async function(e) {
 
 window.pduDelete = async function(id) {
     const d = pduDevices.find(x => x.id === id);
-    if (!confirm(`確定要刪除「${d ? d.name : id}」？`)) return;
+    return showHighRiskConfirm('Delete PDU / UPS device', d ? d.name : String(id), async () => {
     hideModal();
     try {
         const res = await apiDelete(`/pdu/devices/${id}`);
@@ -353,6 +353,7 @@ window.pduDelete = async function(id) {
     } catch (e) {
         showToast(e.message, 'error');
     }
+    });
 };
 
 // Escape HTML helper

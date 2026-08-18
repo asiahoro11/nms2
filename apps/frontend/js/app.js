@@ -550,6 +550,96 @@ function loadPage(page) {
 
 
 // 初始化管理員頁籤
+const QUICK_SEARCH_PAGE_ITEMS = [
+    { page: 'dashboard', label: 'Dashboard' },
+    { page: 'devices', label: 'Devices' },
+    { page: 'topology', label: 'Topology' },
+    { page: 'logs', label: 'Logs' },
+    { page: 'cameras', label: 'Cameras' },
+    { page: 'access-control', label: 'Access control' },
+    { page: 'pdu', label: 'PDU / UPS' },
+    { page: 'iot', label: 'IoT / Modbus' },
+    { page: 'admin', label: 'Administration' }
+];
+
+let quickSearchRequest = 0;
+
+function openQuickSearch() {
+    let dialog = document.getElementById('quick-search-dialog');
+    if (!dialog) {
+        dialog = document.createElement('div');
+        dialog.id = 'quick-search-dialog';
+        dialog.className = 'quick-search-dialog';
+        dialog.innerHTML = '<div class="quick-search-backdrop" onclick="closeQuickSearch()"></div><section class="quick-search-panel" role="dialog" aria-modal="true" aria-label="Quick search"><input id="quick-search-input" class="quick-search-input" type="search" autocomplete="off" placeholder="Search devices, IP addresses, or pages"><div id="quick-search-results" class="quick-search-results"></div><p class="quick-search-hint">Enter to open · Esc to close</p></section>';
+        document.body.appendChild(dialog);
+        document.getElementById('quick-search-input').addEventListener('input', event => updateQuickSearchResults(event.target.value));
+        document.getElementById('quick-search-input').addEventListener('keydown', event => {
+            if (event.key === 'Enter') {
+                const first = document.querySelector('#quick-search-results button');
+                if (first) first.click();
+            }
+        });
+    }
+    dialog.classList.add('is-open');
+    const input = document.getElementById('quick-search-input');
+    input.value = '';
+    updateQuickSearchResults('');
+    requestAnimationFrame(() => input.focus());
+}
+
+function closeQuickSearch() {
+    const dialog = document.getElementById('quick-search-dialog');
+    if (dialog) dialog.classList.remove('is-open');
+}
+
+function quickSearchEscape(value) {
+    const node = document.createElement('span');
+    node.textContent = value || '';
+    return node.innerHTML;
+}
+
+async function updateQuickSearchResults(query) {
+    const results = document.getElementById('quick-search-results');
+    if (!results) return;
+    const normalized = query.trim().toLowerCase();
+    const pages = QUICK_SEARCH_PAGE_ITEMS.filter(item => {
+        const nav = document.querySelector(`.sidebar .nav-item[data-page="${item.page}"]`);
+        return nav && nav.offsetParent !== null && item.label.toLowerCase().includes(normalized);
+    });
+    const pagesHtml = pages.map(item => `<button type="button" class="quick-search-result" onclick="quickSearchGoToPage('${item.page}')"><span>Page</span><strong>${item.label}</strong></button>`).join('');
+    results.innerHTML = pagesHtml || '<p class="quick-search-empty">No matching pages.</p>';
+
+    if (normalized.length < 2 || typeof apiGet !== 'function') return;
+    const request = ++quickSearchRequest;
+    try {
+        const response = await apiGet(`/devices?page=1&limit=8&search=${encodeURIComponent(query)}`);
+        if (request !== quickSearchRequest || !response.success) return;
+        const deviceItems = (response.data || []).map(device => `<button type="button" class="quick-search-result" onclick="quickSearchOpenDevice(${Number(device.id)})"><span>Device</span><strong>${quickSearchEscape(device.name || device.sys_name || device.ip_address)}</strong><small>${quickSearchEscape(device.ip_address || '')}</small></button>`).join('');
+        results.innerHTML = (pagesHtml || '') + deviceItems || '<p class="quick-search-empty">No results.</p>';
+    } catch (error) {
+        if (request === quickSearchRequest) results.innerHTML = pagesHtml || '<p class="quick-search-empty">Search is unavailable.</p>';
+    }
+}
+
+function quickSearchGoToPage(page) {
+    closeQuickSearch();
+    window.location.hash = `#${page}`;
+    loadPage(page);
+}
+
+function quickSearchOpenDevice(id) {
+    closeQuickSearch();
+    if (typeof viewDevice === 'function') viewDevice(id);
+}
+
+document.addEventListener('keydown', event => {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        openQuickSearch();
+    }
+    if (event.key === 'Escape') closeQuickSearch();
+});
+
 function initAdminTabs() {
     const tabBtns = document.querySelectorAll('.admin-tabs .tab-btn');
 

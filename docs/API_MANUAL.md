@@ -1,12 +1,12 @@
 # Management Server API Manual
 
-Version: `v1.2.4.8`
+Version: `v1.2.4.9sp00022`
 Audience: customer system integration
 Base path: `/api/v1`
 
 ## Integration Readiness
 
-`v1.2.4.8` is the customer integration stable release for the current API contract.
+`v1.2.4.9sp00022` is the customer integration stable release for the current API contract.
 
 Capability status terms:
 
@@ -15,6 +15,28 @@ Capability status terms:
 | `Ready` | Implemented as a direct NMS API or runtime capability. | Safe for customer integration. |
 | `Bridge Ready` | NMS provides a stable ingest or embed contract, while the protocol adapter runs outside NMS. | Safe when a gateway normalizes data into the documented API. |
 | `Planned` | Reserved roadmap item. No stable runtime contract is exposed yet. | Do not build production integrations against this item. |
+
+## A few practical notes before you integrate
+
+This manual is written for engineers connecting a real system to NMS. These details are worth calling out up front:
+
+- The API root is `/api/v1`. When the document shows `/devices`, the full URL is
+  `/api/v1/devices`; do not add another `/api/v1` segment.
+- Except for login, public system information, and the integrity status endpoint, requests need a Bearer JWT.
+  JWTs expire. Store them on the server side and never put them in browser logs, URLs, or exported files.
+- `viewer` is read-only, `editor` can perform normal device and IoT actions, and `admin` can change users,
+  licensing, system settings, IoT definitions, and forwarding settings. A correct role does not bypass a missing License;
+  those requests can still return `403`.
+- Implement pagination for list APIs. Do not assume that one response contains the entire inventory or measurement history.
+  Use device, status, and time filters where available.
+- Time fields may be ISO 8601 or Unix epoch milliseconds. IoT forwarding `sendTime` is always an integer in milliseconds;
+  do not interpret it as seconds.
+- Keep the Modbus register address, function code, byte order, word order, scale, and offset together. A single decoded
+  value is usually not enough to reproduce how the field device was read.
+- `/iot/queue/status` reports NMS's local store-and-forward queue. If the target host is offline, records staying in this
+  queue is expected; it does not mean the customer system has received them yet.
+- If you receive `423 Locked`, check `/api/v1/system/integrity/status` before retrying write APIs. It means NMS is
+  protecting the database and requires the documented offline recovery procedure.
 
 ## 1. Authentication
 
@@ -94,7 +116,7 @@ Accept: application/json
 
 ## 2. Optimized Integration API
 
-`v1.2.4.8` provides a combined read API for customer dashboards and external systems.
+`v1.2.4.9sp00022` provides a combined read API for customer dashboards and external systems.
 Use this first when the client needs inventory, topology, and dashboard summary in one refresh.
 
 ```http
@@ -139,10 +161,10 @@ curl -H "Authorization: Bearer $TOKEN" \
     "api_version": "v1",
     "system": {
       "name": "System Server",
-      "version": "v1.2.4.8"
+      "version": "v1.2.4.9sp00022"
     },
     "dashboard": {
-      "version": "v1.2.4.8",
+      "version": "v1.2.4.9sp00022",
       "system_name": "System Server",
       "total_devices": 120,
       "online_count": 110,
@@ -412,11 +434,13 @@ Content-Type: application/json
   "enabled": true,
   "url": "https://customer.example.com/nms/iot",
   "token": "<customer-forward-token>",
-  "batch_size": 50
+  "clear_token": false,
+  "batch_size": 50,
+  "interval_ms": 30000
 }
 ```
 
-The token is stored server-side and is not returned by the settings API. The forward payload uses `schema_version: nms.iot.forward.v1` and includes a stable `event_id` for idempotency.
+The token is stored server-side and is not returned by the settings API. The forward payload contains `deviceId`, Unix epoch millisecond `sendTime`, and a multi-value `tagData` object. NMS sends a stable sample identifier in the `X-NMS-Idempotency-Key` header.
 
 Force a retry flush:
 
@@ -504,7 +528,151 @@ Every write is subject to license, RBAC, and audit logging.
 | `GET` | `/api/v1/integrations/embed-tokens` | admin | List issued embed tokens. |
 | `DELETE` | `/api/v1/integrations/embed-tokens/:token_id` | admin | Revoke an embed token. |
 
-## 7. HTTP Status Codes
+## 7. Complete Categorized API Catalog
+
+This section lists the API routes currently registered by `router.go`. Except for public
+routes and the integrity status route, requests require `Authorization: Bearer <jwt>`.
+`:id`, `:tokenId`, `:ifIndex`, and `:backupId` are path parameters. The role column is
+the minimum role: `viewer`, `editor`, or `admin`.
+
+### 7.1 Public, authentication, and system
+
+| Method | Path | Minimum role | Purpose |
+|---|---|---|---|
+| POST | `/auth/login` | public | Login and receive a JWT or 2FA challenge. |
+| POST | `/auth/verify-2fa` | public | Complete TOTP login. |
+| POST | `/auth/forgot-password` | public | Request a password reset. |
+| POST | `/auth/reset-password` | public | Set a password with a reset token. |
+| GET | `/system/info` | public | Version and basic system information. |
+| GET | `/branding` | public | Read public branding settings. |
+| GET | `/system/config` | public | Read public system configuration. |
+| POST | `/license/debug` | public/debug | License debug query; disable in production. |
+| GET | `/system/integrity/status` | public | Read-only integrity lockdown status. |
+
+### 7.2 Users, dashboard, license, alerts, and logs
+
+| Method | Path | Minimum role | Purpose |
+|---|---|---|---|
+| POST | `/auth/logout` | viewer | Log out. |
+| GET | `/auth/me` | viewer | Current user. |
+| POST | `/auth/change-password` | viewer | Change the current password. |
+| GET | `/auth/2fa/status` | viewer | Read 2FA status. |
+| POST | `/auth/2fa/enroll` | viewer | Begin TOTP enrollment. |
+| POST | `/auth/2fa/confirm` | viewer | Confirm TOTP enrollment. |
+| POST | `/auth/2fa/disable` | viewer | Disable the current user's 2FA. |
+| POST | `/auth/2fa/recovery-codes/regenerate` | viewer | Regenerate recovery codes. |
+| GET | `/dashboard`, `/dashboard/top-cpu`, `/dashboard/top-memory` | viewer | Dashboard and resource rankings. |
+| GET | `/license/status`, `/license/features` | viewer | License state and feature flags. |
+| GET | `/alerts/settings`, `/events`, `/logs` | viewer | Alert settings and aggregated events/logs. |
+| GET | `/system-logs`, `/device-logs`, `/config-change-logs` | viewer | Specialized log streams. |
+| GET | `/log-center/options` | viewer | Log-center filter options. |
+| GET | `/log-center/export` | viewer | Export log-center data. |
+| GET | `/log-center/evidence-bundle` | viewer | Export audit evidence bundle. |
+| PUT | `/audit-logs/:id/review` | viewer | Review an audit log. |
+| PUT | `/system-logs/:id/review` | viewer | Review a system log. |
+| PUT | `/config-change-logs/:id/review` | viewer | Review a configuration-change log. |
+| PUT | `/device-logs/:id/ack` | viewer | Acknowledge a device log. |
+| GET | `/notifications` | viewer | List notifications. |
+| PUT | `/notifications/read-all`, `/notifications/:id/read` | viewer | Mark notifications read. |
+| DELETE | `/notifications/all`, `/notifications/:id` | viewer | Delete notifications. |
+
+### 7.3 Network devices, topology, and device actions
+
+| Method | Path | Minimum role | Purpose |
+|---|---|---|---|
+| GET | `/devices`, `/devices/:id` | viewer | Paginated inventory and device details. |
+| GET | `/devices/:id/metrics` | viewer | Device metrics. |
+| GET | `/devices/:id/interfaces` | viewer | Interface inventory. |
+| GET | `/devices/:id/traffic` | viewer | Interface traffic. |
+| GET | `/devices/:id/events` | viewer | Device events. |
+| GET | `/topology` | viewer | Topology nodes and links. |
+| GET | `/topology/device/:id/interfaces` | viewer | Interfaces associated with topology links. |
+| POST | `/devices` | editor | Create a device. |
+| PUT | `/devices/:id` | editor | Update a device. |
+| DELETE | `/devices/:id` | editor | Delete a device. |
+| POST | `/devices/:id/image` | editor | Upload a device image. |
+| POST | `/devices/:id/poll` | editor | Poll a device immediately. |
+| POST | `/devices/bulk-scan` | editor | Scan devices in bulk. |
+| POST | `/devices/bulk-delete` | editor | Delete devices in bulk. |
+| POST | `/devices/bulk-update` | editor | Update devices in bulk. |
+| POST | `/topology/links` | editor | Create a topology link. |
+| PUT | `/topology/links/:id` | editor | Update a topology link. |
+| DELETE | `/topology/links/:id` | editor | Delete a topology link. |
+| PUT | `/topology/positions` | editor | Save topology positions. |
+| POST | `/topology/discover` | editor | Start topology discovery. |
+| POST | `/devices/:id/reboot` | editor | Reboot a device. |
+| POST | `/devices/:id/backup` | editor | Create a configuration backup. |
+| GET | `/devices/:id/backups` | editor | List configuration backups. |
+| GET | `/devices/:id/backups/:backupId/download` | editor | Download a configuration backup. |
+| GET | `/devices/:id/poe`, `/devices/:id/ap` | editor | Read PoE and AP status. |
+| POST | `/devices/:id/poe/:portIndex/action` | editor | Run a PoE port action. |
+| POST | `/devices/:id/interfaces/:ifIndex/status` | editor | Change interface administrative status. |
+
+### 7.4 Report exports
+
+All report routes require at least `editor` and return CSV, PDF, or JSON according to the
+route. Query parameters are validated by the individual report handler.
+
+`GET /reports/devices`, `/reports/devices/pdf`, `/reports/logs`, `/reports/logs/pdf`,
+`/reports/traffic`, `/reports/health`, `/reports/availability`, `/reports/inventory`,
+`/reports/interfaces`, `/reports/health-trend`, `/reports/sla`, `/reports/audit`,
+`/reports/license-capacity`, `/reports/cameras`, `/reports/pdu`, `/reports/access-control`,
+`/reports/topology`, `/reports/events`, `/reports/syslog`, `/reports/notifications`,
+`/reports/iot-devices`, `/reports/iot-measurements`, `/reports/camera-recordings`,
+`/reports/access-events`, `/reports/access-cards`, `/reports/access-schedules`, and
+`/reports/config-backups`.
+
+### 7.5 IoT, Modbus, and offline forwarding
+
+| Method | Path | Minimum role | Purpose |
+|---|---|---|---|
+| GET | `/iot/status` | viewer | IoT module status. |
+| GET | `/iot/capabilities` | viewer | Protocol and capability profiles. |
+| GET | `/iot/devices` | viewer | IoT device inventory. |
+| GET | `/iot/measurements` | viewer | Measurement query. |
+| GET | `/iot/queue/status` | viewer | Store-and-forward queue status. |
+| POST | `/iot/ingest` | editor | Receive normalized gateway, REST, or MQTT-bridge signals. |
+| POST | `/iot/devices/:id/poll` | editor | Poll an IoT device immediately. |
+| POST | `/iot/queue/flush` | editor | Retry queued forwarding. |
+| POST | `/iot/devices` | admin | Create a device and its signal definitions. |
+| PUT | `/iot/devices/:id` | admin | Update a device and its signals. |
+| DELETE | `/iot/devices/:id` | admin | Delete an IoT device. |
+| GET | `/iot/forwarder/settings` | admin | Read forwarding settings; bearer token is never returned. |
+| PUT | `/iot/forwarder/settings` | admin | Set target URL, batch size, and `interval_ms`. |
+| POST | `/iot/queue/cleanup` | admin | Remove successfully forwarded records. |
+
+### 7.6 Integrations, users, licensing, and system administration
+
+Integration routes are `GET /integrations/network-snapshot`, `GET /integrations/embed-snapshot`,
+`GET/PUT /integrations/settings`, `GET/POST /integrations/embed-tokens`, and
+`DELETE /integrations/embed-tokens/:tokenId`. Snapshot routes are read-only; settings and
+embed-token management require `admin`.
+
+User and license administration includes `GET/POST/PUT/DELETE /users` (admin),
+`GET /audit-logs`, `GET /audit-logs/actions`, `GET /license/machine-id`,
+`POST /license/activate`, `GET/POST /licenses`, `POST /license/reset`, and
+`POST /license/reissue`.
+
+System administration includes `GET /system/backup`, `GET /system/restore-readiness`,
+`POST /system/restore`, encrypted backup/restore and encryption-password/status routes,
+alert setting/test routes, ping/traceroute tools, branding update/logo routes,
+`GET /system/host-status`, `GET/PUT /security/settings`, and `PUT /system/config/:key`.
+All require `admin`.
+
+### 7.7 Cameras, access control, PDU, and terminal access
+
+Camera administration includes camera create/discovery/credential/update/delete/health routes
+and `GET/PUT /nvr/config` (admin). Editors read camera inventory and manage recording and
+`/recordings*`; authenticated viewers may read camera status, snapshots, and MJPEG streams.
+
+Authenticated viewers may read `/access-control/status` and `/access-control/events`. Editors
+read doors, cards, and door details. Administrators manage doors, cards, events, schedules,
+schedule approval, and schedule access checks.
+
+Authenticated viewers may read `/pdu/status`; editors manage `/pdu/devices`, device details,
+and polling. `GET /devices/:id/terminal` provides the authenticated editor WebSocket terminal.
+
+## 8. HTTP Status Codes
 
 | Status | Meaning |
 | --- | --- |
@@ -515,9 +683,11 @@ Every write is subject to license, RBAC, and audit logging.
 | `403` | Role, license, or feature gate blocked the request. |
 | `404` | Route or resource not found. |
 | `409` | Conflict, such as duplicate device IP. |
+| `423` | Integrity lockdown is active; application APIs are blocked. |
+| `429` | Login or request rate limit exceeded. |
 | `500` | Server-side error. |
 
-## 8. Integration Recommendations
+## 9. Integration Recommendations
 
 - Prefer HTTPS in customer deployments.
 - Use one dedicated integration account per customer system.
@@ -529,7 +699,7 @@ Every write is subject to license, RBAC, and audit logging.
 - Keep `schema_version` checks in the client so future payload changes can be handled safely.
 - Do not rely on undocumented database columns. The API payload is the external contract.
 
-## 9. Security Validation Gate
+## 10. Security Validation Gate
 
 For customer deployments, treat these as minimum verification items before go-live:
 
@@ -540,7 +710,7 @@ For customer deployments, treat these as minimum verification items before go-li
 - For MQTT, OPC-UA, and BACnet gateways, enforce source allowlists, scoped tokens, rate limits, replay protection, and audit logging before posting to `/api/v1/iot/ingest`.
 - Keep Windows deployment on `start_nms.bat` or `start_nms.ps1`; do not launch `nms_server.exe` directly.
 
-## 10. Smart Building 2016 / 2024 Alignment
+## 11. Smart Building 2016 / 2024 Alignment
 
 This release supports smart-building integration evidence and operational data exchange. It does not claim that the product itself has obtained a smart-building label, ISO certification, or statutory approval.
 

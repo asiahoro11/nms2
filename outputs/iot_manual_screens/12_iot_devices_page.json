@@ -1,0 +1,7 @@
+{
+  "url": "http://10.100.100.11:8080/?restored=true#iot",
+  "title": "管理系統",
+  "text": "Management System\n儀表板\n設備清單\n網路拓樸\n攝影機監控\n門禁管理\nPDU/UPS 監控\nIoT\nIoT / Modbus\n日誌與稽核\n系統管理\n主題切換\n系統運行中\nv1.2.4.9\n🏠 主控台\n繁體中文\nEnglish\n简体中文\n日本語\n한국어\nyoyo\n管理者\nIoT 感測器\n刷新\n新增設備\n功能頁面 線上模組總覽 設備管理 整合設定\n名稱\t類型\t協定\t目標\t暫存器\t指標\t最後數值\t最後上線\t操作\n尚未設定任何設備\n時間\t設備 / 外部 ID\t指標\t數值\t狀態\n無資料",
+  "activeTab": "設備管理",
+  "visibleInputs": []
+}

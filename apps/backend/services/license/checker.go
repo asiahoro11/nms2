@@ -4,7 +4,6 @@ package license
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"log"
 	"management-server/config"
@@ -26,11 +25,7 @@ func GetMaxDevices(db *sql.DB, cfg *config.Config) int {
 	}
 
 	// 2. Get licensed count
-	var licensedDevices int
-	db.QueryRow(`
-		SELECT COALESCE(SUM(device_count), 0) FROM licenses 
-		WHERE is_active = 1 AND ` + ActiveLicenseWindowSQL + `
-	`).Scan(&licensedDevices)
+	licensedDevices := ActiveDeviceCount(db)
 
 	return defaultLimit + licensedDevices
 }
@@ -70,26 +65,8 @@ func IsFeatureEnabled(db *sql.DB, cfg *config.Config, feature string) bool {
 	}
 
 	// Check active licenses
-	rows, err := db.Query(`
-		SELECT enabled_features FROM licenses 
-		WHERE is_active = 1 AND ` + ActiveLicenseWindowSQL + `
-	`)
-	if err != nil {
-		log.Printf("[License] Failed to query licenses: %v", err)
-		return false
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var featuresJSON string
-		if err := rows.Scan(&featuresJSON); err != nil {
-			continue
-		}
-		var features []string
-		if err := json.Unmarshal([]byte(featuresJSON), &features); err != nil {
-			continue
-		}
-		for _, f := range features {
+	for _, item := range VerifiedActiveLicenses(db) {
+		for _, f := range item.Features {
 			if f == feature {
 				return true
 			}
@@ -104,15 +81,7 @@ func HasActiveLicense(db *sql.DB) bool {
 		return false
 	}
 
-	var count int
-	if err := db.QueryRow(`
-		SELECT COUNT(*) FROM licenses
-		WHERE is_active = 1 AND ` + ActiveLicenseWindowSQL + `
-	`).Scan(&count); err != nil {
-		return false
-	}
-
-	return count > 0
+	return len(VerifiedActiveLicenses(db)) > 0
 }
 
 func HasLicenseRecords(db *sql.DB) bool {

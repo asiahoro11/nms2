@@ -1,0 +1,845 @@
+{
+  "schema": "openai.presentation.layout/v4",
+  "unit": "px",
+  "slide": {
+    "aid": "sl/cfjebc",
+    "id": "cfjebc",
+    "slide": 21,
+    "layoutId": "8fa31a6f-b5ed-4dd5-8e6e-eba87e7b5999",
+    "layoutName": "Title Slide",
+    "layoutType": "title",
+    "masterLayoutId": "44a42b75-2d83-4ad6-bba2-69d035aae417",
+    "masterLayoutName": "Master",
+    "backgroundColor": "#FFFFFF",
+    "frame": {
+      "left": 0,
+      "top": 0,
+      "width": 1280,
+      "height": 720
+    }
+  },
+  "theme": {
+    "colorSchemeName": "ChatGPT",
+    "colors": {
+      "accent1": "#156082",
+      "accent2": "#E97132",
+      "accent3": "#196B24",
+      "accent4": "#0F9ED5",
+      "accent5": "#A02B93",
+      "accent6": "#4EA72E",
+      "bg1": "#FFFFFF",
+      "bg2": "#000000",
+      "tx1": "#1F1F1F",
+      "tx2": "#FFFFFF",
+      "dk1": "#000000",
+      "lt1": "#FFFFFF",
+      "dk2": "#0E2841",
+      "lt2": "#E8E8E8",
+      "hlink": "#467886",
+      "folHlink": "#96607D"
+    },
+    "typefaces": [
+      "Microsoft JhengHei"
+    ]
+  },
+  "inheritedLayers": [
+    {
+      "scope": "layout",
+      "id": "8fa31a6f-b5ed-4dd5-8e6e-eba87e7b5999",
+      "name": "Title Slide",
+      "type": "title",
+      "parentLayoutId": "44a42b75-2d83-4ad6-bba2-69d035aae417",
+      "elements": []
+    },
+    {
+      "scope": "master",
+      "id": "44a42b75-2d83-4ad6-bba2-69d035aae417",
+      "name": "Master",
+      "type": "master",
+      "elements": []
+    }
+  ],
+  "elements": [
+    {
+      "order": 1,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/72x4nap4",
+      "id": "1",
+      "bbox": [
+        46,
+        30,
+        620,
+        26
+      ],
+      "geometry": "rect",
+      "text": "使用者與權限",
+      "textPreview": "使用者與權限",
+      "resolvedFontSize": 15,
+      "resolvedTextStyle": {
+        "fontSize": 15,
+        "typeface": "Microsoft JhengHei",
+        "color": "#FF6B35",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "使用者與權限"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "使用者與權限",
+          "resolvedTextStyle": {
+            "fontSize": 15,
+            "typeface": "Microsoft JhengHei",
+            "color": "#FF6B35",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "使用者與權限",
+              "fontSize": 15,
+              "typeface": "Microsoft JhengHei",
+              "color": "#FF6B35",
+              "bold": true,
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 2,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/0nuxc3yl",
+      "id": "2",
+      "bbox": [
+        46,
+        64,
+        880,
+        58
+      ],
+      "geometry": "rect",
+      "text": "管理使用者帳號與角色",
+      "textPreview": "管理使用者帳號與角色",
+      "resolvedFontSize": 37,
+      "resolvedTextStyle": {
+        "fontSize": 37,
+        "typeface": "Microsoft JhengHei",
+        "color": "#17202A",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "管理使用者帳號與角色"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "管理使用者帳號與角色",
+          "resolvedTextStyle": {
+            "fontSize": 37,
+            "typeface": "Microsoft JhengHei",
+            "color": "#17202A",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "管理使用者帳號與角色",
+              "fontSize": 37,
+              "typeface": "Microsoft JhengHei",
+              "color": "#17202A",
+              "bold": true,
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 3,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/p8nqxs72",
+      "id": "3",
+      "bbox": [
+        46,
+        132,
+        1188,
+        1
+      ],
+      "geometry": "rect",
+      "fillColor": "#D8DEE6",
+      "lineColor": "#D8DEE6",
+      "lineWidth": 0
+    },
+    {
+      "order": 4,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/itgfmlkj",
+      "id": "4",
+      "bbox": [
+        1160,
+        34,
+        72,
+        30
+      ],
+      "geometry": "rect",
+      "text": "21",
+      "textPreview": "21",
+      "resolvedFontSize": 20,
+      "resolvedTextStyle": {
+        "fontSize": 20,
+        "typeface": "Microsoft JhengHei",
+        "color": "#556270",
+        "bold": true,
+        "alignment": "right",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "21"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "21",
+          "resolvedTextStyle": {
+            "fontSize": 20,
+            "typeface": "Microsoft JhengHei",
+            "color": "#556270",
+            "bold": true,
+            "alignment": "right"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "21",
+              "fontSize": 20,
+              "typeface": "Microsoft JhengHei",
+              "color": "#556270",
+              "bold": true,
+              "alignment": "right"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 5,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/7ed8bat4",
+      "id": "5",
+      "bbox": [
+        46,
+        160,
+        760,
+        470
+      ],
+      "geometry": "rect",
+      "fillColor": "#FFFFFF",
+      "lineColor": "#D8DEE6",
+      "lineWidth": 1
+    },
+    {
+      "order": 6,
+      "kind": "image",
+      "scope": "slide",
+      "aid": "im/h4byhgn2",
+      "id": "6",
+      "bbox": [
+        56,
+        170,
+        740,
+        450
+      ],
+      "alt": "管理使用者帳號與角色",
+      "contentType": "image/png",
+      "imageFit": "contain",
+      "asset": {
+        "assetId": "68007317-d7a7-4526-8f79-d1d4138bb0b9",
+        "contentType": "image/png",
+        "byteLength": 131437
+      }
+    },
+    {
+      "order": 7,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/pkzupwb2",
+      "id": "7",
+      "bbox": [
+        825,
+        160,
+        380,
+        470
+      ],
+      "geometry": "rect",
+      "fillColor": "#F4F6F8",
+      "lineColor": "#D8DEE6",
+      "lineWidth": 1
+    },
+    {
+      "order": 8,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/i5sneloj",
+      "id": "8",
+      "bbox": [
+        842,
+        184,
+        330,
+        28
+      ],
+      "geometry": "rect",
+      "text": "用途",
+      "textPreview": "用途",
+      "resolvedFontSize": 22,
+      "resolvedTextStyle": {
+        "fontSize": 22,
+        "typeface": "Microsoft JhengHei",
+        "color": "#1F5FAA",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "用途"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "用途",
+          "resolvedTextStyle": {
+            "fontSize": 22,
+            "typeface": "Microsoft JhengHei",
+            "color": "#1F5FAA",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "用途",
+              "fontSize": 22,
+              "typeface": "Microsoft JhengHei",
+              "color": "#1F5FAA",
+              "bold": true,
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 9,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/7qpg3ex0",
+      "id": "9",
+      "bbox": [
+        842,
+        222,
+        350,
+        52
+      ],
+      "geometry": "rect",
+      "text": "• 控制誰可以查看或修改系統",
+      "textPreview": "• 控制誰可以查看或修改系統",
+      "resolvedFontSize": 19,
+      "resolvedTextStyle": {
+        "fontSize": 19,
+        "typeface": "Microsoft JhengHei",
+        "color": "#17202A",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "• 控制誰可以查看或修改系統"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "• 控制誰可以查看或修改系統",
+          "resolvedTextStyle": {
+            "fontSize": 19,
+            "typeface": "Microsoft JhengHei",
+            "color": "#17202A",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "• 控制誰可以查看或修改系統",
+              "fontSize": 19,
+              "typeface": "Microsoft JhengHei",
+              "color": "#17202A",
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 10,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/fu18jqh0",
+      "id": "10",
+      "bbox": [
+        842,
+        292,
+        330,
+        28
+      ],
+      "geometry": "rect",
+      "text": "操作",
+      "textPreview": "操作",
+      "resolvedFontSize": 22,
+      "resolvedTextStyle": {
+        "fontSize": 22,
+        "typeface": "Microsoft JhengHei",
+        "color": "#1F5FAA",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "操作"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "操作",
+          "resolvedTextStyle": {
+            "fontSize": 22,
+            "typeface": "Microsoft JhengHei",
+            "color": "#1F5FAA",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "操作",
+              "fontSize": 22,
+              "typeface": "Microsoft JhengHei",
+              "color": "#1F5FAA",
+              "bold": true,
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 11,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/m94fu18j",
+      "id": "11",
+      "bbox": [
+        842,
+        330,
+        350,
+        102
+      ],
+      "geometry": "rect",
+      "text": "• 新增或編輯使用者\n• 選擇 Admin、Editor 或 Viewer\n• 必要時重設密碼",
+      "textPreview": "• 新增或編輯使用者 | • 選擇 Admin、Editor 或 Viewer | • 必要時重設密碼",
+      "resolvedFontSize": 19,
+      "resolvedTextStyle": {
+        "fontSize": 19,
+        "typeface": "Microsoft JhengHei",
+        "color": "#17202A",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 3,
+        "lines": [
+          {
+            "index": 1,
+            "text": "• 新增或編輯使用者"
+          },
+          {
+            "index": 2,
+            "text": "• 選擇 Admin、Editor 或 Viewer"
+          },
+          {
+            "index": 3,
+            "text": "• 必要時重設密碼"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "• 新增或編輯使用者",
+          "resolvedTextStyle": {
+            "fontSize": 19,
+            "typeface": "Microsoft JhengHei",
+            "color": "#17202A",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "• 新增或編輯使用者",
+              "fontSize": 19,
+              "typeface": "Microsoft JhengHei",
+              "color": "#17202A",
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        },
+        {
+          "index": 2,
+          "text": "• 選擇 Admin、Editor 或 Viewer",
+          "resolvedTextStyle": {
+            "fontSize": 19,
+            "typeface": "Microsoft JhengHei",
+            "color": "#17202A",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "• 選擇 Admin、Editor 或 Viewer",
+              "fontSize": 19,
+              "typeface": "Microsoft JhengHei",
+              "color": "#17202A",
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        },
+        {
+          "index": 3,
+          "text": "• 必要時重設密碼",
+          "resolvedTextStyle": {
+            "fontSize": 19,
+            "typeface": "Microsoft JhengHei",
+            "color": "#17202A",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "• 必要時重設密碼",
+              "fontSize": 19,
+              "typeface": "Microsoft JhengHei",
+              "color": "#17202A",
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 12,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/x0nuxc3y",
+      "id": "12",
+      "bbox": [
+        842,
+        450,
+        330,
+        28
+      ],
+      "geometry": "rect",
+      "text": "確認",
+      "textPreview": "確認",
+      "resolvedFontSize": 22,
+      "resolvedTextStyle": {
+        "fontSize": 22,
+        "typeface": "Microsoft JhengHei",
+        "color": "#1F5FAA",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "確認"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "確認",
+          "resolvedTextStyle": {
+            "fontSize": 22,
+            "typeface": "Microsoft JhengHei",
+            "color": "#1F5FAA",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "確認",
+              "fontSize": 22,
+              "typeface": "Microsoft JhengHei",
+              "color": "#1F5FAA",
+              "bold": true,
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 13,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/4fu18jqh",
+      "id": "13",
+      "bbox": [
+        842,
+        488,
+        350,
+        52
+      ],
+      "geometry": "rect",
+      "text": "• 使用者用新權限登入成功",
+      "textPreview": "• 使用者用新權限登入成功",
+      "resolvedFontSize": 19,
+      "resolvedTextStyle": {
+        "fontSize": 19,
+        "typeface": "Microsoft JhengHei",
+        "color": "#17202A",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "• 使用者用新權限登入成功"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "• 使用者用新權限登入成功",
+          "resolvedTextStyle": {
+            "fontSize": 19,
+            "typeface": "Microsoft JhengHei",
+            "color": "#17202A",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "• 使用者用新權限登入成功",
+              "fontSize": 19,
+              "typeface": "Microsoft JhengHei",
+              "color": "#17202A",
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 14,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/fil0rqd4",
+      "id": "14",
+      "bbox": [
+        825,
+        648,
+        380,
+        34
+      ],
+      "geometry": "rect",
+      "fillColor": "#FFF1EA",
+      "lineColor": "#FFD2BF",
+      "lineWidth": 1
+    },
+    {
+      "order": 15,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/qxs72x4n",
+      "id": "15",
+      "bbox": [
+        842,
+        655,
+        350,
+        22
+      ],
+      "geometry": "rect",
+      "text": "一般值班帳號建議使用 Viewer",
+      "textPreview": "一般值班帳號建議使用 Viewer",
+      "resolvedFontSize": 16,
+      "resolvedTextStyle": {
+        "fontSize": 16,
+        "typeface": "Microsoft JhengHei",
+        "color": "#FF6B35",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "一般值班帳號建議使用 Viewer"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "一般值班帳號建議使用 Viewer",
+          "resolvedTextStyle": {
+            "fontSize": 16,
+            "typeface": "Microsoft JhengHei",
+            "color": "#FF6B35",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "一般值班帳號建議使用 Viewer",
+              "fontSize": 16,
+              "typeface": "Microsoft JhengHei",
+              "color": "#FF6B35",
+              "bold": true,
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    }
+  ],
+  "composeRuns": []
+}

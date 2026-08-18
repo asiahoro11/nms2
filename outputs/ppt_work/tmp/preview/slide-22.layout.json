@@ -1,0 +1,1044 @@
+{
+  "schema": "openai.presentation.layout/v4",
+  "unit": "px",
+  "slide": {
+    "aid": "sl/6dtvcp",
+    "id": "6dtvcp",
+    "slide": 22,
+    "layoutId": "596f7c88-43a2-47bc-bf6f-bc59db248a05",
+    "layoutName": "Title Slide",
+    "layoutType": "title",
+    "masterLayoutId": "8e295afe-8203-4660-b17b-07aa32ad4a3c",
+    "masterLayoutName": "Master",
+    "backgroundColor": "#FFFFFF",
+    "frame": {
+      "left": 0,
+      "top": 0,
+      "width": 1280,
+      "height": 720
+    }
+  },
+  "theme": {
+    "colorSchemeName": "ChatGPT",
+    "colors": {
+      "accent1": "#156082",
+      "accent2": "#E97132",
+      "accent3": "#196B24",
+      "accent4": "#0F9ED5",
+      "accent5": "#A02B93",
+      "accent6": "#4EA72E",
+      "bg1": "#FFFFFF",
+      "bg2": "#000000",
+      "tx1": "#1F1F1F",
+      "tx2": "#FFFFFF",
+      "dk1": "#000000",
+      "lt1": "#FFFFFF",
+      "dk2": "#0E2841",
+      "lt2": "#E8E8E8",
+      "hlink": "#467886",
+      "folHlink": "#96607D"
+    },
+    "typefaces": [
+      "Microsoft JhengHei"
+    ]
+  },
+  "inheritedLayers": [
+    {
+      "scope": "layout",
+      "id": "596f7c88-43a2-47bc-bf6f-bc59db248a05",
+      "name": "Title Slide",
+      "type": "title",
+      "parentLayoutId": "8e295afe-8203-4660-b17b-07aa32ad4a3c",
+      "elements": []
+    },
+    {
+      "scope": "master",
+      "id": "8e295afe-8203-4660-b17b-07aa32ad4a3c",
+      "name": "Master",
+      "type": "master",
+      "elements": []
+    }
+  ],
+  "elements": [
+    {
+      "order": 1,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/f6dcbulw",
+      "id": "1",
+      "bbox": [
+        42,
+        34,
+        420,
+        28
+      ],
+      "geometry": "rect",
+      "text": "故障排除",
+      "textPreview": "故障排除",
+      "resolvedFontSize": 15,
+      "resolvedTextStyle": {
+        "fontSize": 15,
+        "typeface": "Microsoft JhengHei",
+        "color": "#555555",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "故障排除"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "故障排除",
+          "resolvedTextStyle": {
+            "fontSize": 15,
+            "typeface": "Microsoft JhengHei",
+            "color": "#555555",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "故障排除",
+              "fontSize": 15,
+              "typeface": "Microsoft JhengHei",
+              "color": "#555555",
+              "bold": true,
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 2,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/4r65wjud",
+      "id": "2",
+      "bbox": [
+        42,
+        72,
+        940,
+        76
+      ],
+      "geometry": "rect",
+      "text": "遇到問題時先判斷是權限、授權、網路還是設備端",
+      "textPreview": "遇到問題時先判斷是權限、授權、網路還是設備端",
+      "resolvedFontSize": 39,
+      "resolvedTextStyle": {
+        "fontSize": 39,
+        "typeface": "Microsoft JhengHei",
+        "color": "#111111",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "遇到問題時先判斷是權限、授權、網路還是設備端"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "遇到問題時先判斷是權限、授權、網路還是設備端",
+          "resolvedTextStyle": {
+            "fontSize": 39,
+            "typeface": "Microsoft JhengHei",
+            "color": "#111111",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "遇到問題時先判斷是權限、授權、網路還是設備端",
+              "fontSize": 39,
+              "typeface": "Microsoft JhengHei",
+              "color": "#111111",
+              "bold": true,
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 3,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/xc3ylc7u",
+      "id": "3",
+      "bbox": [
+        42,
+        155,
+        1196,
+        0
+      ],
+      "geometry": "line",
+      "lineColor": "#B8BCC4",
+      "lineWidth": 1
+    },
+    {
+      "order": 4,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/mtwra5gb",
+      "id": "4",
+      "bbox": [
+        1184,
+        658,
+        54,
+        24
+      ],
+      "geometry": "rect",
+      "text": "22",
+      "textPreview": "22",
+      "resolvedFontSize": 14,
+      "resolvedTextStyle": {
+        "fontSize": 14,
+        "typeface": "Microsoft JhengHei",
+        "color": "#555555",
+        "alignment": "right",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "22"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "22",
+          "resolvedTextStyle": {
+            "fontSize": 14,
+            "typeface": "Microsoft JhengHei",
+            "color": "#555555",
+            "alignment": "right"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "22",
+              "fontSize": 14,
+              "typeface": "Microsoft JhengHei",
+              "color": "#555555",
+              "alignment": "right"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 5,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/fepkzupw",
+      "id": "5",
+      "bbox": [
+        74,
+        190,
+        486,
+        88
+      ],
+      "geometry": "rect",
+      "fillColor": "#FFF3EE",
+      "lineWidth": 0
+    },
+    {
+      "order": 6,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/4zidonyd",
+      "id": "6",
+      "bbox": [
+        96,
+        202,
+        190,
+        28
+      ],
+      "geometry": "rect",
+      "text": "看不到模組",
+      "textPreview": "看不到模組",
+      "resolvedFontSize": 23,
+      "resolvedTextStyle": {
+        "fontSize": 23,
+        "typeface": "Microsoft JhengHei",
+        "color": "#FF6B35",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "看不到模組"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "看不到模組",
+          "resolvedTextStyle": {
+            "fontSize": 23,
+            "typeface": "Microsoft JhengHei",
+            "color": "#FF6B35",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "看不到模組",
+              "fontSize": 23,
+              "typeface": "Microsoft JhengHei",
+              "color": "#FF6B35",
+              "bold": true,
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 7,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/xkf6dcbu",
+      "id": "7",
+      "bbox": [
+        292,
+        202,
+        230,
+        50
+      ],
+      "geometry": "rect",
+      "text": "檢查 License features、角色、模組開關與鎖定提示。",
+      "textPreview": "檢查 License features、角色、模組開關與鎖定提示。",
+      "resolvedFontSize": 17,
+      "resolvedTextStyle": {
+        "fontSize": 17,
+        "typeface": "Microsoft JhengHei",
+        "color": "#555555",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 3,
+        "lines": [
+          {
+            "index": 1,
+            "text": "檢查 License"
+          },
+          {
+            "index": 2,
+            "text": "features、角色、模組開關"
+          },
+          {
+            "index": 3,
+            "text": "與鎖定提示。"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "檢查 License features、角色、模組開關與鎖定提示。",
+          "resolvedTextStyle": {
+            "fontSize": 17,
+            "typeface": "Microsoft JhengHei",
+            "color": "#555555",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "檢查 License features、角色、模組開關與鎖定提示。",
+              "fontSize": 17,
+              "typeface": "Microsoft JhengHei",
+              "color": "#555555",
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 8,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/qxs72x4n",
+      "id": "8",
+      "bbox": [
+        622,
+        190,
+        486,
+        88
+      ],
+      "geometry": "rect",
+      "fillColor": "#EDEDED",
+      "lineWidth": 0
+    },
+    {
+      "order": 9,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/fil0rqd4",
+      "id": "9",
+      "bbox": [
+        644,
+        202,
+        190,
+        28
+      ],
+      "geometry": "rect",
+      "text": "設備沒有資料",
+      "textPreview": "設備沒有資料",
+      "resolvedFontSize": 23,
+      "resolvedTextStyle": {
+        "fontSize": 23,
+        "typeface": "Microsoft JhengHei",
+        "color": "#111111",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "設備沒有資料"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "設備沒有資料",
+          "resolvedTextStyle": {
+            "fontSize": 23,
+            "typeface": "Microsoft JhengHei",
+            "color": "#111111",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "設備沒有資料",
+              "fontSize": 23,
+              "typeface": "Microsoft JhengHei",
+              "color": "#111111",
+              "bold": true,
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 10,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/fepkzupw",
+      "id": "10",
+      "bbox": [
+        840,
+        202,
+        230,
+        50
+      ],
+      "geometry": "rect",
+      "text": "確認 Ping/SNMP 可達、community/v3 權限、poll interval 與防火牆。",
+      "textPreview": "確認 Ping/SNMP 可達、community/v3 權限、poll interval 與防火牆。",
+      "resolvedFontSize": 17,
+      "resolvedTextStyle": {
+        "fontSize": 17,
+        "typeface": "Microsoft JhengHei",
+        "color": "#555555",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 4,
+        "lines": [
+          {
+            "index": 1,
+            "text": "確認 Ping/SNMP"
+          },
+          {
+            "index": 2,
+            "text": "可達、community/v3"
+          },
+          {
+            "index": 3,
+            "text": "權限、poll interval"
+          },
+          {
+            "index": 4,
+            "text": "與防火牆。"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "確認 Ping/SNMP 可達、community/v3 權限、poll interval 與防火牆。",
+          "resolvedTextStyle": {
+            "fontSize": 17,
+            "typeface": "Microsoft JhengHei",
+            "color": "#555555",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "確認 Ping/SNMP 可達、community/v3 權限、poll interval 與防火牆。",
+              "fontSize": 17,
+              "typeface": "Microsoft JhengHei",
+              "color": "#555555",
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 11,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/mtwra5gb",
+      "id": "11",
+      "bbox": [
+        74,
+        322,
+        486,
+        88
+      ],
+      "geometry": "rect",
+      "fillColor": "#EDEDED",
+      "lineWidth": 0
+    },
+    {
+      "order": 12,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/xkf6dcbu",
+      "id": "12",
+      "bbox": [
+        96,
+        334,
+        190,
+        28
+      ],
+      "geometry": "rect",
+      "text": "攝影機黑畫面",
+      "textPreview": "攝影機黑畫面",
+      "resolvedFontSize": 23,
+      "resolvedTextStyle": {
+        "fontSize": 23,
+        "typeface": "Microsoft JhengHei",
+        "color": "#111111",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "攝影機黑畫面"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "攝影機黑畫面",
+          "resolvedTextStyle": {
+            "fontSize": 23,
+            "typeface": "Microsoft JhengHei",
+            "color": "#111111",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "攝影機黑畫面",
+              "fontSize": 23,
+              "typeface": "Microsoft JhengHei",
+              "color": "#111111",
+              "bold": true,
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 13,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/4zidonyd",
+      "id": "13",
+      "bbox": [
+        292,
+        334,
+        230,
+        50
+      ],
+      "geometry": "rect",
+      "text": "先測 snapshot，再看 RTSP/ONVIF、transport、編碼與 go2rtc/FFmpeg 狀態。",
+      "textPreview": "先測 snapshot，再看 RTSP/ONVIF、transport、編碼與 go2rtc/FFmpeg 狀態。",
+      "resolvedFontSize": 17,
+      "resolvedTextStyle": {
+        "fontSize": 17,
+        "typeface": "Microsoft JhengHei",
+        "color": "#555555",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 4,
+        "lines": [
+          {
+            "index": 1,
+            "text": "先測 snapshot，再看"
+          },
+          {
+            "index": 2,
+            "text": "RTSP/ONVIF、transport、"
+          },
+          {
+            "index": 3,
+            "text": "編碼與 go2rtc/FFmpeg"
+          },
+          {
+            "index": 4,
+            "text": "狀態。"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "先測 snapshot，再看 RTSP/ONVIF、transport、編碼與 go2rtc/FFmpeg 狀態。",
+          "resolvedTextStyle": {
+            "fontSize": 17,
+            "typeface": "Microsoft JhengHei",
+            "color": "#555555",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "先測 snapshot，再看 RTSP/ONVIF、transport、編碼與 go2rtc/FFmpeg 狀態。",
+              "fontSize": 17,
+              "typeface": "Microsoft JhengHei",
+              "color": "#555555",
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 14,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/f6dcbulw",
+      "id": "14",
+      "bbox": [
+        622,
+        322,
+        486,
+        88
+      ],
+      "geometry": "rect",
+      "fillColor": "#EDEDED",
+      "lineWidth": 0
+    },
+    {
+      "order": 15,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/mlkjm1cf",
+      "id": "15",
+      "bbox": [
+        644,
+        334,
+        190,
+        28
+      ],
+      "geometry": "rect",
+      "text": "IoT 未送出",
+      "textPreview": "IoT 未送出",
+      "resolvedFontSize": 23,
+      "resolvedTextStyle": {
+        "fontSize": 23,
+        "typeface": "Microsoft JhengHei",
+        "color": "#111111",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "IoT 未送出"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "IoT 未送出",
+          "resolvedTextStyle": {
+            "fontSize": 23,
+            "typeface": "Microsoft JhengHei",
+            "color": "#111111",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "IoT 未送出",
+              "fontSize": 23,
+              "typeface": "Microsoft JhengHei",
+              "color": "#111111",
+              "bold": true,
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 16,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/xc3ylc7u",
+      "id": "16",
+      "bbox": [
+        840,
+        334,
+        230,
+        50
+      ],
+      "geometry": "rect",
+      "text": "查看 queue status、forward URL/token、batch size、flush 與 failed 記錄。",
+      "textPreview": "查看 queue status、forward URL/token、batch size、flush 與 failed 記錄。",
+      "resolvedFontSize": 17,
+      "resolvedTextStyle": {
+        "fontSize": 17,
+        "typeface": "Microsoft JhengHei",
+        "color": "#555555",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 4,
+        "lines": [
+          {
+            "index": 1,
+            "text": "查看 queue"
+          },
+          {
+            "index": 2,
+            "text": "status、forward"
+          },
+          {
+            "index": 3,
+            "text": "URL/token、batch"
+          },
+          {
+            "index": 4,
+            "text": "size、flush 與 failed 記錄。"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "查看 queue status、forward URL/token、batch size、flush 與 failed 記錄。",
+          "resolvedTextStyle": {
+            "fontSize": 17,
+            "typeface": "Microsoft JhengHei",
+            "color": "#555555",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "查看 queue status、forward URL/token、batch size、flush 與 failed 記錄。",
+              "fontSize": 17,
+              "typeface": "Microsoft JhengHei",
+              "color": "#555555",
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 17,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/4r65wjud",
+      "id": "17",
+      "bbox": [
+        74,
+        454,
+        486,
+        88
+      ],
+      "geometry": "rect",
+      "fillColor": "#EDEDED",
+      "lineWidth": 0
+    },
+    {
+      "order": 18,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/fu18jqh0",
+      "id": "18",
+      "bbox": [
+        96,
+        466,
+        190,
+        28
+      ],
+      "geometry": "rect",
+      "text": "頁面卡住",
+      "textPreview": "頁面卡住",
+      "resolvedFontSize": 23,
+      "resolvedTextStyle": {
+        "fontSize": 23,
+        "typeface": "Microsoft JhengHei",
+        "color": "#111111",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "頁面卡住"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "頁面卡住",
+          "resolvedTextStyle": {
+            "fontSize": 23,
+            "typeface": "Microsoft JhengHei",
+            "color": "#111111",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "頁面卡住",
+              "fontSize": 23,
+              "typeface": "Microsoft JhengHei",
+              "color": "#111111",
+              "bold": true,
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 19,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/m94fu18j",
+      "id": "19",
+      "bbox": [
+        292,
+        466,
+        230,
+        50
+      ],
+      "geometry": "rect",
+      "text": "檢查 host-status、license、machine ID 請求 timeout 與 server.log。",
+      "textPreview": "檢查 host-status、license、machine ID 請求 timeout 與 server.log。",
+      "resolvedFontSize": 17,
+      "resolvedTextStyle": {
+        "fontSize": 17,
+        "typeface": "Microsoft JhengHei",
+        "color": "#555555",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 4,
+        "lines": [
+          {
+            "index": 1,
+            "text": "檢查"
+          },
+          {
+            "index": 2,
+            "text": "host-status、license、ma"
+          },
+          {
+            "index": 3,
+            "text": "chine ID 請求 timeout 與"
+          },
+          {
+            "index": 4,
+            "text": "server.log。"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "檢查 host-status、license、machine ID 請求 timeout 與 server.log。",
+          "resolvedTextStyle": {
+            "fontSize": 17,
+            "typeface": "Microsoft JhengHei",
+            "color": "#555555",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "檢查 host-status、license、machine ID 請求 timeout 與 server.log。",
+              "fontSize": 17,
+              "typeface": "Microsoft JhengHei",
+              "color": "#555555",
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    }
+  ],
+  "composeRuns": []
+}

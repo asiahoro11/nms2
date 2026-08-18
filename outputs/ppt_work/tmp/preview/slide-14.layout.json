@@ -1,0 +1,799 @@
+{
+  "schema": "openai.presentation.layout/v4",
+  "unit": "px",
+  "slide": {
+    "aid": "sl/lezbs6",
+    "id": "lezbs6",
+    "slide": 14,
+    "layoutId": "596f7c88-43a2-47bc-bf6f-bc59db248a05",
+    "layoutName": "Title Slide",
+    "layoutType": "title",
+    "masterLayoutId": "8e295afe-8203-4660-b17b-07aa32ad4a3c",
+    "masterLayoutName": "Master",
+    "backgroundColor": "#FFFFFF",
+    "frame": {
+      "left": 0,
+      "top": 0,
+      "width": 1280,
+      "height": 720
+    }
+  },
+  "theme": {
+    "colorSchemeName": "ChatGPT",
+    "colors": {
+      "accent1": "#156082",
+      "accent2": "#E97132",
+      "accent3": "#196B24",
+      "accent4": "#0F9ED5",
+      "accent5": "#A02B93",
+      "accent6": "#4EA72E",
+      "bg1": "#FFFFFF",
+      "bg2": "#000000",
+      "tx1": "#1F1F1F",
+      "tx2": "#FFFFFF",
+      "dk1": "#000000",
+      "lt1": "#FFFFFF",
+      "dk2": "#0E2841",
+      "lt2": "#E8E8E8",
+      "hlink": "#467886",
+      "folHlink": "#96607D"
+    },
+    "typefaces": [
+      "Microsoft JhengHei"
+    ]
+  },
+  "inheritedLayers": [
+    {
+      "scope": "layout",
+      "id": "596f7c88-43a2-47bc-bf6f-bc59db248a05",
+      "name": "Title Slide",
+      "type": "title",
+      "parentLayoutId": "8e295afe-8203-4660-b17b-07aa32ad4a3c",
+      "elements": []
+    },
+    {
+      "scope": "master",
+      "id": "8e295afe-8203-4660-b17b-07aa32ad4a3c",
+      "name": "Master",
+      "type": "master",
+      "elements": []
+    }
+  ],
+  "elements": [
+    {
+      "order": 1,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/cbulwval",
+      "id": "1",
+      "bbox": [
+        42,
+        34,
+        420,
+        28
+      ],
+      "geometry": "rect",
+      "text": "IoT / Modbus",
+      "textPreview": "IoT / Modbus",
+      "resolvedFontSize": 15,
+      "resolvedTextStyle": {
+        "fontSize": 15,
+        "typeface": "Microsoft JhengHei",
+        "color": "#555555",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "IoT / Modbus"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "IoT / Modbus",
+          "resolvedTextStyle": {
+            "fontSize": 15,
+            "typeface": "Microsoft JhengHei",
+            "color": "#555555",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "IoT / Modbus",
+              "fontSize": 15,
+              "typeface": "Microsoft JhengHei",
+              "color": "#555555",
+              "bold": true,
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 2,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/nqxs72x4",
+      "id": "2",
+      "bbox": [
+        42,
+        72,
+        940,
+        76
+      ],
+      "geometry": "rect",
+      "text": "IoT / Modbus 把現場感測值標準化進 NMS",
+      "textPreview": "IoT / Modbus 把現場感測值標準化進 NMS",
+      "resolvedFontSize": 39,
+      "resolvedTextStyle": {
+        "fontSize": 39,
+        "typeface": "Microsoft JhengHei",
+        "color": "#111111",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "IoT / Modbus 把現場感測值標準化進 NMS"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "IoT / Modbus 把現場感測值標準化進 NMS",
+          "resolvedTextStyle": {
+            "fontSize": 39,
+            "typeface": "Microsoft JhengHei",
+            "color": "#111111",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "IoT / Modbus 把現場感測值標準化進 NMS",
+              "fontSize": 39,
+              "typeface": "Microsoft JhengHei",
+              "color": "#111111",
+              "bold": true,
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 3,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/u54zidon",
+      "id": "3",
+      "bbox": [
+        42,
+        155,
+        1196,
+        0
+      ],
+      "geometry": "line",
+      "lineColor": "#B8BCC4",
+      "lineWidth": 1
+    },
+    {
+      "order": 4,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/5kb6xkf6",
+      "id": "4",
+      "bbox": [
+        1184,
+        658,
+        54,
+        24
+      ],
+      "geometry": "rect",
+      "text": "14",
+      "textPreview": "14",
+      "resolvedFontSize": 14,
+      "resolvedTextStyle": {
+        "fontSize": 14,
+        "typeface": "Microsoft JhengHei",
+        "color": "#555555",
+        "alignment": "right",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "14"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "14",
+          "resolvedTextStyle": {
+            "fontSize": 14,
+            "typeface": "Microsoft JhengHei",
+            "color": "#555555",
+            "alignment": "right"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "14",
+              "fontSize": 14,
+              "typeface": "Microsoft JhengHei",
+              "color": "#555555",
+              "alignment": "right"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 5,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/czed8v6p",
+      "id": "5",
+      "bbox": [
+        68,
+        214,
+        338,
+        250
+      ],
+      "geometry": "rect",
+      "fillColor": "#FFF3EE",
+      "lineWidth": 0
+    },
+    {
+      "order": 6,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/neloj2t8",
+      "id": "6",
+      "bbox": [
+        90,
+        238,
+        270,
+        34
+      ],
+      "geometry": "rect",
+      "text": "Direct Poll",
+      "textPreview": "Direct Poll",
+      "resolvedFontSize": 26,
+      "resolvedTextStyle": {
+        "fontSize": 26,
+        "typeface": "Microsoft JhengHei",
+        "color": "#FF6B35",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Direct Poll"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Direct Poll",
+          "resolvedTextStyle": {
+            "fontSize": 26,
+            "typeface": "Microsoft JhengHei",
+            "color": "#FF6B35",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Direct Poll",
+              "fontSize": 26,
+              "typeface": "Microsoft JhengHei",
+              "color": "#FF6B35",
+              "bold": true,
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 7,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/ytsvu9kn",
+      "id": "7",
+      "bbox": [
+        90,
+        298,
+        282,
+        116
+      ],
+      "geometry": "rect",
+      "text": "Modbus TCP、RTU、RS485、RTU over TCP。設定 Unit ID、register、FC、data type、scale、offset 與 endian。",
+      "textPreview": "Modbus TCP、RTU、RS485、RTU over TCP。設定 Unit ID、register、FC、data type、scale、offset 與 endian。",
+      "resolvedFontSize": 18,
+      "resolvedTextStyle": {
+        "fontSize": 18,
+        "typeface": "Microsoft JhengHei",
+        "color": "#555555",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 6,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Modbus"
+          },
+          {
+            "index": 2,
+            "text": "TCP、RTU、RS485、RTU over"
+          },
+          {
+            "index": 3,
+            "text": "TCP。設定 Unit"
+          },
+          {
+            "index": 4,
+            "text": "ID、register、FC、data"
+          },
+          {
+            "index": 5,
+            "text": "type、scale、offset 與"
+          },
+          {
+            "index": 6,
+            "text": "endian。"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Modbus TCP、RTU、RS485、RTU over TCP。設定 Unit ID、register、FC、data type、scale、offset 與 endian。",
+          "resolvedTextStyle": {
+            "fontSize": 18,
+            "typeface": "Microsoft JhengHei",
+            "color": "#555555",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Modbus TCP、RTU、RS485、RTU over TCP。設定 Unit ID、register、FC、data type、scale、offset 與 endian。",
+              "fontSize": 18,
+              "typeface": "Microsoft JhengHei",
+              "color": "#555555",
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 8,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/58z25kb6",
+      "id": "8",
+      "bbox": [
+        458,
+        214,
+        338,
+        250
+      ],
+      "geometry": "rect",
+      "fillColor": "#EDEDED",
+      "lineWidth": 0
+    },
+    {
+      "order": 9,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/gn29gr2p",
+      "id": "9",
+      "bbox": [
+        480,
+        238,
+        270,
+        34
+      ],
+      "geometry": "rect",
+      "text": "Gateway Ingest",
+      "textPreview": "Gateway Ingest",
+      "resolvedFontSize": 26,
+      "resolvedTextStyle": {
+        "fontSize": 26,
+        "typeface": "Microsoft JhengHei",
+        "color": "#111111",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Gateway Ingest"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Gateway Ingest",
+          "resolvedTextStyle": {
+            "fontSize": 26,
+            "typeface": "Microsoft JhengHei",
+            "color": "#111111",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Gateway Ingest",
+              "fontSize": 26,
+              "typeface": "Microsoft JhengHei",
+              "color": "#111111",
+              "bold": true,
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 10,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/u54zidon",
+      "id": "10",
+      "bbox": [
+        480,
+        298,
+        282,
+        116
+      ],
+      "geometry": "rect",
+      "text": "REST ingest 讓 MQTT、OPC-UA、BACnet gateway 推送標準化資料。",
+      "textPreview": "REST ingest 讓 MQTT、OPC-UA、BACnet gateway 推送標準化資料。",
+      "resolvedFontSize": 18,
+      "resolvedTextStyle": {
+        "fontSize": 18,
+        "typeface": "Microsoft JhengHei",
+        "color": "#555555",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 3,
+        "lines": [
+          {
+            "index": 1,
+            "text": "REST ingest 讓"
+          },
+          {
+            "index": 2,
+            "text": "MQTT、OPC-UA、BACnet"
+          },
+          {
+            "index": 3,
+            "text": "gateway 推送標準化資料。"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "REST ingest 讓 MQTT、OPC-UA、BACnet gateway 推送標準化資料。",
+          "resolvedTextStyle": {
+            "fontSize": 18,
+            "typeface": "Microsoft JhengHei",
+            "color": "#555555",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "REST ingest 讓 MQTT、OPC-UA、BACnet gateway 推送標準化資料。",
+              "fontSize": 18,
+              "typeface": "Microsoft JhengHei",
+              "color": "#555555",
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 11,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/nqxs72x4",
+      "id": "11",
+      "bbox": [
+        848,
+        214,
+        338,
+        250
+      ],
+      "geometry": "rect",
+      "fillColor": "#EDEDED",
+      "lineWidth": 0
+    },
+    {
+      "order": 12,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/cbulwval",
+      "id": "12",
+      "bbox": [
+        870,
+        238,
+        270,
+        34
+      ],
+      "geometry": "rect",
+      "text": "Store and Forward",
+      "textPreview": "Store and Forward",
+      "resolvedFontSize": 26,
+      "resolvedTextStyle": {
+        "fontSize": 26,
+        "typeface": "Microsoft JhengHei",
+        "color": "#111111",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Store and Forward"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Store and Forward",
+          "resolvedTextStyle": {
+            "fontSize": 26,
+            "typeface": "Microsoft JhengHei",
+            "color": "#111111",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Store and Forward",
+              "fontSize": 26,
+              "typeface": "Microsoft JhengHei",
+              "color": "#111111",
+              "bold": true,
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 13,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/5sneloj2",
+      "id": "13",
+      "bbox": [
+        870,
+        298,
+        282,
+        116
+      ],
+      "geometry": "rect",
+      "text": "本地 SQLite 先寫入，Webhook 離線時排隊，恢復後批次補送。",
+      "textPreview": "本地 SQLite 先寫入，Webhook 離線時排隊，恢復後批次補送。",
+      "resolvedFontSize": 18,
+      "resolvedTextStyle": {
+        "fontSize": 18,
+        "typeface": "Microsoft JhengHei",
+        "color": "#555555",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "本地 SQLite 先寫入，Webhook"
+          },
+          {
+            "index": 2,
+            "text": "離線時排隊，恢復後批次補送。"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "本地 SQLite 先寫入，Webhook 離線時排隊，恢復後批次補送。",
+          "resolvedTextStyle": {
+            "fontSize": 18,
+            "typeface": "Microsoft JhengHei",
+            "color": "#555555",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "本地 SQLite 先寫入，Webhook 離線時排隊，恢復後批次補送。",
+              "fontSize": 18,
+              "typeface": "Microsoft JhengHei",
+              "color": "#555555",
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 14,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/ytsvu9kn",
+      "id": "14",
+      "bbox": [
+        76,
+        560,
+        940,
+        34
+      ],
+      "geometry": "rect",
+      "text": "溫濕度二合一感測器可自動使用 0.1 scale 與雙 register 解析，適合 RS485 現場。",
+      "textPreview": "溫濕度二合一感測器可自動使用 0.1 scale 與雙 register 解析，適合 RS485 現場。",
+      "resolvedFontSize": 22,
+      "resolvedTextStyle": {
+        "fontSize": 22,
+        "typeface": "Microsoft JhengHei",
+        "color": "#FF6B35",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "溫濕度二合一感測器可自動使用 0.1 scale 與雙 register 解析，適合 RS485 現場。"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "溫濕度二合一感測器可自動使用 0.1 scale 與雙 register 解析，適合 RS485 現場。",
+          "resolvedTextStyle": {
+            "fontSize": 22,
+            "typeface": "Microsoft JhengHei",
+            "color": "#FF6B35",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "溫濕度二合一感測器可自動使用 0.1 scale 與雙 register 解析，適合 RS485 現場。",
+              "fontSize": 22,
+              "typeface": "Microsoft JhengHei",
+              "color": "#FF6B35",
+              "bold": true,
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    }
+  ],
+  "composeRuns": []
+}

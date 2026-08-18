@@ -7,6 +7,7 @@ async function loadDashboard() {
         const response = await apiGet('/dashboard');
         if (response.success) {
             renderDashboard(response.data);
+            updateDashboardFreshness();
         }
     } catch (error) {
         showToast(t('dashboard.toast.load_failed'), 'error');
@@ -15,7 +16,7 @@ async function loadDashboard() {
 
 async function refreshDashboard() {
     // 手動重新整理：完整重新載入頁面
-    window.location.reload(true);
+    await autoRefreshDashboard();
 }
 
 async function autoRefreshDashboard() {
@@ -24,6 +25,7 @@ async function autoRefreshDashboard() {
         const response = await apiGet('/dashboard');
         if (response.success) {
             renderDashboard(response.data);
+            updateDashboardFreshness();
         }
 
         // 如果當前不是顯示流量，則需要額外更新當前的 Top 5 列表
@@ -34,6 +36,13 @@ async function autoRefreshDashboard() {
         console.error('Auto refresh dashboard failed:', error);
         // 自動重新整理失敗時不顯示錯誤訊息，避免干擾使用者
     }
+}
+
+function updateDashboardFreshness() {
+    const indicator = document.getElementById('dashboard-last-updated');
+    if (!indicator) return;
+    indicator.textContent = `Updated ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    indicator.classList.remove('is-stale');
 }
 
 function renderDashboard(data) {

@@ -1,0 +1,204 @@
+{
+  "url": "http://10.100.100.11:8080/?restored=true#iot",
+  "title": "管理系統",
+  "text": "Management System\n儀表板\n設備清單\n網路拓樸\n攝影機監控\n門禁管理\nPDU/UPS 監控\nIoT\nIoT / Modbus\n日誌與稽核\n系統管理\n主題切換\n系統運行中\nv1.2.4.9\n🏠 主控台\n繁體中文\nEnglish\n简体中文\n日本語\n한국어\nyoyo\n管理者\nIoT 感測器\n刷新\n新增設備\n功能頁面 線上模組總覽 設備管理 整合設定\nHTTP 轉發佇列\n停用\n啟用\n儲存\n立即清空\niframe 嵌入 Token\ndashboard\ntopology\ndevices\nalerts\niot\n產生 Token\nSecurity — Embed token URLs grant read-only access. Use short expiry and revoke tokens after sharing.\niframe 允許清單\nAllowlist — Add only trusted HTTPS origins. Avoid wildcards.\n刷新\n儲存\n名稱\t頁面\t到期時間\t最後使用\t狀態\t操作\n尚無嵌入 Token\n×\n新增 IoT 設備\nModbus TCP\nModbus RTU\nModbus RS485\nRTU over TCP\n設備名稱\n感測器類型\n通用\n溫度\n濕度\n溫濕度\n功率\n電壓\n電流\n氣壓\n二氧化碳\niot.sensor_type.pm25\n指標名稱\nHost / IP\nPort\n序列埠\n鮑率\n9600\n19200\n38400\n57600\n115200\n資料位元\n8\n7\n同位檢查\n無 (N)\n偶數 (E)\n奇數 (O)\n停止位元\n1\n2\nUnit ID（Slave）\n暫存器位址\n功能碼\nFC01 讀取線圈狀態\nFC02 讀取離散輸入\nFC03 Holding Register\nFC04 Input Register\n資料型別\nuint16\nint16\nuint32\nint32\nfloat32\n倍率（Scale）\n偏移（Offset）\n輪詢間隔（秒）\nByte Order\nBig endian\nLittle endian\nWord Order\nBig endian\nLittle endian\n取消\n新增設備",
+  "activeTab": "整合設定",
+  "visibleInputs": [
+    {
+      "id": "iot-forward-enabled",
+      "tag": "SELECT",
+      "type": null,
+      "placeholder": null,
+      "value": "false"
+    },
+    {
+      "id": "iot-forward-url",
+      "tag": "INPUT",
+      "type": null,
+      "placeholder": "Webhook URL",
+      "value": ""
+    },
+    {
+      "id": "iot-forward-token",
+      "tag": "INPUT",
+      "type": null,
+      "placeholder": "Bearer token - leave blank to keep existing",
+      "value": ""
+    },
+    {
+      "id": "iot-forward-batch",
+      "tag": "INPUT",
+      "type": "number",
+      "placeholder": null,
+      "value": "50"
+    },
+    {
+      "id": "embed-name",
+      "tag": "INPUT",
+      "type": null,
+      "placeholder": "Token name",
+      "value": "Customer Portal"
+    },
+    {
+      "id": "embed-view",
+      "tag": "SELECT",
+      "type": null,
+      "placeholder": null,
+      "value": "dashboard"
+    },
+    {
+      "id": "embed-expiry",
+      "tag": "INPUT",
+      "type": "number",
+      "placeholder": null,
+      "value": "1440"
+    },
+    {
+      "id": "embed-output",
+      "tag": "TEXTAREA",
+      "type": null,
+      "placeholder": null,
+      "value": ""
+    },
+    {
+      "id": "integration-frame-ancestors",
+      "tag": "TEXTAREA",
+      "type": null,
+      "placeholder": "'self'\nhttps://customer.example.com",
+      "value": "'self'\nhttp:\nhttps:"
+    },
+    {
+      "id": "iot-name",
+      "tag": "INPUT",
+      "type": null,
+      "placeholder": "e.g. Temp sensor - Floor 1",
+      "value": ""
+    },
+    {
+      "id": "iot-sensor-type",
+      "tag": "SELECT",
+      "type": null,
+      "placeholder": null,
+      "value": ""
+    },
+    {
+      "id": "iot-metric",
+      "tag": "INPUT",
+      "type": null,
+      "placeholder": "temperature",
+      "value": "value"
+    },
+    {
+      "id": "iot-host",
+      "tag": "INPUT",
+      "type": null,
+      "placeholder": "192.168.1.100",
+      "value": ""
+    },
+    {
+      "id": "iot-port",
+      "tag": "INPUT",
+      "type": "number",
+      "placeholder": null,
+      "value": "502"
+    },
+    {
+      "id": "iot-serial-port",
+      "tag": "INPUT",
+      "type": null,
+      "placeholder": "COM3 or /dev/ttyUSB0",
+      "value": ""
+    },
+    {
+      "id": "iot-baud-rate",
+      "tag": "SELECT",
+      "type": null,
+      "placeholder": null,
+      "value": "9600"
+    },
+    {
+      "id": "iot-data-bits",
+      "tag": "SELECT",
+      "type": null,
+      "placeholder": null,
+      "value": "8"
+    },
+    {
+      "id": "iot-parity",
+      "tag": "SELECT",
+      "type": null,
+      "placeholder": null,
+      "value": "N"
+    },
+    {
+      "id": "iot-stop-bits",
+      "tag": "SELECT",
+      "type": null,
+      "placeholder": null,
+      "value": "1"
+    },
+    {
+      "id": "iot-unit",
+      "tag": "INPUT",
+      "type": "number",
+      "placeholder": null,
+      "value": "1"
+    },
+    {
+      "id": "iot-address",
+      "tag": "INPUT",
+      "type": "number",
+      "placeholder": null,
+      "value": "0"
+    },
+    {
+      "id": "iot-function-code",
+      "tag": "SELECT",
+      "type": null,
+      "placeholder": null,
+      "value": "3"
+    },
+    {
+      "id": "iot-data-type",
+      "tag": "SELECT",
+      "type": null,
+      "placeholder": null,
+      "value": "uint16"
+    },
+    {
+      "id": "iot-scale",
+      "tag": "INPUT",
+      "type": "number",
+      "placeholder": null,
+      "value": "1"
+    },
+    {
+      "id": "iot-offset",
+      "tag": "INPUT",
+      "type": "number",
+      "placeholder": null,
+      "value": "0"
+    },
+    {
+      "id": "iot-poll-interval",
+      "tag": "INPUT",
+      "type": "number",
+      "placeholder": null,
+      "value": "60"
+    },
+    {
+      "id": "iot-byte-order",
+      "tag": "SELECT",
+      "type": null,
+      "placeholder": null,
+      "value": "big"
+    },
+    {
+      "id": "iot-word-order",
+      "tag": "SELECT",
+      "type": null,
+      "placeholder": null,
+      "value": "big"
+    }
+  ]
+}

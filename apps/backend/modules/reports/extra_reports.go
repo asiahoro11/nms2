@@ -38,7 +38,7 @@ func exportQueryReport(c *gin.Context, db *sql.DB, title, filenameBase string, c
 	case "pdf":
 		writePDFReport(c, rt.T(title), filenameBase, headers, widths, values)
 	case "json":
-		writeJSONReport(c, headers, values)
+		writeJSONReport(c, filenameBase, headers, values)
 	default:
 		writeCSVReport(c, filenameBase, headers, values)
 	}
@@ -149,7 +149,7 @@ func writePDFReport(c *gin.Context, title, filenameBase string, headers []string
 	}
 }
 
-func writeJSONReport(c *gin.Context, headers []string, values [][]string) {
+func writeJSONReport(c *gin.Context, filenameBase string, headers []string, values [][]string) {
 	values = translateReportValues(c, values)
 	items := make([]map[string]string, 0, len(values))
 	for _, row := range values {
@@ -160,6 +160,7 @@ func writeJSONReport(c *gin.Context, headers []string, values [][]string) {
 		}
 		items = append(items, item)
 	}
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s_%s.json", filenameBase, time.Now().Format("20060102_150405")))
 	c.JSON(http.StatusOK, Response{Success: true, Data: items})
 }
 
@@ -334,6 +335,210 @@ func (s *Service) ExportAccessControlReport(c *gin.Context) {
 		FROM ac_doors
 		ORDER BY name
 	`)
+}
+
+func (s *Service) ExportTopologyReport(c *gin.Context) {
+	exportQueryReport(c, s.db, "title.topology", "topology_links", []queryReportColumn{
+		{"col.source_device", 34}, {"col.source_ip", 25}, {"col.source_interface", 28},
+		{"col.target_device", 34}, {"col.target_ip", 25}, {"col.target_interface", 28},
+		{"col.link_speed", 20}, {"col.bandwidth_usage", 22}, {"col.link_type", 18},
+		{"col.label", 28}, {"col.manual", 14}, {"col.discovered_at", 28},
+	}, `
+		SELECT
+			CASE WHEN sd.is_name_custom = 1 THEN sd.name ELSE COALESCE(NULLIF(sd.sys_name, ''), sd.name) END,
+			sd.ip_address,
+			COALESCE(tl.source_if_name, ''),
+			CASE WHEN td.is_name_custom = 1 THEN td.name ELSE COALESCE(NULLIF(td.sys_name, ''), td.name) END,
+			td.ip_address,
+			COALESCE(tl.target_if_name, ''),
+			COALESCE(tl.link_speed, 0),
+			COALESCE(tl.bandwidth_usage, 0),
+			COALESCE(tl.link_type, ''),
+			COALESCE(tl.link_label, ''),
+			CASE COALESCE(tl.is_manual, 0) WHEN 1 THEN 'yes' ELSE 'no' END,
+			COALESCE(tl.discovered_at, '')
+		FROM topology_links tl
+		JOIN devices sd ON sd.id = tl.source_device_id
+		JOIN devices td ON td.id = tl.target_device_id
+		ORDER BY sd.name, td.name, tl.id
+	`)
+}
+
+func (s *Service) ExportEventReport(c *gin.Context) {
+	where, args := reportDateWhere(c, "e.created_at")
+	exportQueryReport(c, s.db, "title.events", "device_events", []queryReportColumn{
+		{"col.time", 28}, {"col.device", 34}, {"col.ip", 25}, {"col.event_type", 24},
+		{"col.severity", 18}, {"col.message", 80},
+	}, fmt.Sprintf(`
+		SELECT e.created_at,
+			COALESCE(CASE WHEN d.is_name_custom = 1 THEN d.name ELSE NULLIF(d.sys_name, '') END, d.name, ''),
+			COALESCE(d.ip_address, ''), COALESCE(e.event_type, ''), COALESCE(e.severity, ''), COALESCE(e.message, '')
+		FROM events e
+		LEFT JOIN devices d ON d.id = e.device_id
+		%s
+		ORDER BY e.created_at DESC, e.id DESC
+		LIMIT 5000
+	`, where), args...)
+}
+
+func (s *Service) ExportSyslogReport(c *gin.Context) {
+	where, args := reportDateWhere(c, "s.received_at")
+	exportQueryReport(c, s.db, "title.syslog", "syslog", []queryReportColumn{
+		{"col.time", 28}, {"col.device", 34}, {"col.source_ip", 25}, {"col.facility", 18},
+		{"col.severity", 18}, {"col.message", 90},
+	}, fmt.Sprintf(`
+		SELECT s.received_at,
+			COALESCE(CASE WHEN d.is_name_custom = 1 THEN d.name ELSE NULLIF(d.sys_name, '') END, d.name, ''),
+			COALESCE(s.source_ip, ''), COALESCE(s.facility, ''), COALESCE(s.severity, ''), COALESCE(s.message, '')
+		FROM syslogs s
+		LEFT JOIN devices d ON d.id = s.device_id
+		%s
+		ORDER BY s.received_at DESC, s.id DESC
+		LIMIT 5000
+	`, where), args...)
+}
+
+func (s *Service) ExportNotificationReport(c *gin.Context) {
+	where, args := reportDateWhere(c, "n.created_at")
+	exportQueryReport(c, s.db, "title.notifications", "notifications", []queryReportColumn{
+		{"col.time", 28}, {"col.severity", 18}, {"col.category", 24}, {"col.title", 42},
+		{"col.message", 80}, {"col.device", 34}, {"col.read", 14},
+	}, fmt.Sprintf(`
+		SELECT n.created_at, COALESCE(n.severity, ''), COALESCE(n.category, ''),
+			COALESCE(n.title, ''), COALESCE(n.message, ''),
+			COALESCE(CASE WHEN d.is_name_custom = 1 THEN d.name ELSE NULLIF(d.sys_name, '') END, d.name, ''),
+			CASE COALESCE(n.is_read, 0) WHEN 1 THEN 'yes' ELSE 'no' END
+		FROM notifications n
+		LEFT JOIN devices d ON d.id = n.device_id
+		%s
+		ORDER BY n.created_at DESC, n.id DESC
+		LIMIT 5000
+	`, where), args...)
+}
+
+func (s *Service) ExportIoTDeviceReport(c *gin.Context) {
+	exportQueryReport(c, s.db, "title.iot_devices", "iot_devices", []queryReportColumn{
+		{"col.name", 32}, {"col.external_id", 28}, {"col.protocol", 20}, {"col.connection", 34},
+		{"col.unit_id", 14}, {"col.signal_count", 18}, {"col.signals", 64}, {"col.enabled", 16},
+		{"col.last_value", 20}, {"col.last_seen", 28}, {"col.last_error", 50},
+	}, `
+		SELECT d.name, COALESCE(d.topic, ''), COALESCE(d.protocol, ''),
+			CASE
+				WHEN lower(COALESCE(d.protocol, '')) IN ('rs485', 'modbus_rs485', 'modbus-rs485', 'modbus_rtu', 'modbus-rtu', 'rtu')
+					THEN COALESCE(d.serial_port, '')
+				ELSE COALESCE(d.host, '') || CASE WHEN COALESCE(d.port, 0) > 0 THEN ':' || d.port ELSE '' END
+			END,
+			COALESCE(d.unit_id, 1), COUNT(s.id),
+			COALESCE(GROUP_CONCAT(NULLIF(COALESCE(s.name, '') || CASE WHEN COALESCE(s.name, '') <> '' THEN ' (' || s.metric || ')' ELSE s.metric END, ''), ', '), ''),
+			CASE COALESCE(d.enabled, 0) WHEN 1 THEN 'enabled' ELSE 'disabled' END,
+			COALESCE(d.last_value, ''), COALESCE(d.last_seen, ''), COALESCE(d.last_error, '')
+		FROM iot_devices d
+		LEFT JOIN iot_device_signals s ON s.device_id = d.id
+		GROUP BY d.id
+		ORDER BY d.name
+	`)
+}
+
+func (s *Service) ExportIoTMeasurementReport(c *gin.Context) {
+	where, args := reportDateWhere(c, "m.created_at")
+	exportQueryReport(c, s.db, "title.iot_measurements", "iot_measurements", []queryReportColumn{
+		{"col.time", 28}, {"col.device", 32}, {"col.external_id", 26}, {"col.metric", 26},
+		{"col.value", 20}, {"col.sample_id", 34}, {"col.forward_status", 22}, {"col.attempts", 16},
+		{"col.forwarded_at", 28}, {"col.last_error", 55},
+	}, fmt.Sprintf(`
+		SELECT m.created_at, COALESCE(d.name, ''), COALESCE(NULLIF(m.external_id, ''), d.topic, ''),
+			COALESCE(m.metric, ''), m.value, COALESCE(m.sample_id, ''),
+			COALESCE(m.forward_status, 'pending'), COALESCE(m.forward_attempts, 0),
+			COALESCE(m.forwarded_at, ''), COALESCE(m.last_error, '')
+		FROM iot_measurements m
+		LEFT JOIN iot_devices d ON d.id = m.device_id
+		%s
+		ORDER BY m.created_at DESC, m.id DESC
+		LIMIT 5000
+	`, where), args...)
+}
+
+func (s *Service) ExportCameraRecordingReport(c *gin.Context) {
+	where, args := reportDateWhere(c, "r.started_at")
+	exportQueryReport(c, s.db, "title.camera_recordings", "camera_recordings", []queryReportColumn{
+		{"col.camera", 34}, {"col.label", 34}, {"col.status", 18}, {"col.file_size", 20},
+		{"col.duration", 18}, {"col.started_at", 28}, {"col.ended_at", 28}, {"col.created", 28},
+	}, fmt.Sprintf(`
+		SELECT COALESCE(NULLIF(r.camera_name, ''), c.name, ''), COALESCE(r.label, ''), COALESCE(r.status, ''),
+			COALESCE(r.file_size, 0), COALESCE(r.duration_sec, 0), r.started_at,
+			COALESCE(r.ended_at, ''), COALESCE(r.created_at, '')
+		FROM camera_recordings r
+		LEFT JOIN cameras c ON c.id = r.camera_id
+		%s
+		ORDER BY r.started_at DESC, r.id DESC
+		LIMIT 5000
+	`, where), args...)
+}
+
+func (s *Service) ExportAccessEventReport(c *gin.Context) {
+	where, args := reportDateWhere(c, "e.occurred_at")
+	exportQueryReport(c, s.db, "title.access_events", "access_events", []queryReportColumn{
+		{"col.time", 28}, {"col.door", 32}, {"col.location", 28}, {"col.card_number", 26},
+		{"col.holder", 30}, {"col.event_type", 24},
+	}, fmt.Sprintf(`
+		SELECT e.occurred_at, COALESCE(d.name, ''), COALESCE(d.location, ''),
+			COALESCE(NULLIF(e.card_number, ''), c.card_number, ''),
+			COALESCE(NULLIF(e.holder_name, ''), c.holder_name, ''), COALESCE(e.event_type, '')
+		FROM ac_events e
+		LEFT JOIN ac_doors d ON d.id = e.door_id
+		LEFT JOIN ac_cards c ON c.id = e.card_id
+		%s
+		ORDER BY e.occurred_at DESC, e.id DESC
+		LIMIT 5000
+	`, where), args...)
+}
+
+func (s *Service) ExportAccessCardReport(c *gin.Context) {
+	exportQueryReport(c, s.db, "title.access_cards", "access_cards", []queryReportColumn{
+		{"col.card_number", 28}, {"col.holder", 34}, {"col.department", 30}, {"col.active", 16},
+		{"col.valid_from", 26}, {"col.valid_until", 26}, {"col.created", 28},
+	}, `
+		SELECT card_number, holder_name, COALESCE(department, ''),
+			CASE COALESCE(is_active, 0) WHEN 1 THEN 'active' ELSE 'inactive' END,
+			COALESCE(valid_from, ''), COALESCE(valid_until, ''), COALESCE(created_at, '')
+		FROM ac_cards
+		ORDER BY holder_name, card_number
+	`)
+}
+
+func (s *Service) ExportAccessScheduleReport(c *gin.Context) {
+	exportQueryReport(c, s.db, "title.access_schedules", "access_schedules", []queryReportColumn{
+		{"col.card_number", 26}, {"col.holder", 30}, {"col.department", 28}, {"col.door", 30},
+		{"col.allow_days", 24}, {"col.time_range", 24}, {"col.valid_from", 24}, {"col.valid_until", 24},
+		{"col.status", 18}, {"col.approved_by", 24}, {"col.approved_at", 28}, {"col.note", 46},
+	}, `
+		SELECT s.card_number, COALESCE(NULLIF(s.holder_name, ''), c.holder_name, ''),
+			COALESCE(NULLIF(s.department, ''), c.department, ''), COALESCE(d.name, ''),
+			COALESCE(s.allow_days, ''), COALESCE(s.time_from, '') || ' - ' || COALESCE(s.time_until, ''),
+			COALESCE(s.valid_from, ''), COALESCE(s.valid_until, ''), COALESCE(s.status, ''),
+			COALESCE(s.approved_by, ''), COALESCE(s.approved_at, ''), COALESCE(s.note, '')
+		FROM ac_card_schedules s
+		LEFT JOIN ac_cards c ON c.id = s.card_id
+		LEFT JOIN ac_doors d ON d.id = s.door_id
+		ORDER BY s.created_at DESC, s.id DESC
+		LIMIT 5000
+	`)
+}
+
+func (s *Service) ExportConfigBackupReport(c *gin.Context) {
+	where, args := reportDateWhere(c, "b.created_at")
+	exportQueryReport(c, s.db, "title.config_backups", "device_config_backups", []queryReportColumn{
+		{"col.time", 28}, {"col.device", 36}, {"col.ip", 25}, {"col.note", 70}, {"col.content_bytes", 24},
+	}, fmt.Sprintf(`
+		SELECT b.created_at,
+			CASE WHEN d.is_name_custom = 1 THEN d.name ELSE COALESCE(NULLIF(d.sys_name, ''), d.name) END,
+			d.ip_address, COALESCE(b.note, ''), LENGTH(COALESCE(b.content, ''))
+		FROM device_config_backups b
+		JOIN devices d ON d.id = b.device_id
+		%s
+		ORDER BY b.created_at DESC, b.id DESC
+		LIMIT 5000
+	`, where), args...)
 }
 
 func reportDateJoinFilter(c *gin.Context, column string) (string, []interface{}) {

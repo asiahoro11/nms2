@@ -1,0 +1,397 @@
+{
+  "schema": "openai.presentation.layout/v4",
+  "unit": "px",
+  "slide": {
+    "aid": "sl/ywcvyo",
+    "id": "ywcvyo",
+    "slide": 3,
+    "layoutId": "8ec4f3cb-cff0-4a2c-ade1-d730929ebfdf",
+    "layoutName": "Title Slide",
+    "layoutType": "title",
+    "masterLayoutId": "c15b7cef-9829-4505-ba58-fe2e23d28ff5",
+    "masterLayoutName": "Master",
+    "backgroundColor": "#0B1623",
+    "frame": {
+      "left": 0,
+      "top": 0,
+      "width": 1280,
+      "height": 720
+    }
+  },
+  "theme": {
+    "colorSchemeName": "ChatGPT",
+    "colors": {
+      "accent1": "#156082",
+      "accent2": "#E97132",
+      "accent3": "#196B24",
+      "accent4": "#0F9ED5",
+      "accent5": "#A02B93",
+      "accent6": "#4EA72E",
+      "bg1": "#FFFFFF",
+      "bg2": "#000000",
+      "tx1": "#1F1F1F",
+      "tx2": "#FFFFFF",
+      "dk1": "#000000",
+      "lt1": "#FFFFFF",
+      "dk2": "#0E2841",
+      "lt2": "#E8E8E8",
+      "hlink": "#467886",
+      "folHlink": "#96607D"
+    },
+    "typefaces": [
+      "Microsoft JhengHei"
+    ]
+  },
+  "inheritedLayers": [
+    {
+      "scope": "layout",
+      "id": "8ec4f3cb-cff0-4a2c-ade1-d730929ebfdf",
+      "name": "Title Slide",
+      "type": "title",
+      "parentLayoutId": "c15b7cef-9829-4505-ba58-fe2e23d28ff5",
+      "elements": []
+    },
+    {
+      "scope": "master",
+      "id": "c15b7cef-9829-4505-ba58-fe2e23d28ff5",
+      "name": "Master",
+      "type": "master",
+      "elements": []
+    }
+  ],
+  "elements": [
+    {
+      "order": 1,
+      "kind": "image",
+      "scope": "slide",
+      "aid": "im/8jqh0fep",
+      "id": "1",
+      "bbox": [
+        660,
+        108,
+        500,
+        320
+      ],
+      "alt": "從登入到日常維運，照順序學會 NMS",
+      "contentType": "image/png",
+      "imageFit": "contain",
+      "asset": {
+        "assetId": "a195e13d-c78f-4e53-9008-6ca8df48d57f",
+        "contentType": "image/png",
+        "byteLength": 134455
+      }
+    },
+    {
+      "order": 2,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/epkzupwb",
+      "id": "2",
+      "bbox": [
+        68,
+        112,
+        450,
+        32
+      ],
+      "geometry": "rect",
+      "text": "章節總覽",
+      "textPreview": "章節總覽",
+      "resolvedFontSize": 20,
+      "resolvedTextStyle": {
+        "fontSize": 20,
+        "typeface": "Microsoft JhengHei",
+        "color": "#FFD2BF",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "章節總覽"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "章節總覽",
+          "resolvedTextStyle": {
+            "fontSize": 20,
+            "typeface": "Microsoft JhengHei",
+            "color": "#FFD2BF",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "章節總覽",
+              "fontSize": 20,
+              "typeface": "Microsoft JhengHei",
+              "color": "#FFD2BF",
+              "bold": true,
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 3,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/7adsji5s",
+      "id": "3",
+      "bbox": [
+        68,
+        166,
+        530,
+        96
+      ],
+      "geometry": "rect",
+      "text": "從登入到日常維運，照順序學會 NMS",
+      "textPreview": "從登入到日常維運，照順序學會 NMS",
+      "resolvedFontSize": 44,
+      "resolvedTextStyle": {
+        "fontSize": 44,
+        "typeface": "Microsoft JhengHei",
+        "color": "#FFFFFF",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "從登入到日常維運，照順"
+          },
+          {
+            "index": 2,
+            "text": "序學會 NMS"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "從登入到日常維運，照順序學會 NMS",
+          "resolvedTextStyle": {
+            "fontSize": 44,
+            "typeface": "Microsoft JhengHei",
+            "color": "#FFFFFF",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "從登入到日常維運，照順序學會 NMS",
+              "fontSize": 44,
+              "typeface": "Microsoft JhengHei",
+              "color": "#FFFFFF",
+              "bold": true,
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 4,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/w7mp0bi9",
+      "id": "4",
+      "bbox": [
+        72,
+        315,
+        500,
+        140
+      ],
+      "geometry": "rect",
+      "text": "• 先學登入與儀表板\n• 再學設備、拓樸與各功能模組\n• 最後學管理設定、巡檢與排錯",
+      "textPreview": "• 先學登入與儀表板 | • 再學設備、拓樸與各功能模組 | • 最後學管理設定、巡檢與排錯",
+      "resolvedFontSize": 22,
+      "resolvedTextStyle": {
+        "fontSize": 22,
+        "typeface": "Microsoft JhengHei",
+        "color": "#E6EEF7",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 3,
+        "lines": [
+          {
+            "index": 1,
+            "text": "• 先學登入與儀表板"
+          },
+          {
+            "index": 2,
+            "text": "• 再學設備、拓樸與各功能模組"
+          },
+          {
+            "index": 3,
+            "text": "• 最後學管理設定、巡檢與排錯"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "• 先學登入與儀表板",
+          "resolvedTextStyle": {
+            "fontSize": 22,
+            "typeface": "Microsoft JhengHei",
+            "color": "#E6EEF7",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "• 先學登入與儀表板",
+              "fontSize": 22,
+              "typeface": "Microsoft JhengHei",
+              "color": "#E6EEF7",
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        },
+        {
+          "index": 2,
+          "text": "• 再學設備、拓樸與各功能模組",
+          "resolvedTextStyle": {
+            "fontSize": 22,
+            "typeface": "Microsoft JhengHei",
+            "color": "#E6EEF7",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "• 再學設備、拓樸與各功能模組",
+              "fontSize": 22,
+              "typeface": "Microsoft JhengHei",
+              "color": "#E6EEF7",
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        },
+        {
+          "index": 3,
+          "text": "• 最後學管理設定、巡檢與排錯",
+          "resolvedTextStyle": {
+            "fontSize": 22,
+            "typeface": "Microsoft JhengHei",
+            "color": "#E6EEF7",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "• 最後學管理設定、巡檢與排錯",
+              "fontSize": 22,
+              "typeface": "Microsoft JhengHei",
+              "color": "#E6EEF7",
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 5,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/psfil0rq",
+      "id": "5",
+      "bbox": [
+        1120,
+        610,
+        60,
+        28
+      ],
+      "geometry": "rect",
+      "text": "03",
+      "textPreview": "03",
+      "resolvedFontSize": 18,
+      "resolvedTextStyle": {
+        "fontSize": 18,
+        "typeface": "Microsoft JhengHei",
+        "color": "#A9B7C8",
+        "bold": true,
+        "alignment": "right",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "03"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "03",
+          "resolvedTextStyle": {
+            "fontSize": 18,
+            "typeface": "Microsoft JhengHei",
+            "color": "#A9B7C8",
+            "bold": true,
+            "alignment": "right"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "03",
+              "fontSize": 18,
+              "typeface": "Microsoft JhengHei",
+              "color": "#A9B7C8",
+              "bold": true,
+              "alignment": "right"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    }
+  ],
+  "composeRuns": []
+}

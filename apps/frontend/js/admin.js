@@ -447,7 +447,36 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
+let superAdminSessionToken = '';
+let superAdminSessionExpiresAt = 0;
+
+async function checkSuperAdminInitialization(showReady = false) {
+    try {
+        const response = await apiGet('/auth/superadmin/status');
+        const initialized = !!response?.data?.initialized;
+        if (!initialized) {
+            showToast('SuperAdmin 尚未初始化，請由授權人員在 NMS 主機執行本機初始化工具。', 'warning');
+        } else if (showReady) {
+            return true;
+        }
+        return initialized;
+    } catch (_) {
+        return false;
+    }
+}
+
+function superAdminOptions() {
+    if (!superAdminSessionToken || Date.now() >= superAdminSessionExpiresAt) {
+        superAdminSessionToken = '';
+        superAdminSessionExpiresAt = 0;
+        document.body.classList.remove('advanced-unlocked');
+        throw new Error('SuperAdmin 工作階段已逾時，請重新驗證');
+    }
+    return { authToken: superAdminSessionToken, skipRedirectOn401: true };
+}
+
 async function unlockHiddenFeatures() {
+    if (!(await checkSuperAdminInitialization(true))) return;
     const content = `
         <form id="unlock-form" onsubmit="handleUnlock(event)">
             <p style="text-align: center; margin-bottom: 10px; font-weight: 500;" data-i18n="admin.unlock.prompt">${t('admin.unlock.prompt') || '請輸入驗證資訊'}</p>
@@ -460,6 +489,7 @@ async function unlockHiddenFeatures() {
             <div class="form-actions">
                 <button type="submit" class="btn btn-primary" style="width: 100%;">OK</button>
             </div>
+            <button type="button" class="btn btn-link" style="width:100%;margin-top:8px;" onclick="recoverSuperAdminWithTOTP()">忘記密碼（TOTP／復原碼）</button>
         </form>
     `;
     openModal('', content);
@@ -469,36 +499,88 @@ async function unlockHiddenFeatures() {
     }
 }
 
+async function handleUnlockLegacy(event) {
+    event.preventDefault();
+    throw new Error('Legacy frontend unlock is disabled');
+}
+
 async function handleUnlock(event) {
     event.preventDefault();
-    const form = event.target;
-    const formData = new FormData(form);
-
-    // Get credentials
+    const formData = new FormData(event.target);
     const username = formData.get('username');
     const password = formData.get('password');
-
-    // Hard-coded SuperAdmin validation (frontend only, no backend call)
-    const SUPER_ADMIN_USERNAME = 'SuperAdmin';
-    const SUPER_ADMIN_PASSWORD = 'P@ssw0rd#1@';
-
-    if (username === SUPER_ADMIN_USERNAME && password === SUPER_ADMIN_PASSWORD) {
-        showToast(t('admin.toast.auth_success') || '驗證成功', 'success');
-        closeModal();
-
-        // Set global unlocked state
+    try {
+        const response = await apiPost('/auth/superadmin/login', { username, password });
+        let result = response?.data || response;
+        if (result?.requires_two_factor) {
+            const code = window.prompt('請輸入 SuperAdmin 的 TOTP 或復原碼');
+            if (!code) return;
+            const verified = await apiPost('/auth/superadmin/verify', {
+                challenge_token: result.challenge_token,
+                code: code.trim()
+            });
+            result = verified?.data || verified;
+        }
+        if (!result?.token || !result?.expires_at) throw new Error('SuperAdmin 驗證失敗');
+        superAdminSessionToken = result.token;
+        superAdminSessionExpiresAt = Number(result.expires_at) * 1000;
         document.body.classList.add('advanced-unlocked');
-        localStorage.setItem('advancedModeUnlocked', 'true');
-
-        // Show Branding & Tools Buttons (both Sidebar and Admin tabs)
-        // The CSS will handle showing these when body has 'advanced-unlocked' class
-        document.querySelectorAll('button[data-tab="branding"], button[data-tab="tools"]').forEach(btn => {
-            btn.classList.add('advanced-only'); // Ensure it has the class for CSS control
-        });
-    } else {
-        showToast(t('admin.toast.auth_failed') || '驗證失敗', 'error');
+        closeModal();
+        showToast(t('admin.toast.auth_success') || '驗證成功', 'success');
+    } catch (error) {
+        superAdminSessionToken = '';
+        superAdminSessionExpiresAt = 0;
+        document.body.classList.remove('advanced-unlocked');
+        showToast(error.message || t('admin.toast.auth_failed') || '驗證失敗', 'error');
     }
 }
+
+async function recoverSuperAdminWithTOTP() {
+    showSuperAdminRecoveryForm();
+}
+
+function showSuperAdminRecoveryForm() {
+    const content = `
+        <form id="superadmin-recovery-form" onsubmit="handleSuperAdminRecovery(event)">
+            <p style="text-align:center">\u4f7f\u7528 SuperAdmin TOTP \u6216\u5fa9\u539f\u78bc\u91cd\u8a2d\u5bc6\u78bc</p>
+            <div class="form-group"><input type="password" name="code" required autocomplete="one-time-code" placeholder="TOTP / Recovery Code"></div>
+            <div class="form-group"><input type="password" name="new_password" required minlength="12" autocomplete="new-password" placeholder="\u65b0\u5bc6\u78bc"></div>
+            <div class="form-group"><input type="password" name="confirm_password" required minlength="12" autocomplete="new-password" placeholder="\u518d\u6b21\u8f38\u5165\u65b0\u5bc6\u78bc"></div>
+            <button type="submit" class="btn btn-primary" style="width:100%">\u91cd\u8a2d SuperAdmin \u5bc6\u78bc</button>
+        </form>`;
+    openModal('', content);
+}
+
+async function handleSuperAdminRecovery(event) {
+    event.preventDefault();
+    const values = new FormData(event.target);
+    const password = String(values.get('new_password') || '');
+    if (password !== String(values.get('confirm_password') || '')) {
+        showToast('\u5169\u6b21\u5bc6\u78bc\u4e0d\u4e00\u81f4', 'error');
+        return;
+    }
+    try {
+        await apiPost('/auth/superadmin/recover', { code: String(values.get('code') || '').trim(), new_password: password });
+        closeModal();
+        showToast('SuperAdmin \u5bc6\u78bc\u5df2\u91cd\u8a2d\uff0c\u8acb\u91cd\u65b0\u767b\u5165', 'success');
+    } catch (error) {
+        showToast(error.message || 'SuperAdmin \u5fa9\u539f\u5931\u6557', 'error');
+    }
+}
+
+window.addEventListener('beforeunload', () => {
+    if (!superAdminSessionToken) return;
+    const adminToken = sessionStorage.getItem('nms_token');
+    superAdminSessionToken = '';
+    superAdminSessionExpiresAt = 0;
+    if (adminToken) {
+        fetch('/api/v1/auth/superadmin/logout', {
+            method: 'POST', keepalive: true,
+            headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+            body: '{}'
+        }).catch(() => {});
+    }
+});
 
 function copyMachineID() {
     const machineIdEl = document.getElementById('machine-id-display');
@@ -1158,7 +1240,7 @@ async function uploadCompanyLogo() {
     formData.append('logo', input.files[0]);
 
     try {
-        const response = await apiUpload('/branding/logo', formData);
+        const response = await apiUpload('/branding/logo', formData, superAdminOptions());
         if (response.success) {
             showToast(t('admin.toast.upload_success'), 'success');
             loadBrandingSettings();
@@ -1175,7 +1257,7 @@ async function uploadCompanyLogo() {
 async function deleteCompanyLogo() {
     showConfirm(t('admin.confirm.delete_logo'), async () => {
         try {
-            const response = await apiDelete('/branding/logo');
+            const response = await apiDelete('/branding/logo', undefined, superAdminOptions());
             if (response.success) {
                 showToast(t('admin.toast.logo_deleted'), 'success');
                 loadBrandingSettings();
@@ -1198,7 +1280,7 @@ async function saveBrandingInfo() {
             font_size: fontSize,
             name_position: position,
             font_color: fontColor
-        });
+        }, superAdminOptions());
         if (response.success) {
             showToast(t('admin.toast.save_success'), 'success');
             loadBrandingSettings();
@@ -1305,7 +1387,7 @@ async function uploadRestore() {
         }
     };
 
-    showConfirm(confirmMsg, performRestore);
+    showHighRiskConfirm('Restore system backup', file.name, performRestore, confirmMsg);
 }
 
 async function waitForServerRestart() {
@@ -1472,11 +1554,11 @@ async function runPingTool() {
     btn.innerHTML = `<span>⏳</span> ${t('admin.tools.running_btn')}`;
 
     try {
-        const token = sessionStorage.getItem('nms_token');
-        const response = await fetch('/api/tools/ping', {
+        const options = superAdminOptions();
+        const response = await fetch('/api/v1/tools/ping', {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${token}`,
+                'Authorization': `Bearer ${options.authToken}`,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({ targets: targets })
@@ -1516,11 +1598,11 @@ async function runTracerouteTool() {
     btn.innerHTML = `<span>⏳</span> ${t('admin.tools.running_btn')}`;
 
     try {
-        const token = sessionStorage.getItem('nms_token');
-        const response = await fetch('/api/tools/traceroute', {
+        const options = superAdminOptions();
+        const response = await fetch('/api/v1/tools/traceroute', {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${token}`,
+                'Authorization': `Bearer ${options.authToken}`,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({ target: target })
@@ -2399,12 +2481,20 @@ async function loadAuditLogs(page) {
     const status   = document.getElementById('audit-filter-status')?.value || '';
     const dateFrom = document.getElementById('audit-filter-from')?.value || '';
     const dateTo   = document.getElementById('audit-filter-to')?.value || '';
+    const search   = document.getElementById('audit-filter-search')?.value.trim() || '';
+    const module   = document.getElementById('audit-filter-module')?.value.trim() || '';
+    const action   = document.getElementById('audit-filter-action')?.value.trim() || '';
+    const reviewStatus = document.getElementById('audit-filter-review')?.value || '';
 
     let url = `/audit-logs?page=${page}&limit=${AUDIT_PAGE_SIZE}`;
     if (username) url += `&username=${encodeURIComponent(username)}`;
     if (status)   url += `&status=${encodeURIComponent(status)}`;
     if (dateFrom) url += `&date_from=${dateFrom}`;
     if (dateTo)   url += `&date_to=${dateTo}`;
+    if (search)   url += `&search=${encodeURIComponent(search)}`;
+    if (module)   url += `&module=${encodeURIComponent(module)}`;
+    if (action)   url += `&action=${encodeURIComponent(action)}`;
+    if (reviewStatus) url += `&review_status=${encodeURIComponent(reviewStatus)}`;
 
     const tbody = document.getElementById('audit-tbody');
     if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="empty-message">${t('common.loading')}</td></tr>`;
@@ -2422,6 +2512,7 @@ async function loadAuditLogs(page) {
 function renderAuditTable(rows) {
     const tbody = document.getElementById('audit-tbody');
     if (!tbody) return;
+    window.auditRows = rows || [];
 
     if (!rows || rows.length === 0) {
         tbody.innerHTML = `<tr><td colspan="7" class="empty-message">${t('audit.empty')}</td></tr>`;
@@ -2442,8 +2533,8 @@ function renderAuditTable(rows) {
             <td><code style="font-size:11px;">${escapeHtml(r.source_ip || '-')}</code></td>
             <td><code style="font-size:11px;">${escapeHtml(r.source_mac || '-')}</code></td>
             <td>${escapeHtml(formatAuditAction(r.action))}</td>
-            <td>${statusBadge(r.status)}</td>
-            <td style="font-size:11px;color:var(--text-muted);">${escapeHtml(detail)}</td>
+            <td>${statusBadge(r.status)}<div class="audit-review-badge review-${escapeHtml(r.review_status || 'pending')}">${escapeHtml(r.review_status || 'pending')}</div></td>
+            <td style="font-size:11px;color:var(--text-muted);"><div>${escapeHtml(detail)}</div><div class="audit-row-actions"><button class="btn btn-secondary btn-sm" onclick="showAuditDetail(${r.id})">檢視</button>${(r.review_status || 'pending') !== 'reviewed' ? `<button class="btn btn-primary btn-sm" onclick="reviewAuditRecord(${r.id})">審閱</button>` : ''}</div></td>
         </tr>`;
     }).join('');
 }
@@ -2468,7 +2559,7 @@ function renderAuditPagination(total, page, limit) {
 }
 
 function clearAuditFilters() {
-    const ids = ['audit-filter-username', 'audit-filter-status', 'audit-filter-from', 'audit-filter-to'];
+    const ids = ['audit-filter-username', 'audit-filter-search', 'audit-filter-module', 'audit-filter-action', 'audit-filter-status', 'audit-filter-review', 'audit-filter-from', 'audit-filter-to'];
     ids.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = '';
@@ -2476,11 +2567,41 @@ function clearAuditFilters() {
     loadAuditLogs(1);
 }
 
+let auditSearchTimer;
+function debounceAuditSearch() { clearTimeout(auditSearchTimer); auditSearchTimer = setTimeout(() => loadAuditLogs(1), 300); }
+
+function showAuditDetail(id) {
+    const row = (window.auditRows || []).find(entry => entry.id === id);
+    if (!row) return;
+    const safe = escapeHtml;
+    const detail = formatAuditDetail(row.detail) || '-';
+    openModal('Audit record', `<div class="audit-detail-view"><dl><div><dt>Time</dt><dd>${safe(row.occurred_at || '-')}</dd></div><div><dt>User</dt><dd>${safe(row.username || '-')}</dd></div><div><dt>Action</dt><dd>${safe(formatAuditAction(row.action))}</dd></div><div><dt>Resource</dt><dd>${safe(row.resource || row.resource_name || '-')}</dd></div><div><dt>Source</dt><dd>${safe(row.source_ip || '-')} ${safe(row.source_mac || '')}</dd></div><div><dt>Details</dt><dd>${safe(detail)}</dd></div></dl></div>`);
+}
+
+async function reviewAuditRecord(id) {
+    const row = (window.auditRows || []).find(entry => entry.id === id);
+    if (!row) return;
+    const note = window.prompt('審閱註記（可留白）', row.review_note || '');
+    if (note === null) return;
+    try {
+        const response = await apiPut(`/audit-logs/${id}/review`, { review_status: 'reviewed', review_note: note });
+        if (!response.success) throw new Error(response.error || 'Review failed');
+        showToast('稽核紀錄已審閱', 'success');
+        loadAuditLogs(auditCurrentPage);
+    } catch (error) {
+        showToast(error.message || '審閱失敗', 'error');
+    }
+}
+
 async function exportAuditCSV() {
     const username = document.getElementById('audit-filter-username')?.value.trim() || '';
     const status   = document.getElementById('audit-filter-status')?.value || '';
     const dateFrom = document.getElementById('audit-filter-from')?.value || '';
     const dateTo   = document.getElementById('audit-filter-to')?.value || '';
+    const reviewStatus = document.getElementById('audit-filter-review')?.value || '';
+    const search   = document.getElementById('audit-filter-search')?.value.trim() || '';
+    const module   = document.getElementById('audit-filter-module')?.value.trim() || '';
+    const action   = document.getElementById('audit-filter-action')?.value.trim() || '';
 
     // 取最多 5000 筆
     let url = `/audit-logs?page=1&limit=5000`;
@@ -2488,6 +2609,10 @@ async function exportAuditCSV() {
     if (status)   url += `&status=${encodeURIComponent(status)}`;
     if (dateFrom) url += `&date_from=${dateFrom}`;
     if (dateTo)   url += `&date_to=${dateTo}`;
+    if (reviewStatus) url += `&review_status=${encodeURIComponent(reviewStatus)}`;
+    if (search)   url += `&search=${encodeURIComponent(search)}`;
+    if (module)   url += `&module=${encodeURIComponent(module)}`;
+    if (action)   url += `&action=${encodeURIComponent(action)}`;
 
     try {
         const res = await apiGet(url);

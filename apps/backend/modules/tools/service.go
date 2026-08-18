@@ -4,6 +4,8 @@ package tools
 
 import (
 	"bytes"
+	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -11,6 +13,7 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+	"time"
 
 	"golang.org/x/text/encoding/traditionalchinese"
 	"golang.org/x/text/transform"
@@ -44,6 +47,9 @@ func (s *Service) Ping(req PingRequest) (Response, error) {
 }
 
 func (s *Service) Traceroute(req TracerouteRequest) (Response, error) {
+	if !isValidTarget(strings.TrimSpace(req.Target)) {
+		return Response{}, errors.New("invalid traceroute target")
+	}
 	return Response{Success: true, Output: runTraceroute(req.Target)}, nil
 }
 
@@ -58,11 +64,13 @@ func isValidTarget(target string) bool {
 }
 
 func runPing(target string) string {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
 	var cmd *exec.Cmd
 	if runtime.GOOS == "windows" {
-		cmd = exec.Command("ping", "-n", "4", target)
+		cmd = exec.CommandContext(ctx, "ping", "-n", "4", target) // #nosec G204 -- target is strictly validated
 	} else {
-		cmd = exec.Command("ping", "-c", "4", target)
+		cmd = exec.CommandContext(ctx, "ping", "-c", "4", target) // #nosec G204 -- target is strictly validated
 	}
 
 	out, err := cmd.CombinedOutput()
@@ -74,15 +82,17 @@ func runPing(target string) string {
 }
 
 func runTraceroute(target string) string {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 	var cmd *exec.Cmd
 	if runtime.GOOS == "windows" {
-		cmd = exec.Command("tracert", "-d", target)
+		cmd = exec.CommandContext(ctx, "tracert", "-d", target) // #nosec G204 -- target is strictly validated
 	} else {
 		path, err := exec.LookPath("traceroute")
 		if err != nil {
 			return "Error: 'traceroute' command not found. Please install it on the server."
 		}
-		cmd = exec.Command(path, "-n", target)
+		cmd = exec.CommandContext(ctx, path, "-n", target) // #nosec G204 -- path comes from LookPath and target is validated
 	}
 
 	out, err := cmd.CombinedOutput()

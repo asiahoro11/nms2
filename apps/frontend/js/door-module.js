@@ -107,7 +107,11 @@ function acStatusLabel(status) {
     return map[status] || status;
 }
 
-async function acDoorAction(id, action) {
+async function acDoorAction(id, action, confirmed = false) {
+    if (!confirmed && ['open', 'unlock', 'release'].includes(String(action).toLowerCase())) {
+        const door = acDoors.find(d => d.id === id);
+        return showHighRiskConfirm(`Door action: ${action}`, door?.name || `Door ${id}`, () => acDoorAction(id, action, true));
+    }
     try {
         const res = await apiPost(`/api/v1/access-control/doors/${id}/action`, { action });
         if (res.success) {
@@ -121,12 +125,13 @@ async function acDoorAction(id, action) {
 
 async function acDeleteDoor(id) {
     const door = acDoors.find(d => d.id === id);
-    if (!confirm(t('ac.confirm_delete_door') + ' ' + (door?.name || ''))) return;
+    return showHighRiskConfirm('Delete access-control door', door?.name || String(id), async () => {
     try {
         const res = await apiDelete(`/api/v1/access-control/doors/${id}`);
         if (res.success) { showToast(t('ac.door_deleted'), 'success'); acLoadDoors(); }
         else showToast(res.error || t('common.error'), 'error');
     } catch (e) { showToast(t('common.error'), 'error'); }
+    });
 }
 
 // ── Door add/edit modal ───────────────────────────────────────
@@ -335,12 +340,13 @@ async function acSaveCard(id) {
 
 async function acDeleteCard(id) {
     const card = acCards.find(c => c.id === id);
-    if (!confirm(t('ac.confirm_delete_card') + ' ' + (card?.holder_name || ''))) return;
+    return showHighRiskConfirm('Delete access card', card?.holder_name || String(id), async () => {
     try {
         const res = await apiDelete(`/api/v1/access-control/cards/${id}`);
         if (res.success) { showToast(t('ac.card_deleted'), 'success'); acLoadCards(); }
         else showToast(res.error || t('common.error'), 'error');
     } catch (e) { showToast(t('common.error'), 'error'); }
+    });
 }
 
 // ── Events ────────────────────────────────────────────────────
@@ -436,11 +442,13 @@ async function acApproveSchedule(id, action) {
 }
 
 async function acDeleteSchedule(id) {
-    if (!confirm(t('ac.confirm_delete_schedule') || '確定要刪除此排程？')) return;
+    const schedule = acSchedules.find(s => s.id === id);
+    return showHighRiskConfirm('Delete access schedule', schedule?.name || `Schedule ${id}`, async () => {
     try {
         const res = await apiDelete(`/api/v1/access-control/schedules/${id}`);
         if (res.success) { showToast(t('common.deleted') || '已刪除', 'success'); acLoadSchedules(); }
     } catch(e) { showToast(t('common.error'), 'error'); }
+    });
 }
 
 function acOpenAddScheduleModal() { acShowScheduleModal(null); }

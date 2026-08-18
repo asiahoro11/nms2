@@ -75,7 +75,7 @@ func (h *Handler) ActivateLicense(c *gin.Context) {
 		return
 	}
 
-	result, err := h.license.ActivateLicense(key, getSystemUUID(), h.getFormalSecretKey(), h.getPOCSecretKey(), h.initializeCameraModule)
+	result, err := h.license.ActivateLicense(key, getSystemUUID(), h.getLicensePublicKey(), h.getSecretKey(), h.getPOCSecretKey(), h.allowLegacyLicense(), h.initializeCameraModule)
 	if err != nil {
 		h.WriteSystemLog("warning", "license", "activate_license_failed", "license validation failed", map[string]interface{}{
 			"license_key_prefix": truncateAuditLicenseKey(key),

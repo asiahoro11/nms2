@@ -1,0 +1,792 @@
+{
+  "schema": "openai.presentation.layout/v4",
+  "unit": "px",
+  "slide": {
+    "aid": "sl/e1rkyo",
+    "id": "e1rkyo",
+    "slide": 6,
+    "layoutId": "596f7c88-43a2-47bc-bf6f-bc59db248a05",
+    "layoutName": "Title Slide",
+    "layoutType": "title",
+    "masterLayoutId": "8e295afe-8203-4660-b17b-07aa32ad4a3c",
+    "masterLayoutName": "Master",
+    "backgroundColor": "#FFFFFF",
+    "frame": {
+      "left": 0,
+      "top": 0,
+      "width": 1280,
+      "height": 720
+    }
+  },
+  "theme": {
+    "colorSchemeName": "ChatGPT",
+    "colors": {
+      "accent1": "#156082",
+      "accent2": "#E97132",
+      "accent3": "#196B24",
+      "accent4": "#0F9ED5",
+      "accent5": "#A02B93",
+      "accent6": "#4EA72E",
+      "bg1": "#FFFFFF",
+      "bg2": "#000000",
+      "tx1": "#1F1F1F",
+      "tx2": "#FFFFFF",
+      "dk1": "#000000",
+      "lt1": "#FFFFFF",
+      "dk2": "#0E2841",
+      "lt2": "#E8E8E8",
+      "hlink": "#467886",
+      "folHlink": "#96607D"
+    },
+    "typefaces": [
+      "Microsoft JhengHei"
+    ]
+  },
+  "inheritedLayers": [
+    {
+      "scope": "layout",
+      "id": "596f7c88-43a2-47bc-bf6f-bc59db248a05",
+      "name": "Title Slide",
+      "type": "title",
+      "parentLayoutId": "8e295afe-8203-4660-b17b-07aa32ad4a3c",
+      "elements": []
+    },
+    {
+      "scope": "master",
+      "id": "8e295afe-8203-4660-b17b-07aa32ad4a3c",
+      "name": "Master",
+      "type": "master",
+      "elements": []
+    }
+  ],
+  "elements": [
+    {
+      "order": 1,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/l87ed8ba",
+      "id": "1",
+      "bbox": [
+        42,
+        34,
+        420,
+        28
+      ],
+      "geometry": "rect",
+      "text": "設備管理",
+      "textPreview": "設備管理",
+      "resolvedFontSize": 15,
+      "resolvedTextStyle": {
+        "fontSize": 15,
+        "typeface": "Microsoft JhengHei",
+        "color": "#555555",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "設備管理"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "設備管理",
+          "resolvedTextStyle": {
+            "fontSize": 15,
+            "typeface": "Microsoft JhengHei",
+            "color": "#555555",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "設備管理",
+              "fontSize": 15,
+              "typeface": "Microsoft JhengHei",
+              "color": "#555555",
+              "bold": true,
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 2,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/ahoza1gv",
+      "id": "2",
+      "bbox": [
+        42,
+        72,
+        940,
+        76
+      ],
+      "geometry": "rect",
+      "text": "設備清單是所有監控與控制功能的入口",
+      "textPreview": "設備清單是所有監控與控制功能的入口",
+      "resolvedFontSize": 39,
+      "resolvedTextStyle": {
+        "fontSize": 39,
+        "typeface": "Microsoft JhengHei",
+        "color": "#111111",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "設備清單是所有監控與控制功能的入口"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "設備清單是所有監控與控制功能的入口",
+          "resolvedTextStyle": {
+            "fontSize": 39,
+            "typeface": "Microsoft JhengHei",
+            "color": "#111111",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "設備清單是所有監控與控制功能的入口",
+              "fontSize": 39,
+              "typeface": "Microsoft JhengHei",
+              "color": "#111111",
+              "bold": true,
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 3,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/32lszqtc",
+      "id": "3",
+      "bbox": [
+        42,
+        155,
+        1196,
+        0
+      ],
+      "geometry": "line",
+      "lineColor": "#B8BCC4",
+      "lineWidth": 1
+    },
+    {
+      "order": 4,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/szqtcj6t",
+      "id": "4",
+      "bbox": [
+        1184,
+        658,
+        54,
+        24
+      ],
+      "geometry": "rect",
+      "text": "06",
+      "textPreview": "06",
+      "resolvedFontSize": 14,
+      "resolvedTextStyle": {
+        "fontSize": 14,
+        "typeface": "Microsoft JhengHei",
+        "color": "#555555",
+        "alignment": "right",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "06"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "06",
+          "resolvedTextStyle": {
+            "fontSize": 14,
+            "typeface": "Microsoft JhengHei",
+            "color": "#555555",
+            "alignment": "right"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "06",
+              "fontSize": 14,
+              "typeface": "Microsoft JhengHei",
+              "color": "#555555",
+              "alignment": "right"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 5,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/lkjm1cfa",
+      "id": "5",
+      "bbox": [
+        64,
+        206,
+        338,
+        244
+      ],
+      "geometry": "rect",
+      "fillColor": "#EDEDED",
+      "lineWidth": 0
+    },
+    {
+      "order": 6,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/at47y1kr",
+      "id": "6",
+      "bbox": [
+        86,
+        228,
+        280,
+        38
+      ],
+      "geometry": "rect",
+      "text": "新增方式",
+      "textPreview": "新增方式",
+      "resolvedFontSize": 28,
+      "resolvedTextStyle": {
+        "fontSize": 28,
+        "typeface": "Microsoft JhengHei",
+        "color": "#111111",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "新增方式"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "新增方式",
+          "resolvedTextStyle": {
+            "fontSize": 28,
+            "typeface": "Microsoft JhengHei",
+            "color": "#111111",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "新增方式",
+              "fontSize": 28,
+              "typeface": "Microsoft JhengHei",
+              "color": "#111111",
+              "bold": true,
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 7,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/3ex0nuxc",
+      "id": "7",
+      "bbox": [
+        86,
+        292,
+        280,
+        104
+      ],
+      "geometry": "rect",
+      "text": "單筆新增、IP range、CIDR 子網掃描、Ping fallback。",
+      "textPreview": "單筆新增、IP range、CIDR 子網掃描、Ping fallback。",
+      "resolvedFontSize": 21,
+      "resolvedTextStyle": {
+        "fontSize": 21,
+        "typeface": "Microsoft JhengHei",
+        "color": "#555555",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "單筆新增、IP range、CIDR"
+          },
+          {
+            "index": 2,
+            "text": "子網掃描、Ping fallback。"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "單筆新增、IP range、CIDR 子網掃描、Ping fallback。",
+          "resolvedTextStyle": {
+            "fontSize": 21,
+            "typeface": "Microsoft JhengHei",
+            "color": "#555555",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "單筆新增、IP range、CIDR 子網掃描、Ping fallback。",
+              "fontSize": 21,
+              "typeface": "Microsoft JhengHei",
+              "color": "#555555",
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 8,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/w3m94fu1",
+      "id": "8",
+      "bbox": [
+        454,
+        206,
+        338,
+        244
+      ],
+      "geometry": "rect",
+      "fillColor": "#FFF3EE",
+      "lineWidth": 0
+    },
+    {
+      "order": 9,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/loj2t83i",
+      "id": "9",
+      "bbox": [
+        476,
+        228,
+        280,
+        38
+      ],
+      "geometry": "rect",
+      "text": "監控設定",
+      "textPreview": "監控設定",
+      "resolvedFontSize": 28,
+      "resolvedTextStyle": {
+        "fontSize": 28,
+        "typeface": "Microsoft JhengHei",
+        "color": "#111111",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "監控設定"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "監控設定",
+          "resolvedTextStyle": {
+            "fontSize": 28,
+            "typeface": "Microsoft JhengHei",
+            "color": "#111111",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "監控設定",
+              "fontSize": 28,
+              "typeface": "Microsoft JhengHei",
+              "color": "#111111",
+              "bold": true,
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 10,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/9knih4by",
+      "id": "10",
+      "bbox": [
+        476,
+        292,
+        280,
+        104
+      ],
+      "geometry": "rect",
+      "text": "Ping、SNMP v1/v2c/v3、CLI/Web 帳密、設備圖片。",
+      "textPreview": "Ping、SNMP v1/v2c/v3、CLI/Web 帳密、設備圖片。",
+      "resolvedFontSize": 21,
+      "resolvedTextStyle": {
+        "fontSize": 21,
+        "typeface": "Microsoft JhengHei",
+        "color": "#555555",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 3,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Ping、SNMP"
+          },
+          {
+            "index": 2,
+            "text": "v1/v2c/v3、CLI/Web"
+          },
+          {
+            "index": 3,
+            "text": "帳密、設備圖片。"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Ping、SNMP v1/v2c/v3、CLI/Web 帳密、設備圖片。",
+          "resolvedTextStyle": {
+            "fontSize": 21,
+            "typeface": "Microsoft JhengHei",
+            "color": "#555555",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Ping、SNMP v1/v2c/v3、CLI/Web 帳密、設備圖片。",
+              "fontSize": 21,
+              "typeface": "Microsoft JhengHei",
+              "color": "#555555",
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 11,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/kzupwb2h",
+      "id": "11",
+      "bbox": [
+        844,
+        206,
+        338,
+        244
+      ],
+      "geometry": "rect",
+      "fillColor": "#EDEDED",
+      "lineWidth": 0
+    },
+    {
+      "order": 12,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/re1w7mp0",
+      "id": "12",
+      "bbox": [
+        866,
+        228,
+        280,
+        38
+      ],
+      "geometry": "rect",
+      "text": "清單操作",
+      "textPreview": "清單操作",
+      "resolvedFontSize": 28,
+      "resolvedTextStyle": {
+        "fontSize": 28,
+        "typeface": "Microsoft JhengHei",
+        "color": "#111111",
+        "bold": true,
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "清單操作"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "清單操作",
+          "resolvedTextStyle": {
+            "fontSize": 28,
+            "typeface": "Microsoft JhengHei",
+            "color": "#111111",
+            "bold": true,
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "清單操作",
+              "fontSize": 28,
+              "typeface": "Microsoft JhengHei",
+              "color": "#111111",
+              "bold": true,
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 13,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/2t83itgf",
+      "id": "13",
+      "bbox": [
+        866,
+        292,
+        280,
+        104
+      ],
+      "geometry": "rect",
+      "text": "搜尋、依類型/狀態篩選、/24 子網群組、批次編輯與批次刪除。",
+      "textPreview": "搜尋、依類型/狀態篩選、/24 子網群組、批次編輯與批次刪除。",
+      "resolvedFontSize": 21,
+      "resolvedTextStyle": {
+        "fontSize": 21,
+        "typeface": "Microsoft JhengHei",
+        "color": "#555555",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 4,
+        "lines": [
+          {
+            "index": 1,
+            "text": "搜尋、依類型/狀態篩選、/2"
+          },
+          {
+            "index": 2,
+            "text": "4"
+          },
+          {
+            "index": 3,
+            "text": "子網群組、批次編輯與批次"
+          },
+          {
+            "index": 4,
+            "text": "刪除。"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "搜尋、依類型/狀態篩選、/24 子網群組、批次編輯與批次刪除。",
+          "resolvedTextStyle": {
+            "fontSize": 21,
+            "typeface": "Microsoft JhengHei",
+            "color": "#555555",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "搜尋、依類型/狀態篩選、/24 子網群組、批次編輯與批次刪除。",
+              "fontSize": 21,
+              "typeface": "Microsoft JhengHei",
+              "color": "#555555",
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 14,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/9w3m94fu",
+      "id": "14",
+      "bbox": [
+        76,
+        536,
+        1040,
+        54
+      ],
+      "geometry": "rect",
+      "text": "新增 SNMP 設備時，Read community 用於監控，Write community 與 CLI 帳密只在需要 PoE、重啟、備份等控制動作時填寫。",
+      "textPreview": "新增 SNMP 設備時，Read community 用於監控，Write community 與 CLI 帳密只在需要 PoE、重啟、備份等控制動作時填寫。",
+      "resolvedFontSize": 21,
+      "resolvedTextStyle": {
+        "fontSize": 21,
+        "typeface": "Microsoft JhengHei",
+        "color": "#111111",
+        "alignment": "left",
+        "insets": {
+          "top": 4.8,
+          "right": 9.6,
+          "bottom": 4.8,
+          "left": 9.6
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "新增 SNMP 設備時，Read community 用於監控，Write community 與 CLI 帳密只在需要"
+          },
+          {
+            "index": 2,
+            "text": "PoE、重啟、備份等控制動作時填寫。"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "新增 SNMP 設備時，Read community 用於監控，Write community 與 CLI 帳密只在需要 PoE、重啟、備份等控制動作時填寫。",
+          "resolvedTextStyle": {
+            "fontSize": 21,
+            "typeface": "Microsoft JhengHei",
+            "color": "#111111",
+            "alignment": "left"
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "新增 SNMP 設備時，Read community 用於監控，Write community 與 CLI 帳密只在需要 PoE、重啟、備份等控制動作時填寫。",
+              "fontSize": 21,
+              "typeface": "Microsoft JhengHei",
+              "color": "#111111",
+              "alignment": "left"
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    }
+  ],
+  "composeRuns": []
+}

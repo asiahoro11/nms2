@@ -94,6 +94,7 @@ func go2RTCBinaryNames() []string {
 
 func FindGo2RTCBin() string {
 	if value := strings.TrimSpace(os.Getenv("NMS_GO2RTC_BIN")); value != "" {
+		// #nosec G703 -- explicit operator-controlled executable override; it is only accepted when the file exists.
 		if _, err := os.Stat(value); err == nil {
 			return value
 		}

@@ -326,7 +326,7 @@ func (p *Pinger) syncCameraStatusByIP(db *sql.DB, ip string, isOnline bool) {
 
 func (p *Pinger) logEventAndAlert(id int, ip, name string, newStatus bool) {
 	eventType := "status_change"
-	severity := "warning"
+	severity := "critical"
 	msg := fmt.Sprintf("設備 '%s'（%s）已離線", name, ip)
 
 	if newStatus {
@@ -357,9 +357,9 @@ func (p *Pinger) logEventAndAlert(id int, ip, name string, newStatus bool) {
 
 		// 寫入 in-app notification
 		_, _ = db.Exec(`
-			INSERT INTO notifications (severity, title, message, is_read, created_at)
-			VALUES (?, ?, ?, 0, datetime('now'))
-		`, capturedSeverity, capturedTitle, capturedMsg)
+			INSERT INTO notifications (severity, title, message, device_id, category, is_read, created_at)
+			VALUES (?, ?, ?, ?, 'device_status', 0, datetime('now'))
+		`, capturedSeverity, capturedTitle, capturedMsg, id)
 
 		return err
 	})

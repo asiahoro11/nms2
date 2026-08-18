@@ -485,6 +485,7 @@ func (h *Handler) GetCurrentUser(c *gin.Context) {
 }
 
 func (h *Handler) Logout(c *gin.Context) {
+	_ = h.auth.RevokeSuperAdminSessions(c.GetString("jti"))
 	h.WriteSystemLog("notice", "auth", "logout", "user logout", map[string]interface{}{
 		"username": h.auditUsername(c),
 	})
@@ -547,6 +548,7 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 		}
 		return
 	}
+	_ = h.auth.RevokeSuperAdminSessions(c.GetString("jti"))
 
 	h.WriteSystemLog("notice", "auth", "change_password", "password changed", map[string]interface{}{
 		"user_id":  user.ID,

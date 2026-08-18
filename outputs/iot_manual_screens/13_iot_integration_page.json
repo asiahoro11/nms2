@@ -1,0 +1,71 @@
+{
+  "url": "http://10.100.100.11:8080/?restored=true#iot",
+  "title": "管理系統",
+  "text": "Management System\n儀表板\n設備清單\n網路拓樸\n攝影機監控\n門禁管理\nPDU/UPS 監控\nIoT\nIoT / Modbus\n日誌與稽核\n系統管理\n主題切換\n系統運行中\nv1.2.4.9\n🏠 主控台\n繁體中文\nEnglish\n简体中文\n日本語\n한국어\nyoyo\n管理者\nIoT 感測器\n刷新\n新增設備\n功能頁面 線上模組總覽 設備管理 整合設定\nHTTP 轉發佇列\n停用\n啟用\n儲存\n立即清空\niframe 嵌入 Token\ndashboard\ntopology\ndevices\nalerts\niot\n產生 Token\nSecurity — Embed token URLs grant read-only access. Use short expiry and revoke tokens after sharing.\niframe 允許清單\nAllowlist — Add only trusted HTTPS origins. Avoid wildcards.\n刷新\n儲存\n名稱\t頁面\t到期時間\t最後使用\t狀態\t操作\n尚無嵌入 Token",
+  "activeTab": "整合設定",
+  "visibleInputs": [
+    {
+      "id": "iot-forward-enabled",
+      "tag": "SELECT",
+      "type": null,
+      "placeholder": null,
+      "value": "false"
+    },
+    {
+      "id": "iot-forward-url",
+      "tag": "INPUT",
+      "type": null,
+      "placeholder": "Webhook URL",
+      "value": ""
+    },
+    {
+      "id": "iot-forward-token",
+      "tag": "INPUT",
+      "type": null,
+      "placeholder": "Bearer token - leave blank to keep existing",
+      "value": ""
+    },
+    {
+      "id": "iot-forward-batch",
+      "tag": "INPUT",
+      "type": "number",
+      "placeholder": null,
+      "value": "50"
+    },
+    {
+      "id": "embed-name",
+      "tag": "INPUT",
+      "type": null,
+      "placeholder": "Token name",
+      "value": "Customer Portal"
+    },
+    {
+      "id": "embed-view",
+      "tag": "SELECT",
+      "type": null,
+      "placeholder": null,
+      "value": "dashboard"
+    },
+    {
+      "id": "embed-expiry",
+      "tag": "INPUT",
+      "type": "number",
+      "placeholder": null,
+      "value": "1440"
+    },
+    {
+      "id": "embed-output",
+      "tag": "TEXTAREA",
+      "type": null,
+      "placeholder": null,
+      "value": ""
+    },
+    {
+      "id": "integration-frame-ancestors",
+      "tag": "TEXTAREA",
+      "type": null,
+      "placeholder": "'self'\nhttps://customer.example.com",
+      "value": "'self'\nhttp:\nhttps:"
+    }
+  ]
+}

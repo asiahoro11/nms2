@@ -55,7 +55,7 @@ function getAuthToken() {
 
 async function api(endpoint, options = {}) {
     const url = apiBuildURL(endpoint);
-    const token = getAuthToken();
+    const token = options.authToken || getAuthToken();
     const timeoutMs = options.timeoutMs === 0 ? 0 : (options.timeoutMs || 15000);
 
     const defaultOptions = {
@@ -80,6 +80,7 @@ async function api(endpoint, options = {}) {
         }
     };
     delete mergedOptions.timeoutMs;
+    delete mergedOptions.authToken;
 
     let timeoutId = null;
     let controller = null;
@@ -186,18 +187,18 @@ async function apiPut(endpoint, body, options = {}) {
     });
 }
 
-async function apiDelete(endpoint, body) {
+async function apiDelete(endpoint, body, options = {}) {
     console.log('[API] DELETE Request:', endpoint);
-    const opts = { method: 'DELETE' };
+    const opts = { ...options, method: 'DELETE' };
     if (body !== undefined) {
         opts.body = JSON.stringify(body);
     }
     return api(endpoint, opts);
 }
 
-async function apiUpload(endpoint, formData) {
+async function apiUpload(endpoint, formData, options = {}) {
     const url = apiBuildURL(endpoint);
-    const token = getAuthToken();
+    const token = options.authToken || getAuthToken();
 
     const headers = {};
     if (token) {
@@ -211,7 +212,7 @@ async function apiUpload(endpoint, formData) {
             body: formData
         });
 
-        if (response.status === 401) {
+        if (response.status === 401 && !options.skipRedirectOn401) {
             sessionStorage.removeItem('nms_token');
             sessionStorage.removeItem('nms_user');
             sessionStorage.removeItem('nms_expires');

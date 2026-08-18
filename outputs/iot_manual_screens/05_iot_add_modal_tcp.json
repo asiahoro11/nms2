@@ -1,0 +1,64 @@
+{
+  "url": "http://10.100.100.11:8080/login",
+  "title": "Management System - Login",
+  "text": "Management System\n管理系統\n\n系統登入\n\n登入帳號\n登入密碼\n忘記密碼？\n語系切換\n繁體中文\nEnglish\n简体中文\n日本語\n한국어\n登入\n(C) 2026 v1.2.4.9\nSUN\n主題",
+  "inputs": [
+    {
+      "tag": "INPUT",
+      "id": "username",
+      "name": "username",
+      "type": null,
+      "placeholder": "登入帳號",
+      "value": ""
+    },
+    {
+      "tag": "INPUT",
+      "id": "password",
+      "name": "password",
+      "type": "password",
+      "placeholder": "登入密碼",
+      "value": ""
+    },
+    {
+      "tag": "SELECT",
+      "id": "",
+      "name": null,
+      "type": null,
+      "placeholder": null,
+      "value": "zh-TW"
+    },
+    {
+      "tag": "INPUT",
+      "id": "twofactor-code",
+      "name": "code",
+      "type": null,
+      "placeholder": "Enter verification code or backup code",
+      "value": ""
+    },
+    {
+      "tag": "INPUT",
+      "id": "forgot-email",
+      "name": "email",
+      "type": "email",
+      "placeholder": "例如: user@example.com",
+      "value": ""
+    }
+  ],
+  "buttons": [
+    {
+      "id": "login-btn",
+      "text": "登入",
+      "aria": null
+    },
+    {
+      "id": "twofactor-btn",
+      "text": " Verify and Login",
+      "aria": null
+    },
+    {
+      "id": "forgot-btn",
+      "text": " 發送重設信件",
+      "aria": null
+    }
+  ]
+}

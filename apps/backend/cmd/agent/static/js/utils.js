@@ -186,6 +186,53 @@ function showConfirm(message, onConfirm, onCancel) {
 }
 window.showConfirm = showConfirm;
 
+// Confirmation for irreversible or service-impacting actions. The explicit token
+// prevents a stray click or a stale modal from immediately changing live systems.
+function showHighRiskConfirm(action, target, onConfirm, notice = '') {
+    const safe = value => {
+        const node = document.createElement('span');
+        node.textContent = String(value || '');
+        return node.innerHTML;
+    };
+    const token = 'CONFIRM';
+    const content = `
+        <div class="high-risk-confirmation">
+            <p class="high-risk-warning">This action may be irreversible or affect a live service.</p>
+            <dl class="high-risk-summary">
+                <div><dt>Action</dt><dd>${safe(action)}</dd></div>
+                <div><dt>Target</dt><dd>${safe(target)}</dd></div>
+            </dl>
+            ${notice ? `<p class="high-risk-notice">${safe(notice)}</p>` : ''}
+            <label class="high-risk-token-label" for="high-risk-confirm-token">Type <code>${token}</code> to continue</label>
+            <input id="high-risk-confirm-token" class="high-risk-token-input" type="text" autocomplete="off" spellcheck="false">
+            <div class="modal-actions">
+                <button class="btn btn-secondary" id="high-risk-cancel-btn" type="button">Cancel</button>
+                <button class="btn btn-danger" id="high-risk-confirm-btn" type="button" disabled>Confirm action</button>
+            </div>
+        </div>`;
+    openModal('Confirm high-risk action', content);
+
+    setTimeout(() => {
+        const input = document.getElementById('high-risk-confirm-token');
+        const confirmBtn = document.getElementById('high-risk-confirm-btn');
+        const cancelBtn = document.getElementById('high-risk-cancel-btn');
+        if (!input || !confirmBtn || !cancelBtn) return;
+        input.focus();
+        input.addEventListener('input', () => {
+            confirmBtn.disabled = input.value.trim().toUpperCase() !== token;
+        });
+        input.addEventListener('keydown', event => {
+            if (event.key === 'Enter' && !confirmBtn.disabled) confirmBtn.click();
+        });
+        cancelBtn.onclick = closeModal;
+        confirmBtn.onclick = () => {
+            closeModal();
+            if (typeof onConfirm === 'function') onConfirm();
+        };
+    }, 0);
+}
+window.showHighRiskConfirm = showHighRiskConfirm;
+
 // ===== Format Helpers =====
 function formatUptime(seconds) {
     const days = Math.floor(seconds / 86400);

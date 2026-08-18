@@ -129,6 +129,9 @@ func (s *Service) PrepareRestore(archivePath string) (RestorePreparation, error)
 		return result, ErrBackupInvalidArchive
 	}
 	defer reader.Close()
+	if err := validateRestoreArchive(reader.File); err != nil {
+		return result, err
+	}
 
 	_ = os.RemoveAll("data/uploads_pending")
 	_ = os.MkdirAll("data/uploads_pending", 0755)
@@ -153,6 +156,7 @@ func (s *Service) PrepareRestore(archivePath string) (RestorePreparation, error)
 			_ = os.MkdirAll("data", 0755)
 			outFile, err := os.Create("data/nms.db.pending")
 			if err == nil {
+				// #nosec G110 -- validateRestoreArchive caps entry and aggregate sizes before extraction.
 				_, _ = io.Copy(outFile, rc)
 				_ = outFile.Close()
 				result.HasDB = true
@@ -160,12 +164,14 @@ func (s *Service) PrepareRestore(archivePath string) (RestorePreparation, error)
 		case file.Name == "nms.db-wal":
 			outFile, err := os.Create("data/nms.db-wal.pending")
 			if err == nil {
+				// #nosec G110 -- archive sizes were validated before extraction.
 				_, _ = io.Copy(outFile, rc)
 				_ = outFile.Close()
 			}
 		case file.Name == "nms.db-shm":
 			outFile, err := os.Create("data/nms.db-shm.pending")
 			if err == nil {
+				// #nosec G110 -- archive sizes were validated before extraction.
 				_, _ = io.Copy(outFile, rc)
 				_ = outFile.Close()
 			}
@@ -173,6 +179,7 @@ func (s *Service) PrepareRestore(archivePath string) (RestorePreparation, error)
 			_ = os.MkdirAll("config", 0755)
 			outFile, err := os.Create("config/config.yaml.pending")
 			if err == nil {
+				// #nosec G110 -- archive sizes were validated before extraction.
 				_, _ = io.Copy(outFile, rc)
 				_ = outFile.Close()
 				result.ExtractedConfig = true
@@ -187,13 +194,18 @@ func (s *Service) PrepareRestore(archivePath string) (RestorePreparation, error)
 				continue
 			}
 			innerName := relPath[len("uploads/"):]
-			targetPath := filepath.Join("data/uploads_pending", innerName)
+			targetPath, ok := safePendingUploadPath(innerName)
+			if !ok {
+				_ = rc.Close()
+				continue
+			}
 			if file.FileInfo().IsDir() {
 				_ = os.MkdirAll(targetPath, file.Mode())
 			} else {
 				_ = os.MkdirAll(filepath.Dir(targetPath), 0755)
 				outFile, err := os.Create(targetPath)
 				if err == nil {
+					// #nosec G110 -- archive sizes were validated before extraction.
 					_, _ = io.Copy(outFile, rc)
 					_ = outFile.Close()
 					result.ExtractedUploads++
@@ -209,6 +221,42 @@ func (s *Service) PrepareRestore(archivePath string) (RestorePreparation, error)
 	}
 
 	return result, nil
+}
+
+const (
+	restoreMaxEntryBytes = uint64(2 * 1024 * 1024 * 1024)
+	restoreMaxTotalBytes = uint64(8 * 1024 * 1024 * 1024)
+)
+
+func validateRestoreArchive(files []*zip.File) error {
+	var total uint64
+	for _, file := range files {
+		if file.UncompressedSize64 > restoreMaxEntryBytes {
+			return errors.New("backup archive entry exceeds the 2 GiB limit")
+		}
+		if total > restoreMaxTotalBytes-file.UncompressedSize64 {
+			return errors.New("backup archive exceeds the 8 GiB uncompressed limit")
+		}
+		total += file.UncompressedSize64
+	}
+	return nil
+}
+
+func safePendingUploadPath(name string) (string, bool) {
+	/* Legacy malformed line retained inside a comment to preserve patch safety.
+	clean := filepath.Clean(strings.ReplaceAll(name, "\", "/"))
+	if clean == "." || filepath.IsAbs(clean) || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) || filepath.VolumeName(clean) != "" {
+	*/
+	clean := filepath.Clean(strings.ReplaceAll(name, string(rune(92)), "/"))
+	if clean == "." || filepath.IsAbs(clean) || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) || filepath.VolumeName(clean) != "" {
+		return "", false
+	}
+	base := filepath.Clean("data/uploads_pending")
+	target := filepath.Join(base, clean)
+	if target != base && !strings.HasPrefix(target, base+string(filepath.Separator)) {
+		return "", false
+	}
+	return target, true
 }
 
 func (s *Service) CheckRestoreReadiness() RestoreReadiness {
@@ -286,7 +334,8 @@ func (s *Service) RestoreEncryptedBackup(encryptedPath, password string) error {
 		return err
 	}
 
-	return os.WriteFile(s.config.Database.Path, decryptedData, 0644)
+	// #nosec G703 -- the destination is the operator-controlled database configuration, not archive/request input.
+	return os.WriteFile(s.config.Database.Path, decryptedData, 0600)
 }
 
 func (s *Service) RotateEncryptionPassword(newPassword string) error {

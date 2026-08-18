@@ -3,23 +3,13 @@
 package handlers
 
 import (
-	"context"
 	licensemodule "management-server/modules/license"
+	licensesvc "management-server/services/license"
 	"net/http"
-	"os"
-	"os/exec"
-	"runtime"
-	"strings"
-	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
-)
-
-var (
-	systemUUIDOnce  sync.Once
-	systemUUIDCache string
 )
 
 type User struct {
@@ -191,70 +181,5 @@ func (h *Handler) GetSystemInfo(c *gin.Context) {
 
 // getSystemUUID returns the local machine identity used by legacy license flows.
 func getSystemUUID() string {
-	systemUUIDOnce.Do(func() {
-		systemUUIDCache = detectSystemUUID()
-	})
-	return systemUUIDCache
-}
-
-func commandOutputWithTimeout(timeout time.Duration, name string, args ...string) ([]byte, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-	return exec.CommandContext(ctx, name, args...).CombinedOutput()
-}
-
-func detectSystemUUID() string {
-	if runtime.GOOS == "windows" {
-		output, err := commandOutputWithTimeout(2*time.Second, "wmic", "csproduct", "get", "uuid")
-		if err == nil {
-			str := string(output)
-			lines := strings.Split(str, "\n")
-			for _, line := range lines {
-				trimmed := strings.TrimSpace(line)
-				if trimmed != "" && !strings.Contains(strings.ToLower(trimmed), "uuid") {
-					return strings.ToLower(trimmed)
-				}
-			}
-		}
-
-		output, err = commandOutputWithTimeout(2*time.Second, "reg", "query", "HKLM\\SOFTWARE\\Microsoft\\Cryptography", "/v", "MachineGuid")
-		if err == nil {
-			str := string(output)
-			lines := strings.Split(str, "\n")
-			for _, line := range lines {
-				if strings.Contains(line, "MachineGuid") {
-					parts := strings.Fields(line)
-					if len(parts) >= 3 {
-						return strings.ToLower(parts[len(parts)-1])
-					}
-				}
-			}
-		}
-
-		output, err = commandOutputWithTimeout(2*time.Second, "wmic", "bios", "get", "serialnumber")
-		if err == nil {
-			str := string(output)
-			lines := strings.Split(str, "\n")
-			for _, line := range lines {
-				trimmed := strings.TrimSpace(line)
-				if trimmed != "" && !strings.Contains(strings.ToLower(trimmed), "serialnumber") {
-					return "serial-" + strings.ToLower(trimmed)
-				}
-			}
-		}
-
-		return "windows-unknown-uuid"
-	}
-
-	if data, err := os.ReadFile("/etc/machine-id"); err == nil {
-		return strings.ToLower(strings.TrimSpace(string(data)))
-	}
-	if data, err := os.ReadFile("/var/lib/dbus/machine-id"); err == nil {
-		return strings.ToLower(strings.TrimSpace(string(data)))
-	}
-	if data, err := os.ReadFile("/sys/class/dmi/id/product_uuid"); err == nil {
-		return strings.ToLower(strings.TrimSpace(string(data)))
-	}
-
-	return "unknown-system-uuid"
+	return licensesvc.SystemMachineID()
 }

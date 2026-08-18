@@ -7,7 +7,7 @@ import (
 	"crypto/cipher"
 	"crypto/hmac"
 	"crypto/rand"
-	"crypto/sha1"
+	"crypto/sha1" // #nosec G505 -- RFC 6238 interoperability requires HMAC-SHA1; it is not used for passwords or signatures.
 	"crypto/sha256"
 	"crypto/subtle"
 	"database/sql"
@@ -430,7 +430,11 @@ func buildProvisioningURI(issuer string, accountName string, secret string) stri
 func verifyTOTP(secret string, code string, now time.Time) bool {
 	normalizedCode := normalizeOTPCode(code)
 	for offset := -totpAllowedWindow; offset <= totpAllowedWindow; offset++ {
-		counter := uint64((now.Unix() / totpPeriodSeconds) + int64(offset))
+		counterValue := (now.Unix() / totpPeriodSeconds) + int64(offset)
+		if counterValue < 0 {
+			continue
+		}
+		counter := uint64(counterValue)
 		candidate, err := generateTOTPCode(secret, counter)
 		if err != nil {
 			return false

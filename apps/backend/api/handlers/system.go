@@ -192,6 +192,11 @@ func (h *Handler) legacyRestoreBackup(c *gin.Context) {
 		return
 	}
 	defer r.Close()
+	if err := validateLegacyRestoreArchive(r.File); err != nil {
+		h.WriteAuditFromContext(c, "restore_backup", "system_backup", "failed", map[string]interface{}{"reason": "archive_limits", "error": err.Error()})
+		c.JSON(http.StatusBadRequest, Response{Success: false, Error: err.Error()})
+		return
+	}
 
 	os.RemoveAll("data/uploads_pending")
 	os.MkdirAll("data/uploads_pending", 0755)
@@ -219,27 +224,31 @@ func (h *Handler) legacyRestoreBackup(c *gin.Context) {
 			os.MkdirAll("data", 0755)
 			outFile, err := os.Create("data/nms.db.pending")
 			if err == nil {
-				io.Copy(outFile, rc)
+				// #nosec G110 -- validateLegacyRestoreArchive caps each entry and total uncompressed size before extraction.
+				_, _ = io.Copy(outFile, rc)
 				outFile.Close()
 				hasDB = true
 			}
 		} else if f.Name == "nms.db-wal" {
 			outFile, err := os.Create("data/nms.db-wal.pending")
 			if err == nil {
-				io.Copy(outFile, rc)
+				// #nosec G110 -- archive sizes were validated before extraction.
+				_, _ = io.Copy(outFile, rc)
 				outFile.Close()
 			}
 		} else if f.Name == "nms.db-shm" {
 			outFile, err := os.Create("data/nms.db-shm.pending")
 			if err == nil {
-				io.Copy(outFile, rc)
+				// #nosec G110 -- archive sizes were validated before extraction.
+				_, _ = io.Copy(outFile, rc)
 				outFile.Close()
 			}
 		} else if f.Name == "config.yaml" {
 			os.MkdirAll("config", 0755)
 			outFile, err := os.Create("config/config.yaml.pending")
 			if err == nil {
-				io.Copy(outFile, rc)
+				// #nosec G110 -- archive sizes were validated before extraction.
+				_, _ = io.Copy(outFile, rc)
 				outFile.Close()
 				extractedConfig = true
 			}
@@ -254,14 +263,19 @@ func (h *Handler) legacyRestoreBackup(c *gin.Context) {
 				continue
 			}
 
-			targetPath := filepath.Join("data/uploads_pending", innerName)
+			targetPath, ok := safeLegacyPendingUploadPath(innerName)
+			if !ok {
+				rc.Close()
+				continue
+			}
 			if f.FileInfo().IsDir() {
 				os.MkdirAll(targetPath, f.Mode())
 			} else {
 				os.MkdirAll(filepath.Dir(targetPath), 0755)
 				outFile, err := os.Create(targetPath)
 				if err == nil {
-					io.Copy(outFile, rc)
+					// #nosec G110 -- archive sizes were validated before extraction.
+					_, _ = io.Copy(outFile, rc)
 					outFile.Close()
 					extractedUploads++
 				}
@@ -336,6 +350,42 @@ func (h *Handler) legacyRestoreBackup(c *gin.Context) {
 		executeRestoreScript()
 		os.Exit(0)
 	}()
+}
+
+const (
+	legacyRestoreMaxEntryBytes = uint64(2 * 1024 * 1024 * 1024)
+	legacyRestoreMaxTotalBytes = uint64(8 * 1024 * 1024 * 1024)
+)
+
+func validateLegacyRestoreArchive(files []*zip.File) error {
+	var total uint64
+	for _, file := range files {
+		if file.UncompressedSize64 > legacyRestoreMaxEntryBytes {
+			return fmt.Errorf("archive entry exceeds the 2 GiB limit")
+		}
+		if total > legacyRestoreMaxTotalBytes-file.UncompressedSize64 {
+			return fmt.Errorf("archive exceeds the 8 GiB uncompressed limit")
+		}
+		total += file.UncompressedSize64
+	}
+	return nil
+}
+
+func safeLegacyPendingUploadPath(name string) (string, bool) {
+	/* Legacy malformed line retained inside a comment to preserve patch safety.
+	clean := filepath.Clean(strings.ReplaceAll(name, "\", "/"))
+	if clean == "." || filepath.IsAbs(clean) || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) || filepath.VolumeName(clean) != "" {
+	*/
+	clean := filepath.Clean(strings.ReplaceAll(name, string(rune(92)), "/"))
+	if clean == "." || filepath.IsAbs(clean) || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) || filepath.VolumeName(clean) != "" {
+		return "", false
+	}
+	base := filepath.Clean("data/uploads_pending")
+	target := filepath.Join(base, clean)
+	if target != base && !strings.HasPrefix(target, base+string(filepath.Separator)) {
+		return "", false
+	}
+	return target, true
 }
 
 func (h *Handler) legacyCheckRestoreReadiness(c *gin.Context) {

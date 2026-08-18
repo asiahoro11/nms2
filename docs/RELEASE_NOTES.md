@@ -1,5 +1,102 @@
 # Management Server Release Notes
 
+## v1.2.4.11 | 2026-08-12
+
+**Build purpose:** Harden privileged administration and replace derivable License secrets.
+
+### SuperAdmin privilege separation
+- Adds a host-local `superadmin-local` initialization/reset tool; no default or embedded SuperAdmin password exists.
+- Windows packages include a double-click `manage_superadmin.bat` workflow that auto-detects the NMS database and whether initialization or password reset is required.
+- Adds a Traditional Chinese one-time Windows setup manual. After SuperAdmin login is verified, operators are instructed to delete `manage_superadmin.bat` and `tools\superadmin-local.exe`.
+- Adds a Traditional Chinese update and upgrade runbook for Windows and Linux, including clean-directory deployment, complete database/config backup, old-database path diagnosis, post-upgrade validation, and rollback.
+- Keeps SuperAdmin out of normal login, user lists, password-reset routes, and ordinary Admin APIs.
+- Opens the hidden login only after an authenticated Admin clicks System Management eight times.
+- Issues a short-lived, memory-only hidden-admin token bound to the originating active Admin session.
+- Makes TOTP conditional: enabled accounts require TOTP, while accounts without TOTP use username/password only.
+- Restricts branding, logo, diagnostics, and License reset APIs to SuperAdmin and records the originating Admin session in audit logs.
+- Prevents delegated administrators from changing the built-in Admin or SuperAdmin credentials.
+
+### License security
+- Replaces runtime-derivable AES issuance with Ed25519 private-key signing and public-key-only runtime verification.
+- Disables legacy AES License activation by default; a controlled migration flag is available only for transition.
+- Adds offline key generation, signing, and legacy-to-Ed25519 migration tools. Issuer tools and private keys are excluded from NMS packages.
+- Simplifies the separate offline License issuer into a guided formal/PoC wizard with common feature presets, conditional quantity fields, confirmation summary, automatic TXT output, and retained JSON automation compatibility.
+- Rejects tampered or unverifiable database License rows when calculating device, camera, and feature entitlement.
+
+### Application hardening
+- Hides sensitive system configuration keys from generic configuration APIs.
+- Removes public License debug endpoints and moves sensitive hidden routes behind scoped SuperAdmin middleware.
+- Adds strict logo size/type checks, command target validation/timeouts, session revocation, and security audit coverage.
+- Release packages include SHA-256 manifests plus local maintenance and License migration guides.
+
+---
+
+## v1.2.4.10 | 2026-08-12
+
+**Build purpose:** Correct SNMP device creation and monitoring display.
+
+### SNMP / Ping device monitoring
+- Fixes the device list and detail views so SNMP v1, v2c, and v3 devices are identified from `snmp_version`, rather than relying on a community string that is intentionally omitted from API responses.
+- Keeps Ping-only devices at `snmp_version = 0` and clears the SNMP community when the create form selects Ping.
+- Preserves the existing SNMP community and version defaults only for devices created with the SNMP monitoring method.
+- Synchronizes the frontend source and both embedded static asset trees.
+
+### Verification
+- Backend build and `go vet` pass for device and handler packages.
+- Frontend `devices.js` syntax check passes.
+
+---
+
+## v1.2.4.9sp00022 | 2026-07-23
+
+**Build purpose:** IoT multi-register device setup and resilient offline store-and-forward release.
+
+### IoT device setup
+- Enforces mutually exclusive connection fields: Modbus TCP and RTU over TCP show only Host/IP and Port, while RS485 shows only serial-port settings.
+- Normalizes legacy protocol aliases when editing and removes stale fields from the other transport in API responses and saved records.
+- Supports multiple register signals per physical IoT device, including JSON tag, function code, register address, data type, byte/word order, scale, offset, and unit.
+- Supports readable Modbus reference addresses such as `40001` and `30001` while converting them to zero-based wire offsets during polling.
+
+### Offline store-and-forward
+- Persists unsent IoT measurements in NMS SQLite storage while the forwarding target is unavailable.
+- Adds target host, port, path, bearer token, millisecond forwarding interval, batch size, queue status, and immediate-flush controls.
+- Emits one payload per device sample using `deviceId`, Unix epoch millisecond `sendTime`, and a multi-value `tagData` object.
+- Retries only failed samples after partial batch delivery and retains an idempotency key per sample.
+
+### Reports and integration handoff
+- Adds CSV, PDF, and JSON exports for topology links, device events, Syslog, v1 notifications, IoT devices/signals, IoT measurements/forwarding, camera recordings, access events/cards/schedules, and device configuration backup history.
+- Configuration backup reports expose metadata and content size only; configuration contents are never included.
+- Adds ready-to-fill forwarder settings and outbound payload JSON examples under `docs/examples/`.
+- Updates the Chinese and English API manuals with the complete categorized route catalog, role matrix, IoT forwarding routes, report exports, and current error codes.
+
+### Integrity lockdown
+- Adds a reversible fail-closed integrity mode; it never deletes or overwrites the database.
+- Checks the SQLite header and `PRAGMA quick_check`, with optional executable SHA-256 verification through `NMS_EXPECTED_BINARY_SHA256`.
+- Opens SQLite read-only before migrations when a persistent lock or executable mismatch is detected, disables background writers, and returns HTTP 423 for application APIs.
+- Keeps static assets and the read-only `/api/v1/system/integrity/status` endpoint available for local diagnosis; recovery is offline only.
+
+### Universal IoT roadmap
+- Adds the reviewed development roadmap for a transport-independent device, point, and sample model.
+- Plans capability-driven adapters for Modbus TCP, RTU over TCP, RS232/RS485, REST/Webhook, MQTT, and future protocol drivers.
+- Defines a versioned `/api/v2/iot/*` canonical API while preserving the existing v1 API and `{deviceId, sendTime, tagData}` forwarding contract.
+
+---
+
+## v0.0.09-sp1 | 2026-07-19
+
+**Build purpose:** Professional anomaly detection and device traffic visibility test release.
+
+### Added
+- Detects critical device-offline states, interface traffic saturation, and packet-error bursts.
+- Critical or high-volume active anomalies now present an actionable global alert dialog, with direct navigation to the related device.
+- Device details include a 24-hour inbound/outbound traffic trend chart, sampled at most once per interface every five minutes.
+
+### Database migration
+- Startup creates `interface_traffic_samples` and its device/time index automatically.
+- Existing devices, notifications, and historical data remain intact. Traffic trend data begins collecting after deployment and a subsequent SNMP poll.
+
+---
+
 ## v1.2.4.9 | 2026-06-26
 
 ### 繁體中文
@@ -652,3 +749,8 @@
 - 設備離線時介面速率 tab 灰化 + 警告 banner
 - 系統狀態頁 GPU 規格顯示
 - PoE 0W 顯示「非 PoE 設備 / 0W」
+## v1.2.4.11
+
+- 隱藏管理入口仍使用系統管理連點 8 次，但帳號密碼改由後端驗證。
+- TOTP 僅在該管理員已啟用時要求；未啟用時使用帳號密碼即可驗證。
+- 移除前端固定超級管理員密碼與永久 localStorage 解鎖狀態。

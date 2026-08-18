@@ -168,6 +168,32 @@ func (s *Service) ListInterfaces(id string) ([]DeviceInterface, error) {
 	return interfaces, nil
 }
 
+func (s *Service) ListTrafficSamples(id string, hours int) ([]TrafficSample, error) {
+	if hours <= 0 || hours > 168 {
+		hours = 24
+	}
+	rows, err := s.db.Query(`
+		SELECT if_index, bandwidth_in, bandwidth_out, in_errors, out_errors, collected_at
+		FROM interface_traffic_samples
+		WHERE device_id = ? AND collected_at >= datetime('now', ?)
+		ORDER BY collected_at ASC, if_index ASC
+	`, id, fmt.Sprintf("-%d hours", hours))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	items := make([]TrafficSample, 0)
+	for rows.Next() {
+		var item TrafficSample
+		if err := rows.Scan(&item.IfIndex, &item.BandwidthIn, &item.BandwidthOut, &item.InErrors, &item.OutErrors, &item.CollectedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
 func (s *Service) CreateDevice(input DeviceInput) (int64, error) {
 	result, err := s.db.Exec(`
 		INSERT INTO devices (name, ip_address, mac_address, device_type, snmp_community, snmp_version)

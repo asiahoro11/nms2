@@ -18,6 +18,9 @@ import (
 var (
 	ErrCannotDeleteLastAdmin = errors.New("cannot_delete_last_admin")
 	ErrUserNotFound          = errors.New("user_not_found")
+	ErrProtectedUser         = errors.New("protected_user")
+	ErrSuperAdminCreation    = errors.New("super_admin_creation_forbidden")
+	ErrSensitiveConfig       = errors.New("sensitive_config_is_not_available_through_generic_api")
 )
 
 type Service struct {
@@ -39,6 +42,9 @@ func (s *Service) ListUsers() ([]User, error) {
 	for rows.Next() {
 		var user User
 		if err := rows.Scan(&user.ID, &user.Username, &user.Role, &user.IsActive, &user.CreatedAt); err == nil {
+			if strings.EqualFold(user.Role, "super_admin") || strings.EqualFold(user.Username, "superadmin") {
+				continue
+			}
 			users = append(users, user)
 		}
 	}
@@ -46,10 +52,13 @@ func (s *Service) ListUsers() ([]User, error) {
 	return users, rows.Err()
 }
 
-func (s *Service) CreateUser(input CreateUserInput) (int64, error) {
+func (s *Service) CreateUser(input CreateUserInput, actorRole string) (int64, error) {
 	role := strings.TrimSpace(input.Role)
 	if role == "" {
 		role = "viewer"
+	}
+	if strings.EqualFold(role, "super_admin") && !strings.EqualFold(actorRole, "super_admin") {
+		return 0, ErrSuperAdminCreation
 	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
@@ -65,7 +74,17 @@ func (s *Service) CreateUser(input CreateUserInput) (int64, error) {
 	return result.LastInsertId()
 }
 
-func (s *Service) UpdateUser(id string, input UpdateUserInput) error {
+func (s *Service) UpdateUser(id string, input UpdateUserInput, actorRole string) error {
+	var username string
+	if err := s.db.QueryRow("SELECT username FROM users WHERE id = ?", id).Scan(&username); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrUserNotFound
+		}
+		return err
+	}
+	if !strings.EqualFold(actorRole, "super_admin") && (strings.EqualFold(username, "admin") || strings.EqualFold(username, "superadmin")) {
+		return ErrProtectedUser
+	}
 	if input.Password != nil {
 		hash, err := bcrypt.GenerateFromPassword([]byte(*input.Password), bcrypt.DefaultCost)
 		if err != nil {
@@ -91,7 +110,17 @@ func (s *Service) UpdateUser(id string, input UpdateUserInput) error {
 	return nil
 }
 
-func (s *Service) DeleteUser(id string) error {
+func (s *Service) DeleteUser(id string, actorRole string) error {
+	var targetUsername string
+	if err := s.db.QueryRow("SELECT username FROM users WHERE id = ?", id).Scan(&targetUsername); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrUserNotFound
+		}
+		return err
+	}
+	if !strings.EqualFold(actorRole, "super_admin") && (strings.EqualFold(targetUsername, "admin") || strings.EqualFold(targetUsername, "superadmin")) {
+		return ErrProtectedUser
+	}
 	var adminCount int
 	_ = s.db.QueryRow("SELECT COUNT(*) FROM users WHERE role = 'admin' AND id != ?", id).Scan(&adminCount)
 	if adminCount == 0 {
@@ -248,6 +277,9 @@ func (s *Service) ListSystemConfig() ([]SystemConfigEntry, error) {
 	for rows.Next() {
 		var entry SystemConfigEntry
 		if err := rows.Scan(&entry.ConfigKey, &entry.ConfigValue, &entry.Description); err == nil {
+			if isSensitiveConfigKey(entry.ConfigKey) {
+				continue
+			}
 			list = append(list, entry)
 		}
 	}
@@ -257,6 +289,9 @@ func (s *Service) ListSystemConfig() ([]SystemConfigEntry, error) {
 func (s *Service) UpdateSystemConfig(key string, input UpdateSystemConfigInput) (SystemConfigUpdateResult, error) {
 	key = strings.TrimSpace(key)
 	result := SystemConfigUpdateResult{ConfigKey: key}
+	if isSensitiveConfigKey(key) {
+		return result, ErrSensitiveConfig
+	}
 
 	newValue := strings.TrimSpace(fmt.Sprint(input.Value))
 	if newValue == "<nil>" || newValue == "" {
@@ -292,6 +327,16 @@ func (s *Service) UpdateSystemConfig(key string, input UpdateSystemConfigInput) 
 	result.NewValue = newValue
 	result.Description = description
 	return result, nil
+}
+
+func isSensitiveConfigKey(key string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(key))
+	for _, fragment := range []string{"secret", "password", "private", "token", "credential", "api_key", "community", "aes_"} {
+		if strings.Contains(normalized, fragment) {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Service) GetSystemInfo(version, name string, startTime time.Time, licenseLocked bool, lockReason string) SystemInfo {

@@ -255,6 +255,10 @@ func extractFFmpegFromZip(archivePath, destDir, targetName string) string {
 
 	for _, f := range r.File {
 		if strings.EqualFold(filepath.Base(f.Name), targetName) && !f.FileInfo().IsDir() {
+			if f.UncompressedSize64 == 0 || f.UncompressedSize64 > 512*1024*1024 {
+				log.Printf("[Camera] rejected oversized ffmpeg archive entry")
+				return ""
+			}
 			destPath := filepath.Join(destDir, targetName)
 			rc, err := f.Open()
 			if err != nil {
@@ -265,7 +269,12 @@ func extractFFmpegFromZip(archivePath, destDir, targetName string) string {
 				rc.Close()
 				continue
 			}
-			_, _ = io.Copy(out, rc)
+			if _, err := io.CopyN(out, rc, int64(f.UncompressedSize64)); err != nil {
+				_ = out.Close()
+				_ = rc.Close()
+				_ = os.Remove(destPath)
+				continue
+			}
 			out.Close()
 			rc.Close()
 			return destPath

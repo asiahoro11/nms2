@@ -69,8 +69,6 @@ function normalizeTopology(data) {
     const links = Array.isArray(data.links) ? data.links.map((link) => ({ ...link })) : [];
     const width = getCanvasSize().width || 1000;
     const height = getCanvasSize().height || 650;
-    const placed = nodes.filter((node) => isPlaced(node));
-
     nodes.forEach((node, index) => {
         node.id = normalizeId(node.id);
         node.x = Number(node.x);
@@ -87,9 +85,9 @@ function normalizeTopology(data) {
         }
     });
 
-    if (placed.length === 0 && nodes.length > 0) {
-        autoLayoutNodes(nodes, links, width, height);
-    }
+    // Keep newly discovered/unpositioned devices in the left sidebar. They
+    // enter the canvas only after the user drops them or topology discovery
+    // explicitly assigns positions. Do not auto-layout the whole inventory.
 
     return { nodes, links };
 }

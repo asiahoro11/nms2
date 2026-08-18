@@ -37,6 +37,9 @@ func (s *Service) Login(input LoginInput) (LoginResult, error) {
 	if err != nil {
 		return LoginResult{}, err
 	}
+	if strings.EqualFold(user.Role, "super_admin") || strings.EqualFold(user.Username, "SuperAdmin") {
+		return LoginResult{}, &Error{Code: ErrCodeInvalidCredentials}
+	}
 	if err := bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(input.Password)); err != nil {
 		return LoginResult{}, &Error{Code: ErrCodeInvalidCredentials, Err: err}
 	}
@@ -440,6 +443,10 @@ func (s *Service) verifyLoginChallenge(input VerifyTwoFactorInput) (LoginResult,
 
 func (s *Service) issueJWT(user User) (string, time.Time, error) {
 	expiresAt := time.Now().Add(24 * time.Hour)
+	jti, err := generateSecureToken(24)
+	if err != nil {
+		return "", time.Time{}, err
+	}
 	claims := jwt.MapClaims{
 		"user_id":  user.ID,
 		"username": user.Username,
@@ -447,6 +454,8 @@ func (s *Service) issueJWT(user User) (string, time.Time, error) {
 		"iss":      "management-server",
 		"iat":      time.Now().Unix(),
 		"exp":      expiresAt.Unix(),
+		"jti":      jti,
+		"scope":    "nms",
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)

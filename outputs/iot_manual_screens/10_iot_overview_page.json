@@ -1,0 +1,43 @@
+{
+  "url": "http://10.100.100.11:8080/?restored=true#iot",
+  "title": "管理系統",
+  "text": "Management System\n儀表板\n設備清單\n網路拓樸\n攝影機監控\n門禁管理\nPDU/UPS 監控\nIoT\nIoT / Modbus\n日誌與稽核\n系統管理\n主題切換\n系統運行中\nv1.2.4.9\n🏠 主控台\n繁體中文\nEnglish\n简体中文\n日本語\n한국어\nyoyo\n管理者\nIoT 感測器\n刷新\n新增設備\n功能頁面 線上模組總覽 設備管理 整合設定\n摘要統計\n設備總數\n0\n已啟用\n0\n量測筆數\n0\n待發送\n0\n發送失敗\n0\n已發送暫存\n0\n支援協定\nModbus TCP\n就緒\n就緒 — LAN/WAN active polling. Supports FC03/FC04, multi data types, endian config.\nModbus RTU\n就緒\n就緒 — Serial port active polling over RS232/RS485. Supports FC03/FC04 with CRC16 framing.\nModbus RS485\n就緒\n就緒 — RTU framing over RS485 half-duplex serial bus. Suitable for multi-drop sensor networks.\nModbus RTU over TCP\n就緒\n就緒 — RTU frames with CRC over a TCP transparent serial gateway. Use this for RS485-to-Ethernet converters that are not Modbus TCP gateways.\nREST / Webhook\n就緒\n橋接就緒 — Generic HTTP push path for IoT gateways and custom integrations.\nHTTP Forward Queue\n就緒\n就緒 — Durable local buffering with offline retry and auto-cleanup.\nMQTT Bridge\n橋接就緒\n橋接就緒 — Use an MQTT bridge to normalize topics into the REST ingest API.\nOPC-UA Gateway\n橋接就緒\n橋接就緒 — Push OPC-UA node values via gateway script into the ingest API.\nBACnet Gateway\n橋接就緒\n橋接就緒 — Push BACnet/IP building automation points via collector into the ingest API.\n閘道器測試\nREST / Webhook\nMQTT Bridge\nOPC-UA Gateway\nBACnet Gateway\niot.ingest.send",
+  "activeTab": "功能頁面",
+  "visibleInputs": [
+    {
+      "id": "iot-ingest-protocol",
+      "tag": "SELECT",
+      "type": null,
+      "placeholder": null,
+      "value": "rest"
+    },
+    {
+      "id": "iot-ingest-id",
+      "tag": "INPUT",
+      "type": null,
+      "placeholder": "External ID",
+      "value": "demo-sensor-1"
+    },
+    {
+      "id": "iot-ingest-name",
+      "tag": "INPUT",
+      "type": null,
+      "placeholder": "Name",
+      "value": "Demo Sensor"
+    },
+    {
+      "id": "iot-ingest-metric",
+      "tag": "INPUT",
+      "type": null,
+      "placeholder": "Metric",
+      "value": "temperature"
+    },
+    {
+      "id": "iot-ingest-value",
+      "tag": "INPUT",
+      "type": "number",
+      "placeholder": "Value",
+      "value": "25.5"
+    }
+  ]
+}

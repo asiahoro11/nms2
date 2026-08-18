@@ -32,6 +32,7 @@ type DeviceInput struct {
 	IPAddress     string  `json:"ip_address" binding:"required"`
 	MACAddress    *string `json:"mac_address"`
 	DeviceType    string  `json:"device_type"`
+	MonitorType   string  `json:"monitor_type"`
 	SNMPCommunity string  `json:"snmp_community"`
 	SNMPVersion   int     `json:"snmp_version"`
 }
@@ -77,6 +78,16 @@ type DeviceMetric struct {
 	MemoryUsage *float64 `json:"memory_usage"`
 	DiskUsage   *float64 `json:"disk_usage"`
 	CollectedAt string   `json:"collected_at"`
+}
+
+// TrafficSample is a five-minute interface traffic snapshot used for the device trend chart.
+type TrafficSample struct {
+	IfIndex      int64  `json:"if_index"`
+	BandwidthIn  int64  `json:"bandwidth_in"`
+	BandwidthOut int64  `json:"bandwidth_out"`
+	InErrors     int64  `json:"in_errors"`
+	OutErrors    int64  `json:"out_errors"`
+	CollectedAt  string `json:"collected_at"`
 }
 
 type BulkUpdateInput struct {

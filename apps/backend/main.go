@@ -12,6 +12,7 @@ import (
 	"management-server/services/alert"
 	"management-server/services/cloud"
 	"management-server/services/dbworker"
+	"management-server/services/integrity"
 	"management-server/services/license"
 	"management-server/services/logging"
 	"management-server/services/pinger"
@@ -45,38 +46,78 @@ func main() {
 	log.Println("Logging system initialized")
 
 	// 初始化資料庫
-	db, err := database.Initialize(cfg.Database.Path, cfg.System.Version)
+	integrityOptions := integrity.Options{
+		DatabasePath:             cfg.Database.Path,
+		ExpectedExecutableSHA256: os.Getenv("NMS_EXPECTED_BINARY_SHA256"),
+	}
+	prelocked, prelockReason, err := integrity.Preflight(integrityOptions)
+	if err != nil {
+		log.Fatalf("Failed to run integrity preflight: %v", err)
+	}
+
+	var db *sql.DB
+	if prelocked {
+		log.Printf("[Integrity] startup locked before database initialization: %s", prelockReason)
+		db, err = database.OpenReadOnly(cfg.Database.Path)
+		if err != nil {
+			log.Printf("[Integrity] persisted database cannot be opened read-only: %v", err)
+			db, err = database.OpenIntegrityFallback()
+		}
+	} else {
+		db, err = database.Initialize(cfg.Database.Path, cfg.System.Version)
+	}
 	if err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
 	defer db.Close()
 
+	machineID := license.SystemMachineID()
+	if err := license.ConfigureRuntimeValidation(
+		machineID,
+		license.DeriveKey("NMS-LICENSE-"+machineID),
+		license.DeriveKey("NMS-POC-LICENSE-v1.2.1-PoC"),
+	); err != nil {
+		log.Fatalf("Invalid License public-key configuration: %v", err)
+	}
+
 	// Initialize system defaults
-	initSystemDefaults(db, cfg)
+	integrityGuard := integrity.New(db, integrityOptions)
+	if err := integrityGuard.Check(); err != nil {
+		log.Printf("[Integrity] initial check warning: %v", err)
+	}
+	integrityGuard.Start()
+	defer integrityGuard.Stop()
+	runtimeEnabled := !integrityGuard.Locked()
 
-	// Initialize DB worker (serialized writes)
 	dbWorker := dbworker.New(db)
-	dbWorker.Start()
-	defer dbWorker.Stop()
+	var syslogReceiver *syslog.Receiver
+	var pingSvc *pinger.Pinger
+	if runtimeEnabled {
+		initSystemDefaults(db, cfg)
+		dbWorker.Start()
+		defer dbWorker.Stop()
 
-	// Startup health checks
-	license.CheckCompliance(db, cfg, func(msg string) {
-		alert.DispatchToEnabledChannels(db, cfg, msg)
-	})
+		// Startup health checks
+		license.CheckCompliance(db, cfg, func(msg string) {
+			alert.DispatchToEnabledChannels(db, cfg, msg)
+		})
 
-	// Start Syslog receiver
-	syslogReceiver := syslog.NewReceiver(cfg.Syslog.Port, db)
-	go syslogReceiver.Start()
+		// Start Syslog receiver
+		syslogReceiver = syslog.NewReceiver(cfg.Syslog.Port, db)
+		go syslogReceiver.Start()
 
-	// 啟動 Pinger 心跳檢測服務
-	// Apply license limit to pinger
-	pingSvc := pinger.New(cfg, db, dbWorker)
-	pingSvc.Start()
-	defer pingSvc.Stop()
+		// 啟動 Pinger 心跳檢測服務
+		// Apply license limit to pinger
+		pingSvc = pinger.New(cfg, db, dbWorker)
+		pingSvc.Start()
+		defer pingSvc.Stop()
+	} else {
+		log.Println("[Integrity] background writers are disabled while the system is locked")
+	}
 
 	// Start cloud edge connector
 	var cloudConn *cloud.Connector
-	if cfg.Cloud.Enabled {
+	if runtimeEnabled && cfg.Cloud.Enabled {
 		cloudConn = cloud.New(cfg.Cloud, db)
 		if err := cloudConn.Start(); err != nil {
 			log.Printf("WARNING: Cloud connector failed to start: %v", err)
@@ -91,13 +132,17 @@ func main() {
 
 	// 啟動排程器
 	sch := scheduler.New(cfg, db, dbWorker)
-	go sch.Start()
+	if runtimeEnabled {
+		go sch.Start()
+	}
 
 	// 啟動時間同步服務
-	timesync.Start()
+	if runtimeEnabled {
+		timesync.Start()
+	}
 
 	// 建立 API 路由 (注入 SNMP collector 與嵌入資源)
-	router := api.SetupRouter(cfg, db, sch.GetCollector(), assets)
+	router := api.SetupRouter(cfg, db, sch.GetCollector(), assets, integrityGuard)
 
 	// 等待結束訊號
 	quit := make(chan os.Signal, 1)
@@ -133,7 +178,9 @@ func main() {
 	if cfg.Security.EnableTLS {
 		scheme = "https"
 	}
-	go openBrowser(cfg.Server.Host, cfg.Server.Port, scheme)
+	if os.Getenv("NMS_DISABLE_AUTO_BROWSER") != "1" {
+		go openBrowser(cfg.Server.Host, cfg.Server.Port, scheme)
+	}
 
 	<-quit
 	log.Println("Shutting down server...")
@@ -148,9 +195,13 @@ func main() {
 	if cloudConn != nil {
 		cloudConn.Stop()
 	}
-	sch.Stop()
-	timesync.Stop()
-	syslogReceiver.Stop()
+	if runtimeEnabled {
+		sch.Stop()
+		timesync.Stop()
+		if syslogReceiver != nil {
+			syslogReceiver.Stop()
+		}
+	}
 }
 
 func openBrowser(host string, port string, scheme string) {

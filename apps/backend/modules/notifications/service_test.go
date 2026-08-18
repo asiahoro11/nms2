@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"management-server/config"
+	licensesvc "management-server/services/license"
 
 	_ "modernc.org/sqlite"
 )
@@ -21,7 +22,10 @@ func TestGetAlertSettingsSingleConnectionDoesNotBlock(t *testing.T) {
 
 	mustExec(t, db, `CREATE TABLE licenses (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		license_key TEXT,
+		license_type TEXT,
 		enabled_features TEXT,
+		valid_from TEXT,
 		valid_until TEXT,
 		is_active BOOLEAN DEFAULT 1
 	)`)
@@ -29,7 +33,23 @@ func TestGetAlertSettingsSingleConnectionDoesNotBlock(t *testing.T) {
 		config_key TEXT PRIMARY KEY,
 		config_value TEXT
 	)`)
-	mustExec(t, db, `INSERT INTO licenses (enabled_features, valid_until, is_active) VALUES ('["telegram"]', '', 1)`)
+	publicKey, privateKey, err := licensesvc.GenerateEd25519KeyPair()
+	if err != nil {
+		t.Fatalf("generate test key: %v", err)
+	}
+	licensesvc.SetRuntimeValidationForTest("notification-test", publicKey, false)
+	licenseKey, err := licensesvc.SignEd25519License(licensesvc.SignedLicense{
+		LicenseMode: licensesvc.FormalLicenseMode,
+		MachineID:   "notification-test",
+		DeviceCount: 10,
+		Features:    []string{"telegram"},
+		IssuedAt:    time.Now().UTC().Format(time.RFC3339),
+		ValidUntil:  time.Now().Add(time.Hour).UTC().Format(time.RFC3339),
+	}, privateKey)
+	if err != nil {
+		t.Fatalf("sign test license: %v", err)
+	}
+	mustExec(t, db, `INSERT INTO licenses (license_key, license_type, enabled_features, valid_until, is_active) VALUES (?, 'standard', '["telegram"]', ?, 1)`, licenseKey, time.Now().Add(time.Hour).UTC().Format(time.RFC3339))
 	mustExec(t, db, `INSERT INTO system_config (config_key, config_value) VALUES ('device_management_enabled', '1')`)
 
 	svc := NewService(db, &config.Config{})
@@ -65,6 +85,32 @@ func TestGetAlertSettingsSingleConnectionDoesNotBlock(t *testing.T) {
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("GetAlertSettings blocked with a single SQLite connection")
+	}
+}
+
+func TestUpdateWorkflowPersistsAssigneeAndResolution(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	defer db.Close()
+	svc := NewService(db, &config.Config{})
+	if err := svc.EnsureNotificationsTable(); err != nil {
+		t.Fatalf("ensure notifications table: %v", err)
+	}
+	mustExec(t, db, `INSERT INTO notifications (severity, title, message) VALUES ('warning', 'Link down', 'Core switch uplink')`)
+	if err := svc.UpdateWorkflow(1, UpdateWorkflowInput{Status: "acknowledged", AssignedTo: "operator"}, "operator"); err != nil {
+		t.Fatalf("acknowledge workflow: %v", err)
+	}
+	if err := svc.UpdateWorkflow(1, UpdateWorkflowInput{Status: "resolved", AssignedTo: "operator", ResolutionNote: "Cable reseated"}, "operator"); err != nil {
+		t.Fatalf("resolve workflow: %v", err)
+	}
+	items, _, err := svc.GetNotifications(false)
+	if err != nil || len(items) != 1 {
+		t.Fatalf("get notifications: items=%d err=%v", len(items), err)
+	}
+	if items[0].Status != "resolved" || items[0].AssignedTo != "operator" || items[0].ResolutionNote != "Cable reseated" || items[0].ResolvedAt == "" {
+		t.Fatalf("unexpected workflow state: %+v", items[0])
 	}
 }
 

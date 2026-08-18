@@ -3,6 +3,7 @@
 package middleware
 
 import (
+	"database/sql"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -51,6 +52,11 @@ func AuthRequired(secret []byte) gin.HandlerFunc {
 			c.Set("embed", claims["embed"])
 			c.Set("views", claims["views"])
 			c.Set("jti", claims["jti"])
+			c.Set("scope", claims["scope"])
+			c.Set("session_type", claims["session_type"])
+			c.Set("parent_jti", claims["parent_jti"])
+			c.Set("parent_user_id", claims["parent_user_id"])
+			c.Set("expires_at", claims["exp"])
 		} else {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid claims"})
 			c.Abort()
@@ -168,6 +174,29 @@ func RequireAdmin() gin.HandlerFunc {
 		role, exists := c.Get("role")
 		if !exists || role != "admin" {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Admin access required"})
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+}
+
+// RequireSuperAdmin protects system branding and other hidden, installation-level features.
+// It deliberately does not accept a normal admin JWT.
+func RequireSuperAdmin(db *sql.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		role, exists := c.Get("role")
+		scope := c.GetString("scope")
+		jti := c.GetString("jti")
+		parentJTI := c.GetString("parent_jti")
+		if !exists || role != "super_admin" || scope != "hidden_admin" || jti == "" || parentJTI == "" {
+			c.JSON(http.StatusForbidden, gin.H{"error": "SuperAdmin access required"})
+			c.Abort()
+			return
+		}
+		var count int
+		if err := db.QueryRow(`SELECT COUNT(*) FROM superadmin_sessions s JOIN users p ON p.id = s.parent_user_id WHERE s.jti = ? AND s.parent_jti = ? AND s.revoked_at IS NULL AND s.expires_at > CURRENT_TIMESTAMP AND p.is_active = 1 AND p.role = 'admin'`, jti, parentJTI).Scan(&count); err != nil || count != 1 {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "SuperAdmin session expired or revoked"})
 			c.Abort()
 			return
 		}

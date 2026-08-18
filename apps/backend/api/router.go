@@ -10,6 +10,7 @@ import (
 	"management-server/api/handlers"
 	"management-server/api/middleware"
 	"management-server/config"
+	"management-server/services/integrity"
 	"management-server/services/snmp"
 	"net/http"
 	"os"
@@ -19,20 +20,23 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func SetupRouter(cfg *config.Config, db *sql.DB, collector *snmp.Collector, assets embed.FS) *gin.Engine {
+func SetupRouter(cfg *config.Config, db *sql.DB, collector *snmp.Collector, assets embed.FS, integrityGuard *integrity.Guard) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 	r.MaxMultipartMemory = 256 << 20 // 256 MiB
 	r.Use(gin.Recovery())
 	r.Use(middleware.CORS(cfg.Security.AllowedOrigins))
 	r.Use(middleware.Logger())
+	r.Use(middleware.IntegrityLock(integrityGuard))
 	r.Use(middleware.Secure(cfg, db))
 
 	// Create handlers and start background loops
 	h := handlers.New(cfg, db, collector)
-	h.StartCameraHealthLoop()
-	h.StartLicenseHealthLoop()
-	h.StartIoTLoop()
+	if integrityGuard == nil || !integrityGuard.Locked() {
+		h.StartCameraHealthLoop()
+		h.StartLicenseHealthLoop()
+		h.StartIoTLoop()
+	}
 
 	// --- Static file serving ---
 	// Strategy 1: check if a real frontend/ dir exists (dev mode)
@@ -141,8 +145,6 @@ func SetupRouter(cfg *config.Config, db *sql.DB, collector *snmp.Collector, asse
 		v1.POST("/auth/reset-password", h.ResetPassword)
 		v1.GET("/system/info", h.GetSystemInfo)
 		v1.GET("/branding", h.GetBrandingSettings)
-		v1.GET("/system/config", h.GetSystemConfig)
-		v1.POST("/license/debug", h.DebugLicense)
 
 		auth := v1.Group("")
 		auth.Use(middleware.AuthRequired([]byte(cfg.Security.JWTSecret)))
@@ -159,6 +161,7 @@ func SetupRouter(cfg *config.Config, db *sql.DB, collector *snmp.Collector, asse
 			auth.GET("/dashboard", h.GetDashboard)
 			auth.GET("/dashboard/top-cpu", h.GetTopCPU)
 			auth.GET("/dashboard/top-memory", h.GetTopMemory)
+			auth.GET("/system/config", h.GetSystemConfig)
 			auth.GET("/license/status", h.GetLicenseStatus)
 			auth.GET("/license/features", h.GetLicenseFeatures)
 			auth.GET("/alerts/settings", h.GetAlertSettings)
@@ -191,6 +194,7 @@ func SetupRouter(cfg *config.Config, db *sql.DB, collector *snmp.Collector, asse
 			deviceMgmtRead.GET("/devices/:id", h.GetDevice)
 			deviceMgmtRead.GET("/devices/:id/metrics", h.GetDeviceMetrics)
 			deviceMgmtRead.GET("/devices/:id/interfaces", h.GetDeviceInterfaces)
+			deviceMgmtRead.GET("/devices/:id/traffic", h.GetDeviceTraffic)
 			deviceMgmtRead.GET("/devices/:id/events", h.GetDeviceEvents)
 			deviceMgmtRead.GET("/topology", h.GetTopology)
 			deviceMgmtRead.GET("/topology/device/:id/interfaces", h.GetDeviceInterfacesForLink)
@@ -238,6 +242,17 @@ func SetupRouter(cfg *config.Config, db *sql.DB, collector *snmp.Collector, asse
 			editor.GET("/reports/cameras", h.ExportCameraReport)
 			editor.GET("/reports/pdu", h.ExportPDUReport)
 			editor.GET("/reports/access-control", h.ExportAccessControlReport)
+			editor.GET("/reports/topology", h.ExportTopologyReport)
+			editor.GET("/reports/events", h.ExportEventReport)
+			editor.GET("/reports/syslog", h.ExportSyslogReport)
+			editor.GET("/reports/notifications", h.ExportNotificationReport)
+			editor.GET("/reports/iot-devices", h.ExportIoTDeviceReport)
+			editor.GET("/reports/iot-measurements", h.ExportIoTMeasurementReport)
+			editor.GET("/reports/camera-recordings", h.ExportCameraRecordingReport)
+			editor.GET("/reports/access-events", h.ExportAccessEventReport)
+			editor.GET("/reports/access-cards", h.ExportAccessCardReport)
+			editor.GET("/reports/access-schedules", h.ExportAccessScheduleReport)
+			editor.GET("/reports/config-backups", h.ExportConfigBackupReport)
 			editor.POST("/devices/:id/reboot", h.RebootDevice)
 			editor.POST("/devices/:id/backup", h.SaveDeviceConfig)
 			editor.GET("/devices/:id/backups", h.GetDeviceConfigBackups)
@@ -257,6 +272,11 @@ func SetupRouter(cfg *config.Config, db *sql.DB, collector *snmp.Collector, asse
 		admin.Use(middleware.RequireAdmin())
 		{
 			admin.GET("/users", h.GetUsers)
+			admin.GET("/auth/superadmin/status", h.GetSuperAdminStatus)
+			admin.POST("/auth/superadmin/login", h.BeginSuperAdminLogin)
+			admin.POST("/auth/superadmin/verify", h.VerifySuperAdminLogin)
+			admin.POST("/auth/superadmin/logout", h.EndSuperAdminSession)
+			admin.POST("/auth/superadmin/recover", h.RecoverSuperAdminPassword)
 			admin.POST("/users", h.CreateUser)
 			admin.PUT("/users/:id", h.UpdateUser)
 			admin.DELETE("/users/:id", h.DeleteUser)
@@ -266,20 +286,12 @@ func SetupRouter(cfg *config.Config, db *sql.DB, collector *snmp.Collector, asse
 			admin.GET("/license/machine-id", h.GetEncryptedMachineID)
 			admin.POST("/license/activate", h.ActivateLicense)
 			admin.GET("/licenses", h.GetLicenses)
-			admin.POST("/licenses", h.CreateLicense)
-			admin.POST("/license/reset", h.ResetLicenseIdentity)
-			admin.POST("/license/reissue", h.ReissueLicense)
 			admin.GET("/system/backup", h.ExportBackup)
 			admin.GET("/system/restore-readiness", h.CheckRestoreReadiness)
 			admin.POST("/system/restore", h.RestoreBackup)
 			admin.POST("/alerts/settings", h.SaveAlertSettings)
 			admin.PUT("/alerts/settings/:type", h.UpdateAlertSetting)
 			admin.POST("/alerts/test/:type", h.TestAlert)
-			admin.POST("/tools/ping", h.PingTool)
-			admin.POST("/tools/traceroute", h.TracerouteTool)
-			admin.PUT("/branding", h.UpdateBrandingSettings)
-			admin.POST("/branding/logo", h.UploadBrandingLogo)
-			admin.DELETE("/branding/logo", h.DeleteBrandingLogo)
 			admin.GET("/system/host-status", h.GetHostStatus)
 			admin.GET("/security/settings", h.GetSecuritySettings)
 			admin.PUT("/security/settings", h.UpdateSecuritySettings)
@@ -315,6 +327,20 @@ func SetupRouter(cfg *config.Config, db *sql.DB, collector *snmp.Collector, asse
 			admin.POST("/cameras/:id/health", h.CameraHealthCheck)
 			admin.GET("/nvr/config", h.GetNVRConfig)
 			admin.PUT("/nvr/config", h.SetNVRConfig)
+		}
+
+		superAdmin := v1.Group("")
+		superAdmin.Use(middleware.AuthRequired([]byte(cfg.Security.JWTSecret)))
+		superAdmin.Use(h.EnforceLicenseLock())
+		superAdmin.Use(middleware.RequireSuperAdmin(db))
+		{
+			superAdmin.POST("/auth/superadmin/change-password", h.ChangeSuperAdminPassword)
+			superAdmin.POST("/license/reset", h.ResetLicenseIdentity)
+			superAdmin.POST("/tools/ping", h.PingTool)
+			superAdmin.POST("/tools/traceroute", h.TracerouteTool)
+			superAdmin.PUT("/branding", h.UpdateBrandingSettings)
+			superAdmin.POST("/branding/logo", h.UploadBrandingLogo)
+			superAdmin.DELETE("/branding/logo", h.DeleteBrandingLogo)
 		}
 
 		// Camera read routes (editor+)
@@ -432,11 +458,14 @@ func SetupRouter(cfg *config.Config, db *sql.DB, collector *snmp.Collector, asse
 		wsTerm := v1.Group("")
 		wsTerm.Use(middleware.AuthRequired([]byte(cfg.Security.JWTSecret)))
 		wsTerm.Use(h.EnforceLicenseLock())
-		wsTerm.GET("/devices/:id/terminal", h.WebSSHTerminal)
+		wsTerm.POST("/devices/:id/terminal-ticket", h.CreateWebSSHTicket)
 	}
+	v1.GET("/devices/:id/terminal", h.WebSSHTerminal)
 
 	// Start NVR auto-resume for any cameras that had recording enabled
-	h.NVRStartAll()
+	if integrityGuard == nil || !integrityGuard.Locked() {
+		h.NVRStartAll()
+	}
 
 	return r
 }

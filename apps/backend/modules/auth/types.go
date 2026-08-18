@@ -39,6 +39,31 @@ type ChangePasswordInput struct {
 	NewPassword string `json:"new_password" binding:"required,min=6"`
 }
 
+type SuperAdminLoginInput struct {
+	Username string `json:"username" binding:"required"`
+	Password string `json:"password" binding:"required"`
+}
+
+type SuperAdminVerifyInput struct {
+	ChallengeToken string `json:"challenge_token" binding:"required"`
+	Code           string `json:"code" binding:"required"`
+	Method         string `json:"method,omitempty"`
+}
+
+type SuperAdminRecoveryInput struct {
+	Code        string `json:"code" binding:"required"`
+	Method      string `json:"method,omitempty"`
+	NewPassword string `json:"new_password" binding:"required,min=12"`
+}
+
+type SuperAdminLoginResult struct {
+	Token             string `json:"token,omitempty"`
+	ExpiresAt         int64  `json:"expires_at"`
+	RequiresTwoFactor bool   `json:"requires_two_factor,omitempty"`
+	TwoFactorMethod   string `json:"two_factor_method,omitempty"`
+	ChallengeToken    string `json:"challenge_token,omitempty"`
+}
+
 type ForgotPasswordInput struct {
 	Email string `json:"email" binding:"required,email"`
 }
@@ -102,24 +127,27 @@ type TwoFactorStatus struct {
 type ErrorCode string
 
 const (
-	ErrCodeInvalidInput              ErrorCode = "invalid_input"
-	ErrCodeUnauthorized              ErrorCode = "unauthorized"
-	ErrCodeUserNotFound              ErrorCode = "user_not_found"
-	ErrCodeAccountDisabled           ErrorCode = "account_disabled"
-	ErrCodeInvalidCredentials        ErrorCode = "invalid_credentials"
-	ErrCodeTokenSignFailed           ErrorCode = "token_sign_failed"
-	ErrCodeHashFailed                ErrorCode = "hash_failed"
-	ErrCodeUpdateFailed              ErrorCode = "update_failed"
-	ErrCodeMissingEmail              ErrorCode = "missing_email"
-	ErrCodeMissingMailer             ErrorCode = "missing_mailer"
-	ErrCodeResetTokenInvalid         ErrorCode = "reset_token_invalid"
-	ErrCodeResetTokenExpired         ErrorCode = "reset_token_expired"
+	ErrCodeInvalidInput       ErrorCode = "invalid_input"
+	ErrCodeUnauthorized       ErrorCode = "unauthorized"
+	ErrCodeUserNotFound       ErrorCode = "user_not_found"
+	ErrCodeAccountDisabled    ErrorCode = "account_disabled"
+	ErrCodeInvalidCredentials ErrorCode = "invalid_credentials" // #nosec G101 -- public error identifier, not a credential.
+	ErrCodeTokenSignFailed    ErrorCode = "token_sign_failed"
+	ErrCodeHashFailed         ErrorCode = "hash_failed"
+	ErrCodeUpdateFailed       ErrorCode = "update_failed"
+	ErrCodeMissingEmail       ErrorCode = "missing_email"
+	ErrCodeMissingMailer      ErrorCode = "missing_mailer"
+	// #nosec G101 -- public API error identifier, not an authentication token value.
+	ErrCodeResetTokenInvalid ErrorCode = "reset_token_invalid"
+	// #nosec G101 -- public API error identifier, not an authentication token value.
+	ErrCodeResetTokenExpired ErrorCode = "reset_token_expired"
+	// #nosec G101 -- public API error identifier, not a credential or secret.
 	ErrCodeTwoFactorDisabled         ErrorCode = "two_factor_disabled"
 	ErrCodeTwoFactorInvalid          ErrorCode = "two_factor_invalid"
 	ErrCodeTwoFactorExpired          ErrorCode = "two_factor_expired"
 	ErrCodeTwoFactorAlreadyEnabled   ErrorCode = "two_factor_already_enabled"
 	ErrCodeTwoFactorNotConfigured    ErrorCode = "two_factor_not_configured"
-	ErrCodeTwoFactorSecretFailed     ErrorCode = "two_factor_secret_failed"
+	ErrCodeTwoFactorSecretFailed     ErrorCode = "two_factor_secret_failed" // #nosec G101 -- public error identifier, not a secret.
 	ErrCodeTwoFactorChallengeInvalid ErrorCode = "two_factor_challenge_invalid"
 	ErrCodeTwoFactorChallengeExpired ErrorCode = "two_factor_challenge_expired"
 )

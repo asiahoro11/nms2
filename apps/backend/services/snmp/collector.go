@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"math"
 	"strconv"
 	"strings"
 	"sync"
@@ -78,18 +79,18 @@ var (
 	// ─── EnGenius (Senao International, Enterprise .1.3.6.1.4.1.14125) ─────────
 	// EnGenius AP/Switch firmware is Linux-based; CPU/MEM fall back to UCD-SNMP-MIB.
 	// These private OIDs are used for supplemental info on supported models.
-	OIDEngeniusModelName   = ".1.3.6.1.4.1.14125.2.1.1.5"   // AP/Switch model name
-	OIDEngeniusSSID        = ".1.3.6.1.4.1.14125.3.2.1.1.2" // SSID name (AP)
-	OIDEngeniusChannel     = ".1.3.6.1.4.1.14125.3.2.1.1.3" // Wireless channel (AP)
-	OIDEngeniusTxPower     = ".1.3.6.1.4.1.14125.3.2.1.1.5" // Tx power dBm (AP)
-	OIDEngeniusSignal      = ".1.3.6.1.4.1.14125.3.1.1.1.7" // Signal strength (AP client)
+	OIDEngeniusModelName = ".1.3.6.1.4.1.14125.2.1.1.5"   // AP/Switch model name
+	OIDEngeniusSSID      = ".1.3.6.1.4.1.14125.3.2.1.1.2" // SSID name (AP)
+	OIDEngeniusChannel   = ".1.3.6.1.4.1.14125.3.2.1.1.3" // Wireless channel (AP)
+	OIDEngeniusTxPower   = ".1.3.6.1.4.1.14125.3.2.1.1.5" // Tx power dBm (AP)
+	OIDEngeniusSignal    = ".1.3.6.1.4.1.14125.3.1.1.1.7" // Signal strength (AP client)
 
 	// ─── IEEE 802.3af/at PoE MIB (POWER-ETHERNET-MIB, RFC 3621) ──────────────
 	// Supported by: Edgecore ECS series, Cisco, HP/Aruba, and most PoE switches.
-	OIDPethPortDetectionStatus = ".1.3.6.1.2.1.105.1.1.1.6"  // pethPsePortDetectionStatus (1=off,3=deliv)
+	OIDPethPortDetectionStatus  = ".1.3.6.1.2.1.105.1.1.1.6"  // pethPsePortDetectionStatus (1=off,3=deliv)
 	OIDPethPortPowerConsumption = ".1.3.6.1.2.1.105.1.1.1.12" // pethPsePortPowerClassifications / actual mW
-	OIDPethMainPseConsumption  = ".1.3.6.1.2.1.105.1.3.1.4"  // pethMainPseConsumptionPower (mW, total)
-	OIDPethMainPseCapacity     = ".1.3.6.1.2.1.105.1.3.1.2"  // pethMainPsePower (mW, max budget)
+	OIDPethMainPseConsumption   = ".1.3.6.1.2.1.105.1.3.1.4"  // pethMainPseConsumptionPower (mW, total)
+	OIDPethMainPseCapacity      = ".1.3.6.1.2.1.105.1.3.1.2"  // pethMainPsePower (mW, max budget)
 
 	// ─── Hikvision (Enterprise .1.3.6.1.4.1.39165) ──────────────────────────
 	OIDHikvisionCPU          = ".1.3.6.1.4.1.39165.1.7.0"  // CPU usage %
@@ -103,12 +104,12 @@ var (
 	OIDHikvisionEncodeStatus = ".1.3.6.1.4.1.39165.1.21.0" // Video encode status
 
 	// ─── Dahua (Enterprise .1.3.6.1.4.1.1004849) ────────────────────────────
-	OIDDahuaCPU          = ".1.3.6.1.4.1.1004849.2.1.3"       // CPU usage %
-	OIDDahuaSoftVersion  = ".1.3.6.1.4.1.1004849.2.1.1.1"     // Software version
-	OIDDahuaHardVersion  = ".1.3.6.1.4.1.1004849.2.1.1.2"     // Hardware version
-	OIDDahuaDeviceStatus = ".1.3.6.1.4.1.1004849.2.1.2.8"     // Device status
-	OIDDahuaChannelCount = ".1.3.6.1.4.1.1004849.2.1.2.1"     // Video channel count
-	OIDDahuaSerialNo     = ".1.3.6.1.4.1.1004849.2.1.2.4"     // Serial number
+	OIDDahuaCPU          = ".1.3.6.1.4.1.1004849.2.1.3"         // CPU usage %
+	OIDDahuaSoftVersion  = ".1.3.6.1.4.1.1004849.2.1.1.1"       // Software version
+	OIDDahuaHardVersion  = ".1.3.6.1.4.1.1004849.2.1.1.2"       // Hardware version
+	OIDDahuaDeviceStatus = ".1.3.6.1.4.1.1004849.2.1.2.8"       // Device status
+	OIDDahuaChannelCount = ".1.3.6.1.4.1.1004849.2.1.2.1"       // Video channel count
+	OIDDahuaSerialNo     = ".1.3.6.1.4.1.1004849.2.1.2.4"       // Serial number
 	OIDDahuaStreamFPS    = ".1.3.6.1.4.1.1004849.2.3.1.1.1.1.3" // Main stream FPS
 )
 
@@ -129,8 +130,10 @@ type PollDeviceConfig struct {
 
 // bwAlertKey = "deviceID-ifIndex"，記錄上次告警時間（in-memory 冷卻，5分鐘）
 var (
-	bwAlertMu      sync.Mutex
-	bwAlertLastAt  = map[string]time.Time{}
+	bwAlertMu         sync.Mutex
+	bwAlertLastAt     = map[string]time.Time{}
+	packetAlertMu     sync.Mutex
+	packetAlertLastAt = map[string]time.Time{}
 )
 
 type Collector struct {
@@ -581,16 +584,16 @@ func (c *Collector) collectAllInterfaces(params *gosnmp.GoSNMP, deviceID int) {
 		return dbutils.TxWithRetry(db, func(tx *sql.Tx) error {
 			for ifIndex, ifData := range interfaces {
 				var existingID int
-				var prevInOctets, prevOutOctets int64
+				var prevInOctets, prevOutOctets, prevInErrors, prevOutErrors int64
 				var prevUpdatedAt time.Time
 
 				// 嘗試查詢前次數據以計算帶寬
 				// Use QueryRow on tx, not c.db
 				err := tx.QueryRow(`
-			SELECT id, in_octets, out_octets, updated_at
+			SELECT id, in_octets, out_octets, in_errors, out_errors, updated_at
 			FROM device_interfaces
 			WHERE device_id = ? AND if_index = ?
-		`, deviceID, ifIndex).Scan(&existingID, &prevInOctets, &prevOutOctets, &prevUpdatedAt)
+		`, deviceID, ifIndex).Scan(&existingID, &prevInOctets, &prevOutOctets, &prevInErrors, &prevOutErrors, &prevUpdatedAt)
 
 				ifName := getStringValue(ifData, "if_name")
 				ifDesc := getStringValue(ifData, "if_desc")
@@ -669,12 +672,26 @@ func (c *Collector) collectAllInterfaces(params *gosnmp.GoSNMP, deviceID int) {
 					log.Printf("Error checking existing interface %d for device %d: %v", ifIndex, deviceID, err)
 				}
 
+				// Keep a compact trend history: at most one snapshot per interface every five minutes.
+				_, _ = tx.Exec(`
+					INSERT INTO interface_traffic_samples (device_id, if_index, bandwidth_in, bandwidth_out, in_errors, out_errors)
+					SELECT ?, ?, ?, ?, ?, ?
+					WHERE NOT EXISTS (
+						SELECT 1 FROM interface_traffic_samples
+						WHERE device_id = ? AND if_index = ? AND collected_at >= datetime('now', '-5 minutes')
+					)
+				`, deviceID, ifIndex, bandwidthIn, bandwidthOut, inErrors, outErrors, deviceID, ifIndex)
+
 				// 頻寬超限告警：若 bandwidth_in 或 bandwidth_out（bytes/s）超過 if_speed（bps）的 80%，寫 notifications
 				if ifSpeed > 0 && (bandwidthIn > 0 || bandwidthOut > 0) {
 					thresholdBps := ifSpeed * 8 / 10 // 80% of link speed in bps
 					actualInBps := bandwidthIn * 8
 					actualOutBps := bandwidthOut * 8
 					if actualInBps > thresholdBps || actualOutBps > thresholdBps {
+						severity := "warning"
+						if actualInBps > ifSpeed*95/100 || actualOutBps > ifSpeed*95/100 {
+							severity = "critical"
+						}
 						alertKey := fmt.Sprintf("%d-%d", deviceID, ifIndex)
 						bwAlertMu.Lock()
 						lastAlert := bwAlertLastAt[alertKey]
@@ -692,9 +709,35 @@ func (c *Collector) collectAllInterfaces(params *gosnmp.GoSNMP, deviceID int) {
 							title := fmt.Sprintf("設備頻寬超限：%s", devName)
 							msg := fmt.Sprintf("設備 %s 介面 %s (if_index=%d) 流量 %d Mbps 超過連線速度 %d Mbps 的 80%%",
 								devName, ifName, ifIndex, usageMbps, limitMbps)
-							c.db.Exec(`INSERT INTO notifications (severity, title, message) VALUES (?, ?, ?)`,
-								"warning", title, msg)
+							c.db.Exec(`INSERT INTO notifications (severity, title, message, device_id, category) VALUES (?, ?, ?, ?, 'traffic_anomaly')`,
+								severity, title, msg, deviceID)
 							log.Printf("[BW-ALERT] %s", msg)
+						}
+					}
+				}
+
+				// Counter jumps flag packet-loss/error bursts even when total bandwidth is low.
+				if err == nil {
+					errorDelta := (inErrors - prevInErrors) + (outErrors - prevOutErrors)
+					if errorDelta >= 100 {
+						alertKey := fmt.Sprintf("%d-%d", deviceID, ifIndex)
+						packetAlertMu.Lock()
+						lastAlert := packetAlertLastAt[alertKey]
+						packetAlertMu.Unlock()
+						if time.Since(lastAlert) > 5*time.Minute {
+							packetAlertMu.Lock()
+							packetAlertLastAt[alertKey] = time.Now()
+							packetAlertMu.Unlock()
+							severity := "warning"
+							if errorDelta >= 1000 {
+								severity = "critical"
+							}
+							var devName string
+							c.db.QueryRow(`SELECT COALESCE(name, ip_address) FROM devices WHERE id = ?`, deviceID).Scan(&devName)
+							title := fmt.Sprintf("Packet error burst: %s", devName)
+							msg := fmt.Sprintf("%s interface %s (if_index=%d) reported %d new packet errors since the last poll.", devName, ifName, ifIndex, errorDelta)
+							c.db.Exec(`INSERT INTO notifications (severity, title, message, device_id, category) VALUES (?, ?, ?, ?, 'packet_anomaly')`, severity, title, msg, deviceID)
+							log.Printf("[PACKET-ALERT] %s", msg)
 						}
 					}
 				}
@@ -738,10 +781,10 @@ func (c *Collector) collectMetrics(params *gosnmp.GoSNMP, deviceID int) {
 			".1.3.6.1.4.1.9.9.109.1.1.1.1.7.1",      // Cisco 5min
 			".1.3.6.1.4.1.2011.5.25.31.1.1.1.1.5.0", // Huawei
 			".1.3.6.1.4.1.11863.6.1.1.2.1.1.1.0",    // TP-Link
-			".1.3.6.1.4.1.2021.11.11.0",              // Net-SNMP / EnGenius (Linux, Idle) - 需以 100-val 換算
+			".1.3.6.1.4.1.2021.11.11.0",             // Net-SNMP / EnGenius (Linux, Idle) - 需以 100-val 換算
 			".1.3.6.1.4.1.25506.2.6.1.1.1.1.6.1",    // H3C
-			OIDHikvisionCPU,                           // Hikvision IP Camera
-			OIDDahuaCPU,                               // Dahua IP Camera
+			OIDHikvisionCPU,                         // Hikvision IP Camera
+			OIDDahuaCPU,                             // Dahua IP Camera
 		}
 		for _, oid := range cpuOids {
 			res, err := params.Get([]string{oid})
@@ -819,7 +862,7 @@ func (c *Collector) collectMetrics(params *gosnmp.GoSNMP, deviceID int) {
 		memOids := []string{
 			".1.3.6.1.4.1.11863.6.1.1.2.1.1.2.0", // TP-Link (Percentage)
 			".1.3.6.1.4.1.9.9.48.1.1.1.5.1",      // Cisco Used Memory Pool
-			".1.3.6.1.4.1.2021.4.11.0",            // Net-SNMP / EnGenius MemFree (requires MemTotal)
+			".1.3.6.1.4.1.2021.4.11.0",           // Net-SNMP / EnGenius MemFree (requires MemTotal)
 		}
 		for _, oid := range memOids {
 			res, err := params.Get([]string{oid})
@@ -871,7 +914,7 @@ func (c *Collector) collectMetrics(params *gosnmp.GoSNMP, deviceID int) {
 	}
 
 	// 5. 嘗試磁碟使用率 (HOST-RESOURCES-MIB)
-	var diskTotal, diskUsed uint64
+	var diskTotal, diskUsed int64
 	params.Walk(OIDHrStorageType, func(pdu gosnmp.SnmpPDU) error {
 		storageType := pdu.Value.(string)
 		if strings.Contains(storageType, HrStorageFixedDisk) {
@@ -892,9 +935,22 @@ func (c *Collector) collectMetrics(params *gosnmp.GoSNMP, deviceID int) {
 				used = gosnmp.ToBigInt(resUsed.Variables[0].Value).Int64()
 			}
 
-			if units > 0 && size > 0 {
-				diskTotal += uint64(size * units)
-				diskUsed += uint64(used * units)
+			if units > 0 && size > 0 && size <= math.MaxInt64/units {
+				totalBytes := size * units
+				usedBytes := int64(0)
+				if used > 0 && used <= math.MaxInt64/units {
+					usedBytes = used * units
+				}
+				if diskTotal <= math.MaxInt64-totalBytes {
+					diskTotal += totalBytes
+				} else {
+					diskTotal = math.MaxInt64
+				}
+				if diskUsed <= math.MaxInt64-usedBytes {
+					diskUsed += usedBytes
+				} else {
+					diskUsed = math.MaxInt64
+				}
 			}
 		}
 		return nil
@@ -922,7 +978,7 @@ func (c *Collector) collectMetrics(params *gosnmp.GoSNMP, deviceID int) {
 			_, err := dbutils.ExecWithRetry(db, `
 			INSERT INTO device_metrics (device_id, cpu_usage, memory_usage, disk_usage, mem_total, mem_used, disk_total, disk_used) 
 			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-		`, deviceID, cpuUsage, memUsage, diskUsage, memTotal, memUsed, int64(diskTotal), int64(diskUsed))
+		`, deviceID, cpuUsage, memUsage, diskUsage, memTotal, memUsed, diskTotal, diskUsed)
 			return err
 		})
 	}
@@ -1240,7 +1296,7 @@ func detectDeviceType(sysDescr, vendor string) string {
 		strings.Contains(vendorLower, "vivotek") ||
 		strings.Contains(vendorLower, "qctek") ||
 		strings.Contains(descLower, "qctek") ||
-		strings.Contains(descLower, "qcam") ||    // QCTek camera model prefix
+		strings.Contains(descLower, "qcam") || // QCTek camera model prefix
 		strings.Contains(vendorLower, "dahua") ||
 		strings.Contains(vendorLower, "hikvision") ||
 		strings.Contains(vendorLower, "hanwha") ||

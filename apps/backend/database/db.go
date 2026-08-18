@@ -43,6 +43,15 @@ func Initialize(dbPath string, version string) (*sql.DB, error) {
 	if _, err := db.Exec("PRAGMA foreign_keys = ON;"); err != nil {
 		log.Printf("Warning: Failed to enable foreign keys: %v", err)
 	}
+	// Treat schema objects as data, not trusted application code. This reduces
+	// the impact of a locally modified SQLite schema.
+	if _, err := db.Exec("PRAGMA trusted_schema = OFF;"); err != nil {
+		log.Printf("Warning: Failed to disable trusted schema: %v", err)
+	}
+	// Ask SQLite to perform additional page-cell validation while reading.
+	if _, err := db.Exec("PRAGMA cell_size_check = ON;"); err != nil {
+		log.Printf("Warning: Failed to enable cell size checks: %v", err)
+	}
 
 	// busy_timeout is per-connection; single connection avoids SQLITE_BUSY under concurrent writes.
 	db.SetMaxOpenConns(1)
@@ -58,6 +67,49 @@ func Initialize(dbPath string, version string) (*sql.DB, error) {
 	}
 
 	log.Printf("Database initialized at %s", dbPath)
+	return db, nil
+}
+
+func OpenReadOnly(dbPath string) (*sql.DB, error) {
+	absolutePath, err := filepath.Abs(dbPath)
+	if err != nil {
+		return nil, fmt.Errorf("resolve read-only database path: %w", err)
+	}
+	dsn := "file:" + filepath.ToSlash(absolutePath) + "?mode=ro&_busy_timeout=30000"
+	db, err := sql.Open("sqlite", dsn)
+	if err != nil {
+		return nil, err
+	}
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
+	if err := db.Ping(); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("open read-only database: %w", err)
+	}
+	if _, err := db.Exec(`PRAGMA query_only = ON`); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("enable read-only database mode: %w", err)
+	}
+	log.Printf("Database opened in integrity-lock read-only mode at %s", dbPath)
+	return db, nil
+}
+
+// OpenIntegrityFallback provides a query-only in-memory connection when a
+// corrupted SQLite file cannot be opened. Locked middleware blocks application
+// APIs before handlers can use it; the connection only keeps static diagnostics
+// and the integrity status endpoint available without touching the damaged file.
+func OpenIntegrityFallback() (*sql.DB, error) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		return nil, err
+	}
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
+	if _, err := db.Exec(`PRAGMA query_only = ON`); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("enable integrity fallback query-only mode: %w", err)
+	}
+	log.Println("Database integrity fallback is active; the persisted database was not opened")
 	return db, nil
 }
 
@@ -300,6 +352,41 @@ func createTables(db *sql.DB) error {
 
 	_, _ = db.Exec(`CREATE INDEX IF NOT EXISTS idx_auth_login_challenges_user_id ON auth_login_challenges(user_id)`)
 	_, _ = db.Exec(`CREATE INDEX IF NOT EXISTS idx_auth_login_challenges_expires_at ON auth_login_challenges(expires_at)`)
+
+	// SuperAdmin authentication is isolated from normal login sessions. The
+	// short-lived session is bound to the Admin session that opened the hidden UI.
+	_, err = db.Exec(`
+		CREATE TABLE IF NOT EXISTS superadmin_auth_challenges (
+			challenge_token TEXT PRIMARY KEY,
+			superadmin_user_id INTEGER NOT NULL,
+			parent_user_id INTEGER NOT NULL,
+			parent_jti TEXT NOT NULL,
+			expires_at DATETIME NOT NULL,
+			consumed_at DATETIME,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (superadmin_user_id) REFERENCES users(id) ON DELETE CASCADE
+		)
+	`)
+	if err != nil {
+		return err
+	}
+	_, err = db.Exec(`
+		CREATE TABLE IF NOT EXISTS superadmin_sessions (
+			jti TEXT PRIMARY KEY,
+			superadmin_user_id INTEGER NOT NULL,
+			parent_user_id INTEGER NOT NULL,
+			parent_jti TEXT NOT NULL,
+			expires_at DATETIME NOT NULL,
+			revoked_at DATETIME,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (superadmin_user_id) REFERENCES users(id) ON DELETE CASCADE
+		)
+	`)
+	if err != nil {
+		return err
+	}
+	_, _ = db.Exec(`CREATE INDEX IF NOT EXISTS idx_superadmin_sessions_parent_jti ON superadmin_sessions(parent_jti)`)
+	_, _ = db.Exec(`CREATE INDEX IF NOT EXISTS idx_superadmin_sessions_expiry ON superadmin_sessions(expires_at)`)
 
 	// Enhanced Licenses 表
 	_, err = db.Exec(`
@@ -608,7 +695,27 @@ func upgradeSchema(db *sql.DB, version string) error {
 	}
 
 	alterStatements := []string{
+		`CREATE TABLE IF NOT EXISTS interface_traffic_samples (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			device_id INTEGER NOT NULL,
+			if_index INTEGER NOT NULL,
+			bandwidth_in BIGINT DEFAULT 0,
+			bandwidth_out BIGINT DEFAULT 0,
+			in_errors BIGINT DEFAULT 0,
+			out_errors BIGINT DEFAULT 0,
+			collected_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (device_id) REFERENCES devices(id) ON DELETE CASCADE
+		)`,
+		"CREATE INDEX IF NOT EXISTS idx_interface_traffic_samples_device_time ON interface_traffic_samples(device_id, collected_at)",
 		"ALTER TABLE devices ADD COLUMN sys_name TEXT",
+		"ALTER TABLE notifications ADD COLUMN status TEXT NOT NULL DEFAULT 'open'",
+		"ALTER TABLE notifications ADD COLUMN assigned_to TEXT DEFAULT ''",
+		"ALTER TABLE notifications ADD COLUMN acknowledged_by TEXT DEFAULT ''",
+		"ALTER TABLE notifications ADD COLUMN acknowledged_at DATETIME",
+		"ALTER TABLE notifications ADD COLUMN resolved_at DATETIME",
+		"ALTER TABLE notifications ADD COLUMN resolution_note TEXT DEFAULT ''",
+		"ALTER TABLE notifications ADD COLUMN device_id INTEGER DEFAULT 0",
+		"ALTER TABLE notifications ADD COLUMN category TEXT DEFAULT ''",
 		"ALTER TABLE devices ADD COLUMN sys_uptime TEXT",
 		"ALTER TABLE devices ADD COLUMN sys_location TEXT",
 		"ALTER TABLE device_interfaces ADD COLUMN if_admin_status INTEGER",

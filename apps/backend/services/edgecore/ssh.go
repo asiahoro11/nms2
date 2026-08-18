@@ -7,13 +7,15 @@ import (
 	"io"
 	"log"
 	"net"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"golang.org/x/crypto/ssh"
+	"management-server/services/sshsecurity"
 )
 
-const sshPort    = 22
+const sshPort = 22
 const sshTimeout = 20 * time.Second
 
 // SSHClient wraps an interactive PTY session to an EdgeCore CLI switch.
@@ -40,7 +42,7 @@ func NewSSHClient(ip, username, password string) (*SSHClient, error) {
 	cfg := &ssh.ClientConfig{
 		User:            username,
 		Auth:            []ssh.AuthMethod{ssh.Password(password)},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		HostKeyCallback: sshsecurity.TOFUCallback(filepath.Join("data", "ssh_known_hosts")),
 		Timeout:         sshTimeout,
 	}
 
@@ -61,17 +63,27 @@ func NewSSHClient(ip, username, password string) (*SSHClient, error) {
 		ssh.TTY_OP_OSPEED: 38400,
 	}
 	if err := session.RequestPty("vt100", 24, 512, modes); err != nil {
-		session.Close(); client.Close()
+		session.Close()
+		client.Close()
 		return nil, fmt.Errorf("PTY: %w", err)
 	}
 
 	stdin, err := session.StdinPipe()
-	if err != nil { session.Close(); client.Close(); return nil, err }
+	if err != nil {
+		session.Close()
+		client.Close()
+		return nil, err
+	}
 	stdout, err := session.StdoutPipe()
-	if err != nil { session.Close(); client.Close(); return nil, err }
+	if err != nil {
+		session.Close()
+		client.Close()
+		return nil, err
+	}
 
 	if err := session.Shell(); err != nil {
-		session.Close(); client.Close()
+		session.Close()
+		client.Close()
 		return nil, fmt.Errorf("shell: %w", err)
 	}
 
@@ -136,8 +148,12 @@ func NewSSHClient(ip, username, password string) (*SSHClient, error) {
 
 // Close terminates the SSH session and connection.
 func (s *SSHClient) Close() {
-	if s.session != nil { s.session.Close() }
-	if s.client != nil  { s.client.Close() }
+	if s.session != nil {
+		s.session.Close()
+	}
+	if s.client != nil {
+		s.client.Close()
+	}
 }
 
 // waitPrompt reads lines from outCh until a prompt line appears or timeout.
@@ -171,9 +187,12 @@ func (s *SSHClient) waitPrompt(timeout time.Duration) string {
 //   - "Vty-1>", "Switch>"                                 (user EXEC mode)
 //
 // Must NOT match config content ending with > (e.g. "!<stackingDB>"):
-//   Rule for ">": line must start with "Vty" or "Switch" (case-insensitive).
+//
+//	Rule for ">": line must start with "Vty" or "Switch" (case-insensitive).
+//
 // Must NOT match config comments ending with # (e.g. "spanning-tree mode rstp #comment"):
-//   Rule for "#": line must be short (<= 40 chars) and contain no spaces.
+//
+//	Rule for "#": line must be short (<= 40 chars) and contain no spaces.
 func isPrompt(line string) bool {
 	t := strings.TrimSpace(line)
 	tl := strings.ToLower(t)

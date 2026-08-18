@@ -65,6 +65,7 @@ func (s *Service) EncryptBackup(sourcePath, destPath string) error {
 	ciphertext := gcm.Seal(nonce, nonce, plaintext, nil)
 
 	// Write to destination
+	// #nosec G703 -- destination paths are created internally by backup services, not extracted archive names.
 	if err := os.WriteFile(destPath, ciphertext, 0600); err != nil {
 		return fmt.Errorf("failed to write encrypted file: %v", err)
 	}
@@ -107,6 +108,7 @@ func (s *Service) DecryptBackup(sourcePath, destPath string) error {
 	}
 
 	// Write to destination
+	// #nosec G703 -- destination paths are created internally by restore services, not extracted archive names.
 	if err := os.WriteFile(destPath, plaintext, 0600); err != nil {
 		return fmt.Errorf("failed to write decrypted file: %v", err)
 	}
@@ -175,6 +177,7 @@ func (s *Service) CreateEncryptedBackup(dbPath, outputPath string) error {
 		return fmt.Errorf("failed to read database: %v", err)
 	}
 
+	// #nosec G703 -- tempDB is joined from a fresh os.MkdirTemp directory and a fixed filename.
 	if err := os.WriteFile(tempDB, dbData, 0600); err != nil {
 		return fmt.Errorf("failed to write temp database: %v", err)
 	}

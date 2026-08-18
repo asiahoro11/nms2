@@ -4,7 +4,9 @@ package notifications
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -79,11 +81,31 @@ func (s *Service) EnsureNotificationsTable() error {
 			title TEXT NOT NULL,
 			message TEXT NOT NULL,
 			is_read BOOLEAN DEFAULT 0,
+			status TEXT NOT NULL DEFAULT 'open',
+			assigned_to TEXT DEFAULT '',
+			acknowledged_by TEXT DEFAULT '',
+			acknowledged_at DATETIME,
+			resolved_at DATETIME,
+			resolution_note TEXT DEFAULT '',
+			device_id INTEGER DEFAULT 0,
+			category TEXT DEFAULT '',
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 		)
 	`)
 	if err != nil {
 		return err
+	}
+	for _, statement := range []string{
+		"ALTER TABLE notifications ADD COLUMN status TEXT NOT NULL DEFAULT 'open'",
+		"ALTER TABLE notifications ADD COLUMN assigned_to TEXT DEFAULT ''",
+		"ALTER TABLE notifications ADD COLUMN acknowledged_by TEXT DEFAULT ''",
+		"ALTER TABLE notifications ADD COLUMN acknowledged_at DATETIME",
+		"ALTER TABLE notifications ADD COLUMN resolved_at DATETIME",
+		"ALTER TABLE notifications ADD COLUMN resolution_note TEXT DEFAULT ''",
+		"ALTER TABLE notifications ADD COLUMN device_id INTEGER DEFAULT 0",
+		"ALTER TABLE notifications ADD COLUMN category TEXT DEFAULT ''",
+	} {
+		_, _ = s.db.Exec(statement)
 	}
 
 	s.notificationsEnsured = true
@@ -203,7 +225,7 @@ func (s *Service) GetNotifications(unreadOnly bool) ([]Notification, int, error)
 		return nil, 0, err
 	}
 
-	query := `SELECT id, severity, title, message, is_read, created_at FROM notifications`
+	query := `SELECT id, severity, title, message, is_read, created_at, status, assigned_to, acknowledged_by, COALESCE(acknowledged_at, ''), COALESCE(resolved_at, ''), resolution_note, COALESCE(device_id, 0), COALESCE(category, '') FROM notifications`
 	if unreadOnly {
 		query += ` WHERE is_read = 0`
 	}
@@ -218,7 +240,7 @@ func (s *Service) GetNotifications(unreadOnly bool) ([]Notification, int, error)
 	list := make([]Notification, 0)
 	for rows.Next() {
 		var item Notification
-		if err := rows.Scan(&item.ID, &item.Severity, &item.Title, &item.Message, &item.IsRead, &item.CreatedAt); err != nil {
+		if err := rows.Scan(&item.ID, &item.Severity, &item.Title, &item.Message, &item.IsRead, &item.CreatedAt, &item.Status, &item.AssignedTo, &item.AcknowledgedBy, &item.AcknowledgedAt, &item.ResolvedAt, &item.ResolutionNote, &item.DeviceID, &item.Category); err != nil {
 			return nil, 0, err
 		}
 		list = append(list, item)
@@ -233,6 +255,89 @@ func (s *Service) GetNotifications(unreadOnly bool) ([]Notification, int, error)
 	}
 
 	return list, unreadCount, nil
+}
+
+func (s *Service) UpdateWorkflow(id int, input UpdateWorkflowInput, actor string) error {
+	if err := s.EnsureNotificationsTable(); err != nil {
+		return err
+	}
+	status := strings.ToLower(strings.TrimSpace(input.Status))
+	if status != "open" && status != "acknowledged" && status != "resolved" {
+		return errors.New("invalid workflow status")
+	}
+	result, err := s.db.Exec(`UPDATE notifications SET status=?, assigned_to=?, resolution_note=?, is_read=1,
+		acknowledged_by=CASE WHEN ?='acknowledged' THEN ? ELSE acknowledged_by END,
+		acknowledged_at=CASE WHEN ?='acknowledged' THEN CURRENT_TIMESTAMP ELSE acknowledged_at END,
+		resolved_at=CASE WHEN ?='resolved' THEN CURRENT_TIMESTAMP ELSE NULL END WHERE id=?`,
+		status, strings.TrimSpace(input.AssignedTo), strings.TrimSpace(input.ResolutionNote), status, actor, status, status, id)
+	if err != nil {
+		return err
+	}
+	if rows, _ := result.RowsAffected(); rows == 0 {
+		return ErrNotificationNotFound
+	}
+	return nil
+}
+
+func (s *Service) ListWorkflow(query WorkflowQuery) ([]Notification, int, map[string]int, error) {
+	if err := s.EnsureNotificationsTable(); err != nil {
+		return nil, 0, nil, err
+	}
+	if query.Page < 1 {
+		query.Page = 1
+	}
+	if query.Limit < 1 || query.Limit > 100 {
+		query.Limit = 25
+	}
+	where, args := " WHERE 1=1", []interface{}{}
+	if status := strings.TrimSpace(query.Status); status != "" && status != "all" {
+		where += " AND status = ?"
+		args = append(args, status)
+	}
+	if severity := strings.TrimSpace(query.Severity); severity != "" {
+		where += " AND severity = ?"
+		args = append(args, severity)
+	}
+	if search := strings.TrimSpace(query.Search); search != "" {
+		where += " AND (title LIKE ? OR message LIKE ? OR assigned_to LIKE ?)"
+		like := "%" + search + "%"
+		args = append(args, like, like, like)
+	}
+	var total int
+	if err := s.db.QueryRow("SELECT COUNT(*) FROM notifications"+where, args...).Scan(&total); err != nil {
+		return nil, 0, nil, err
+	}
+	rows, err := s.db.Query(`SELECT id, severity, title, message, is_read, created_at, status, assigned_to, acknowledged_by, COALESCE(acknowledged_at, ''), COALESCE(resolved_at, ''), resolution_note, COALESCE(device_id, 0), COALESCE(category, '') FROM notifications`+where+` ORDER BY created_at DESC LIMIT ? OFFSET ?`, append(args, query.Limit, (query.Page-1)*query.Limit)...)
+	if err != nil {
+		return nil, 0, nil, err
+	}
+	defer rows.Close()
+	items := make([]Notification, 0)
+	for rows.Next() {
+		var item Notification
+		if err := rows.Scan(&item.ID, &item.Severity, &item.Title, &item.Message, &item.IsRead, &item.CreatedAt, &item.Status, &item.AssignedTo, &item.AcknowledgedBy, &item.AcknowledgedAt, &item.ResolvedAt, &item.ResolutionNote, &item.DeviceID, &item.Category); err != nil {
+			return nil, 0, nil, err
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, nil, err
+	}
+	summary := map[string]int{"open": 0, "acknowledged": 0, "resolved": 0}
+	summaryRows, err := s.db.Query(`SELECT status, COUNT(*) FROM notifications GROUP BY status`)
+	if err != nil {
+		return nil, 0, nil, err
+	}
+	defer summaryRows.Close()
+	for summaryRows.Next() {
+		var status string
+		var count int
+		if err := summaryRows.Scan(&status, &count); err != nil {
+			return nil, 0, nil, err
+		}
+		summary[status] = count
+	}
+	return items, total, summary, nil
 }
 
 func (s *Service) MarkNotificationRead(id int) error {

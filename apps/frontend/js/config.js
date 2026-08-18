@@ -2,8 +2,8 @@
 // YTS工作室製作
 (function (global) {
     const config = {
-        appVersion: 'v1.2.4.9sp0001',
-        assetVersion: 'v1.2.4.9sp0001',
+        appVersion: 'v1.2.4.9sp00022',
+        assetVersion: 'v1.2.4.9sp00022',
         productName: 'Management System'
     };
 

@@ -42,34 +42,21 @@ func pocVersionLabel(version string) string {
 }
 
 func (s *Service) HasActiveStandardLicense() bool {
-	var count int
-	query := `
-		SELECT COUNT(*) FROM licenses
-		WHERE is_active = 1
-		  AND ` + ActiveLicenseWindowSQL + `
-		  AND CASE
-		        WHEN TRIM(COALESCE(license_type, '')) = '' THEN 'standard'
-		        ELSE LOWER(TRIM(license_type))
-		      END NOT IN ('poc', 'trial')
-	`
-	if err := s.db.QueryRow(query).Scan(&count); err != nil {
-		return false
+	for _, item := range licensesvc.VerifiedActiveLicenses(s.db) {
+		if item.Mode != licensesvc.PoCLicenseMode && !strings.EqualFold(item.Type, "trial") {
+			return true
+		}
 	}
-	return count > 0
+	return false
 }
 
 func (s *Service) HasActivePoCLicense() bool {
-	var count int
-	query := `
-		SELECT COUNT(*) FROM licenses
-		WHERE is_active = 1
-		  AND ` + ActiveLicenseWindowSQL + `
-		  AND LOWER(TRIM(COALESCE(license_type, ''))) = 'poc'
-	`
-	if err := s.db.QueryRow(query).Scan(&count); err != nil {
-		return false
+	for _, item := range licensesvc.VerifiedActiveLicenses(s.db) {
+		if item.Mode == licensesvc.PoCLicenseMode {
+			return true
+		}
 	}
-	return count > 0
+	return false
 }
 
 func (s *Service) HasActiveLicense() bool {
@@ -135,29 +122,12 @@ func (s *Service) DefaultDeviceLimit() int {
 }
 
 func (s *Service) ActiveLicensedDeviceCount() int {
-	var licensedDevices int
-	query := "SELECT COALESCE(SUM(device_count), 0) FROM licenses WHERE is_active = 1 AND " + ActiveLicenseWindowSQL
-	_ = s.db.QueryRow(query).Scan(&licensedDevices)
-	return licensedDevices
+	return licensesvc.ActiveDeviceCount(s.db)
 }
 
 func (s *Service) LicenseFeatureEnabled(feature string) bool {
-	rows, err := s.db.Query("SELECT enabled_features FROM licenses WHERE is_active = 1 AND " + ActiveLicenseWindowSQL)
-	if err != nil {
-		return false
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var featuresJSON sql.NullString
-		if err := rows.Scan(&featuresJSON); err != nil || !featuresJSON.Valid {
-			continue
-		}
-		var features []string
-		if err := json.Unmarshal([]byte(featuresJSON.String), &features); err != nil {
-			continue
-		}
-		for _, f := range features {
+	for _, item := range licensesvc.VerifiedActiveLicenses(s.db) {
+		for _, f := range item.Features {
 			if f == feature {
 				return true
 			}
@@ -195,23 +165,10 @@ func (s *Service) FeatureFlags() map[string]bool {
 		"email": true,
 	}
 
-	rows, err := s.db.Query(`
-		SELECT enabled_features FROM licenses
-		WHERE is_active = 1 AND ` + ActiveLicenseWindowSQL + `
-	`)
-	if err == nil {
-		for rows.Next() {
-			var featuresJSON sql.NullString
-			if err := rows.Scan(&featuresJSON); err == nil && featuresJSON.Valid {
-				var licenseFeatures []string
-				if json.Unmarshal([]byte(featuresJSON.String), &licenseFeatures) == nil {
-					for _, f := range licenseFeatures {
-						features[f] = true
-					}
-				}
-			}
+	for _, item := range licensesvc.VerifiedActiveLicenses(s.db) {
+		for _, f := range item.Features {
+			features[f] = true
 		}
-		_ = rows.Close()
 	}
 
 	features["device_management"] = s.DeviceManagementEnabled()
@@ -243,6 +200,10 @@ func (s *Service) Status() (Status, error) {
 	var licenses []Info
 	totalLicensedDevices := 0
 	now := time.Now()
+	verified := map[string]licensesvc.RuntimeLicense{}
+	for _, item := range licensesvc.VerifiedActiveLicenses(s.db) {
+		verified[item.Key] = item
+	}
 
 	for rows.Next() {
 		var li Info
@@ -263,6 +224,12 @@ func (s *Service) Status() (Status, error) {
 		if featuresJSON.Valid {
 			_ = json.Unmarshal([]byte(featuresJSON.String), &li.Features)
 		}
+		verifiedLicense, cryptographicallyValid := verified[li.LicenseKey]
+		if cryptographicallyValid {
+			li.DeviceCount = verifiedLicense.DeviceCount
+			li.CameraCount = verifiedLicense.CameraCount
+			li.Features = verifiedLicense.Features
+		}
 
 		if li.IsPermanent {
 			li.Status = "active"
@@ -280,7 +247,12 @@ func (s *Service) Status() (Status, error) {
 			li.Status = "active"
 		}
 
-		if li.IsActive && li.Status != "expired" {
+		if !cryptographicallyValid {
+			li.Status = "invalid"
+			li.IsActive = false
+		}
+
+		if li.IsActive && li.Status != "expired" && cryptographicallyValid {
 			totalLicensedDevices += li.DeviceCount
 		}
 
@@ -321,13 +293,13 @@ func (s *Service) EncryptedMachineID(machineID string, secretKey []byte) (Encryp
 	}, nil
 }
 
-func (s *Service) ActivateLicense(rawKey, machineID string, formalSecret, pocSecret []byte, ensureCameraSchema func()) (ActivateResult, error) {
+func (s *Service) ActivateLicense(rawKey, machineID string, publicKey, legacyFormal, legacyPoC []byte, allowLegacy bool, ensureCameraSchema func()) (ActivateResult, error) {
 	key := strings.TrimSpace(rawKey)
 	key = strings.ReplaceAll(key, "\n", "")
 	key = strings.ReplaceAll(key, "\r", "")
 	key = strings.ReplaceAll(key, " ", "")
 
-	payload, err := licensesvc.ValidateLicenseKey(key, machineID, formalSecret, pocSecret)
+	payload, err := licensesvc.ValidateLicenseKeyWithPolicy(key, machineID, publicKey, legacyFormal, legacyPoC, allowLegacy)
 	if err != nil {
 		return ActivateResult{}, err
 	}

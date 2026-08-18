@@ -77,8 +77,8 @@ function renderDevices(devices) {
     for (const device of devices) {
         const statusClass = device.is_online ? 'online' : 'offline';
         const statusText = device.is_online ? t('devices.online') : t('devices.offline');
-        const isSnmp = (device.snmp_community || device.snmp_version === 3);
-        const monitorType = device.snmp_version === 3 ? 'SNMP v3' : (device.snmp_community ? 'SNMP' : 'Ping');
+        const isSnmp = Number(device.snmp_version) > 0;
+        const monitorType = isSnmp ? `SNMP v${device.snmp_version}` : 'Ping';
         const monitorClass = isSnmp ? 'snmp' : 'ping';
         const imageHtml = getDeviceIcon(device);
 
@@ -667,16 +667,18 @@ async function viewDevice(id) {
         // 3. 並行獲取其他數據
         const metricsPromise = apiGet(`/devices/${id}/metrics?limit=1`);
         const interfacesPromise = apiGet(`/devices/${id}/interfaces`);
+        const trafficPromise = apiGet(`/devices/${id}/traffic?hours=24`);
 
         // 只有非 PingOnly 設備才去抓取即時 PoE/端口細節
         const livePortsPromise = isPingOnly ?
             Promise.resolve({ success: true, data: [] }) :
             apiGet(`/devices/${id}/poe`).catch(e => ({ success: false, error: e }));
 
-        const [metricsResp, interfacesResp, livePortsResp] = await Promise.all([
+        const [metricsResp, interfacesResp, livePortsResp, trafficResp] = await Promise.all([
             metricsPromise,
             interfacesPromise,
-            livePortsPromise
+            livePortsPromise,
+            trafficPromise
         ]);
 
         console.log('[DEBUG] Auxiliary API responses:', { metricsResp, interfacesResp, livePortsResp });
@@ -709,14 +711,51 @@ async function viewDevice(id) {
         window.currentDeviceInterfaces = interfaces;
 
         console.log('[DEBUG] Rendering modal');
-        renderDeviceDetailModal(device, cpu, mem, disk, memUsed, diskUsed, activePorts, interfaces);
+        const trafficHistory = trafficResp.success && trafficResp.data ? trafficResp.data : [];
+        renderDeviceDetailModal(device, cpu, mem, disk, memUsed, diskUsed, activePorts, interfaces, trafficHistory);
     } catch (error) {
         console.error('[ERROR] viewDevice failed:', error);
         showToast('無法載入設備詳情: ' + error.message, 'error');
     }
 }
 
-function renderDeviceDetailModal(device, cpu, mem, disk, memUsed, diskUsed, activePorts, interfaces) {
+function renderTrafficTrendChart(samples) {
+    if (!samples || samples.length === 0) {
+        return `<div class="traffic-trend-card"><div class="traffic-trend-header"><h3>24h Traffic Trend</h3><span class="text-muted">Collecting samples (shown every 5 minutes)</span></div><p class="empty-message">No historical traffic samples yet.</p></div>`;
+    }
+
+    const buckets = new Map();
+    samples.forEach(sample => {
+        const key = sample.collected_at;
+        const value = buckets.get(key) || { in: 0, out: 0 };
+        value.in += Number(sample.bandwidth_in || 0) * 8;
+        value.out += Number(sample.bandwidth_out || 0) * 8;
+        buckets.set(key, value);
+    });
+    const points = Array.from(buckets.entries()).map(([at, value]) => ({ at, ...value }));
+    const maxValue = Math.max(1, ...points.flatMap(point => [point.in, point.out]));
+    const width = 720, height = 190, pad = 28;
+    const toPath = field => points.map((point, index) => {
+        const x = pad + index * ((width - pad * 2) / Math.max(1, points.length - 1));
+        const y = height - pad - (point[field] / maxValue) * (height - pad * 2);
+        return `${index === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
+    }).join(' ');
+    const latest = points[points.length - 1];
+
+    return `<div class="traffic-trend-card">
+        <div class="traffic-trend-header"><h3>24h Traffic Trend</h3><span class="text-muted">IN ${formatSpeed(latest.in)} · OUT ${formatSpeed(latest.out)}</span></div>
+        <div class="traffic-chart-legend"><span><i class="traffic-line in"></i>Inbound</span><span><i class="traffic-line out"></i>Outbound</span><span>${points.length} samples</span></div>
+        <svg class="traffic-trend-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="24-hour interface traffic trend">
+            <line x1="${pad}" y1="${height - pad}" x2="${width - pad}" y2="${height - pad}" class="traffic-grid-line"></line>
+            <line x1="${pad}" y1="${pad}" x2="${width - pad}" y2="${pad}" class="traffic-grid-line"></line>
+            <path d="${toPath('in')}" class="traffic-line-path in"></path>
+            <path d="${toPath('out')}" class="traffic-line-path out"></path>
+        </svg>
+        <div class="traffic-chart-caption"><span>${escapeHtml(String(points[0].at))}</span><span>Peak ${formatSpeed(maxValue)}</span><span>${escapeHtml(String(latest.at))}</span></div>
+    </div>`;
+}
+
+function renderDeviceDetailModal(device, cpu, mem, disk, memUsed, diskUsed, activePorts, interfaces, trafficHistory = []) {
     const cpuDeg = (cpu / 100) * 180;
     const memDeg = (mem / 100) * 180;
     const diskDeg = (disk / 100) * 180;
@@ -786,7 +825,7 @@ function renderDeviceDetailModal(device, cpu, mem, disk, memUsed, diskUsed, acti
         </div>
 
         <!-- Physical Port Matrix (For All SNMP Switches) -->
-        ${(device.snmp_community && interfaces.length > 0 && device.device_type === 'switch') ? `
+        ${(Number(device.snmp_version) > 0 && interfaces.length > 0 && device.device_type === 'switch') ? `
         <div class="port-matrix-section">
             <div class="section-header">
                 <h3>${t('devices.detail.port_matrix_title')} (Physical Ports Status)</h3>
@@ -821,6 +860,7 @@ function renderDeviceDetailModal(device, cpu, mem, disk, memUsed, diskUsed, acti
         </div>
         
         <div class="device-detail-tab-content active" id="device-traffic-tab">
+            ${renderTrafficTrendChart(trafficHistory)}
             <div class="interface-section">
                 <h3>${t('devices.detail.traffic_title')} (Interface Real-time Traffic)</h3>
                 ${!device.is_online ? `
@@ -1158,7 +1198,7 @@ function confirmPortAction(deviceId, portIndex, type, action) {
         ? `確定要對 Port ${portIndex} 執行 ${actionMap[action] || action} 嗎？這可能會導致連接設備重啟。`
         : `確定要對 Port ${portIndex} 執行 ${actionMap[action]} 嗎？這將會中斷該埠位的網路連線！`;
 
-    showConfirm(detailMsg, async () => {
+    showHighRiskConfirm(`Port ${actionMap[action] || action}`, `Device ${deviceId}, port ${portIndex}`, async () => {
         try {
             let response;
             if (type === 'poe') {
@@ -1194,7 +1234,7 @@ function getVlanColor(vlanId) {
 
 // Handle Reboot — uses stored cli_username/cli_password from DB (no credential prompt)
 async function handleReboot(id) {
-    showConfirm('確定要重啟設備嗎？重啟期間網路將中斷數分鐘。', async () => {
+    showHighRiskConfirm('Reboot device', `Device ${id}`, async () => {
         try {
             const response = await rebootDevice(id, {});
             if (response.success) {
@@ -1481,7 +1521,7 @@ async function loadWirelessInfo(deviceId) {
 
 async function handlePoEControl(deviceId, portIndex, action) {
     const actionText = action === 'recycle' ? '重撥 (Recycle)' : (action === 'on' ? '開啟' : '關閉');
-    showConfirm(`確定要對 Port ${portIndex} 執行 ${actionText} 嗎？`, async () => {
+    showHighRiskConfirm(`Control PoE: ${actionText}`, `Device ${deviceId}, port ${portIndex}`, async () => {
         try {
             const response = await controlPoEPort(deviceId, portIndex, { action });
             if (response.success) {
@@ -1510,7 +1550,7 @@ async function editDevice(id) {
         const response = await apiGet(`/devices/${id}`);
         if (response.success) {
             const device = response.data;
-            const hasSNMP = (device.snmp_community || device.snmp_version === 3) ? true : false;
+            const hasSNMP = Number(device.snmp_version) > 0;
             const content = `
                 <form id="edit-device-form" onsubmit="updateDevice(event, ${id})">
                     <div class="form-group">
@@ -1849,6 +1889,20 @@ function confirmDeleteDevice(id, name) {
         return;
     }
 
+    showHighRiskConfirm('Delete device', `${name || 'Unnamed device'} (ID: ${id})`, async () => {
+        try {
+            const response = await apiDelete(`/devices/${id}`);
+            if (response.success) {
+                showToast(t('devices.toast.delete_success'), 'success');
+                loadDevices();
+            }
+        } catch (error) {
+            console.error('[Devices] Delete failed:', error);
+            showToast(error.message || 'Device deletion failed', 'error');
+        }
+    });
+    return;
+
     showConfirm(`確定要刪除設備 "${name}" (ID: ${id}) 嗎？`, async () => {
         console.log('[Devices] Executing delete callback for ID:', id);
         try {
@@ -1928,6 +1982,24 @@ function updateBulkDeleteButtonState() {
 
 function bulkDeleteDevices() {
     if (selectedDeviceIds.size === 0) return;
+
+    const ids = Array.from(selectedDeviceIds);
+    showHighRiskConfirm('Bulk delete devices', `${ids.length} selected device(s)`, async () => {
+        try {
+            const response = await apiPost('/devices/bulk-delete', { ids });
+            if (response.success) {
+                showToast(`Deleted ${ids.length} device(s)`, 'success');
+                selectedDeviceIds.clear();
+                updateBulkDeleteButtonState();
+                const selectAll = document.getElementById('select-all-devices');
+                if (selectAll) selectAll.checked = false;
+                loadDevices();
+            }
+        } catch (error) {
+            showToast(error.message || 'Bulk deletion failed', 'error');
+        }
+    });
+    return;
 
     showConfirm(`確定要刪除選取的 ${selectedDeviceIds.size} 個設備嗎？此操作無法復原。`, async () => {
         try {
@@ -2385,8 +2457,8 @@ function renderDevicesBySubnet(devices) {
                         ${devs.map(device => {
                             const statusClass = device.is_online ? 'online' : 'offline';
                             const statusText = device.is_online ? (t('devices.online')||'線上') : (t('devices.offline')||'離線');
-                            const isSnmp = (device.snmp_community || device.snmp_version === 3);
-                            const monitorType = device.snmp_version === 3 ? 'SNMP v3' : (device.snmp_community ? 'SNMP' : 'Ping');
+                            const isSnmp = Number(device.snmp_version) > 0;
+                            const monitorType = isSnmp ? `SNMP v${device.snmp_version}` : 'Ping';
                             const monitorClass = isSnmp ? 'snmp' : 'ping';
                             const imageHtml = getDeviceIcon(device);
                             const vendor = device.vendor || device.manufacturer || '-';
@@ -2497,7 +2569,7 @@ function _ensureXterm(cb) {
     document.head.appendChild(script);
 }
 
-function _openTerminalModal(deviceId, deviceIp, username, password, port) {
+async function _openTerminalModal(deviceId, deviceIp, username, password, port) {
     let overlay = document.getElementById('wssh-overlay');
     if (!overlay) {
         overlay = document.createElement('div');
@@ -2545,16 +2617,20 @@ function _openTerminalModal(deviceId, deviceIp, username, password, port) {
     if (fitAddon) fitAddon.fit();
 
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-    const token = sessionStorage.getItem('nms_token') || localStorage.getItem('nms_token') || '';
-    const params = new URLSearchParams({ username: username, password: password, port: port });
-    if (token) params.set('token', token);
+	let ticketResponse;
+	try { ticketResponse = await apiPost('/devices/' + deviceId + '/terminal-ticket', {}); }
+	catch (error) { term.write('\r\n\x1b[31m[WebSSH] ' + (error.message || 'Ticket request failed') + '\x1b[0m\r\n'); return; }
+	const ticket = ticketResponse?.data?.ticket || ticketResponse?.ticket;
+	if (!ticket) { term.write('\r\n\x1b[31m[WebSSH] Ticket request failed\x1b[0m\r\n'); return; }
+	const params = new URLSearchParams({ ticket: ticket });
     const wsUrl = proto + '://' + location.host + '/api/v1/devices/' + deviceId + '/terminal?' + params.toString();
 
     const ws = new WebSocket(wsUrl);
     _wsshSocket = ws;
     ws.binaryType = 'arraybuffer';
 
-    ws.onopen = function() {
+	ws.onopen = function() {
+		ws.send(JSON.stringify({ username: username, password: password, port: Number(port) || 22 }));
         statusEl.textContent = '已連線';
         statusEl.style.background = '#10b981';
         statusEl.style.color = '#fff';

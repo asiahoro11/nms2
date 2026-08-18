@@ -28,9 +28,12 @@ import (
 )
 
 const (
-	defaultPollIntervalSeconds = 60
-	defaultForwardBatchSize    = 50
-	defaultSentRetentionMins   = 10
+	defaultPollIntervalSeconds   = 60
+	defaultForwardBatchSize      = 50
+	defaultSentRetentionMins     = 10
+	defaultForwardIntervalMillis = 30000
+	minForwardIntervalMillis     = 100
+	maxForwardIntervalMillis     = 86400000
 )
 
 type Service struct {
@@ -96,6 +99,34 @@ func (s *Service) EnsureTables() error {
 		return err
 	}
 
+	if _, err := s.db.Exec(`
+		CREATE TABLE IF NOT EXISTS iot_device_signals (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			device_id INTEGER NOT NULL,
+			name TEXT NOT NULL DEFAULT '',
+			metric TEXT NOT NULL DEFAULT 'value',
+			address INTEGER NOT NULL DEFAULT 0,
+			quantity INTEGER NOT NULL DEFAULT 1,
+			function_code INTEGER NOT NULL DEFAULT 3,
+			data_type TEXT NOT NULL DEFAULT 'uint16',
+			byte_order TEXT NOT NULL DEFAULT 'big',
+			word_order TEXT NOT NULL DEFAULT 'big',
+			scale REAL NOT NULL DEFAULT 1,
+			offset REAL NOT NULL DEFAULT 0,
+			unit TEXT NOT NULL DEFAULT '',
+			sort_order INTEGER NOT NULL DEFAULT 0,
+			last_value REAL,
+			last_raw TEXT NOT NULL DEFAULT '',
+			last_seen DATETIME,
+			last_error TEXT NOT NULL DEFAULT '',
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY (device_id) REFERENCES iot_devices(id) ON DELETE CASCADE
+		)
+	`); err != nil {
+		return err
+	}
+
 	migrations := []string{
 		`ALTER TABLE iot_devices ADD COLUMN function_code INTEGER DEFAULT 3`,
 		`ALTER TABLE iot_devices ADD COLUMN byte_order TEXT DEFAULT 'big'`,
@@ -106,6 +137,7 @@ func (s *Service) EnsureTables() error {
 		`ALTER TABLE iot_devices ADD COLUMN last_polled_at DATETIME`,
 		`ALTER TABLE iot_devices ADD COLUMN last_error TEXT DEFAULT ''`,
 		`ALTER TABLE iot_measurements ADD COLUMN event_id TEXT DEFAULT ''`,
+		`ALTER TABLE iot_measurements ADD COLUMN sample_id TEXT DEFAULT ''`,
 		`ALTER TABLE iot_measurements ADD COLUMN forward_status TEXT DEFAULT 'pending'`,
 		`ALTER TABLE iot_measurements ADD COLUMN forward_attempts INTEGER DEFAULT 0`,
 		`ALTER TABLE iot_measurements ADD COLUMN forwarded_at DATETIME`,
@@ -130,6 +162,9 @@ func (s *Service) EnsureTables() error {
 	if _, err := s.db.Exec(`CREATE INDEX IF NOT EXISTS idx_iot_measurements_forward ON iot_measurements(forward_status, id)`); err != nil {
 		return err
 	}
+	if _, err := s.db.Exec(`CREATE INDEX IF NOT EXISTS idx_iot_device_signals_device ON iot_device_signals(device_id, sort_order, id)`); err != nil {
+		return err
+	}
 
 	configs := []struct {
 		key, value, desc string
@@ -139,6 +174,10 @@ func (s *Service) EnsureTables() error {
 		{"iot_forward_token", "", "IoT HTTP forward bearer token"},
 		{"iot_forward_batch_size", strconv.Itoa(defaultForwardBatchSize), "IoT forward batch size"},
 		{"iot_forward_sent_retention_minutes", strconv.Itoa(defaultSentRetentionMins), "IoT sent record retention in minutes"},
+		{"iot_forward_interval_seconds", strconv.Itoa(defaultForwardIntervalMillis / 1000), "Legacy IoT forward schedule interval in seconds"},
+		{"iot_forward_last_attempt_at", "", "IoT forward last attempt timestamp"},
+		{"iot_forward_last_success_at", "", "IoT forward last success timestamp"},
+		{"iot_forward_last_error", "", "IoT forward last error"},
 	}
 	for _, cfg := range configs {
 		if _, err := s.db.Exec(`
@@ -147,6 +186,27 @@ func (s *Service) EnsureTables() error {
 		`, cfg.key, cfg.value, cfg.desc); err != nil {
 			return err
 		}
+	}
+	legacyIntervalMilliseconds := defaultForwardIntervalMillis
+	var legacyIntervalRaw string
+	if err := s.db.QueryRow(`
+		SELECT config_value
+		FROM system_config
+		WHERE config_key = 'iot_forward_interval_seconds'
+	`).Scan(&legacyIntervalRaw); err == nil {
+		if seconds, err := strconv.Atoi(legacyIntervalRaw); err == nil && seconds > 0 {
+			if seconds >= maxForwardIntervalMillis/1000 {
+				legacyIntervalMilliseconds = maxForwardIntervalMillis
+			} else {
+				legacyIntervalMilliseconds = clampForwardIntervalMilliseconds(seconds * 1000)
+			}
+		}
+	}
+	if _, err := s.db.Exec(`
+		INSERT OR IGNORE INTO system_config (config_key, config_value, description)
+		VALUES (?, ?, ?)
+	`, "iot_forward_interval_ms", strconv.Itoa(legacyIntervalMilliseconds), "IoT forward schedule interval in milliseconds"); err != nil {
+		return err
 	}
 
 	s.tablesReady = true
@@ -161,7 +221,7 @@ func (s *Service) StartBackgroundLoop() {
 
 func (s *Service) backgroundLoop() {
 	pollTicker := time.NewTicker(1 * time.Second)
-	forwardTicker := time.NewTicker(10 * time.Second)
+	forwardTicker := time.NewTicker(time.Duration(minForwardIntervalMillis) * time.Millisecond)
 	cleanupTicker := time.NewTicker(1 * time.Minute)
 	defer pollTicker.Stop()
 	defer forwardTicker.Stop()
@@ -177,7 +237,7 @@ func (s *Service) backgroundLoop() {
 			}
 		case <-forwardTicker.C:
 			if s.LicenseEnabled() {
-				s.FlushForwardQueue()
+				s.flushForwardQueueIfDue()
 			}
 		case <-cleanupTicker.C:
 			if s.LicenseEnabled() {
@@ -207,6 +267,9 @@ func (s *Service) Status() (Status, error) {
 	_ = s.db.QueryRow(`SELECT COUNT(*) FROM iot_measurements WHERE COALESCE(forward_status, '') = 'sent'`).Scan(&status.ForwardSentHoldCount)
 	status.ForwardEnabled = settings.Enabled
 	status.ForwardURLConfigured = strings.TrimSpace(settings.URL) != ""
+	status.ForwardLastSuccessAt = settings.LastSuccessAt
+	status.ForwardLastAttemptAt = settings.LastAttemptAt
+	status.ForwardLastError = settings.LastError
 	_ = s.db.QueryRow(`
 		SELECT COALESCE(last_error, '')
 		FROM iot_measurements
@@ -225,7 +288,7 @@ func (s *Service) Capabilities() []ProtocolProfile {
 			Mode:        "direct_poll",
 			Status:      "ready",
 			Description: "LAN/WAN active polling. Supports FC03/FC04, multi data types, endian config.",
-			DataTypes:   []string{"uint16", "int16", "uint32", "int32", "float32"},
+			DataTypes:   []string{"uint16", "int16", "uint32", "int32", "float32", "float64"},
 			Endpoint:    "/api/v1/iot/devices",
 		},
 		{
@@ -234,7 +297,7 @@ func (s *Service) Capabilities() []ProtocolProfile {
 			Mode:        "direct_poll",
 			Status:      "ready",
 			Description: "Serial port active polling over RS232/RS485. Supports FC03/FC04 with CRC16 framing.",
-			DataTypes:   []string{"uint16", "int16", "uint32", "int32", "float32"},
+			DataTypes:   []string{"uint16", "int16", "uint32", "int32", "float32", "float64"},
 			Endpoint:    "/api/v1/iot/devices",
 		},
 		{
@@ -243,7 +306,7 @@ func (s *Service) Capabilities() []ProtocolProfile {
 			Mode:        "direct_poll",
 			Status:      "ready",
 			Description: "RTU framing over RS485 half-duplex serial bus. Suitable for multi-drop sensor networks.",
-			DataTypes:   []string{"uint16", "int16", "uint32", "int32", "float32"},
+			DataTypes:   []string{"uint16", "int16", "uint32", "int32", "float32", "float64"},
 			Endpoint:    "/api/v1/iot/devices",
 		},
 		{
@@ -252,7 +315,7 @@ func (s *Service) Capabilities() []ProtocolProfile {
 			Mode:        "direct_poll",
 			Status:      "ready",
 			Description: "RTU frames with CRC over a TCP transparent serial gateway. Use this for RS485-to-Ethernet converters that are not Modbus TCP gateways.",
-			DataTypes:   []string{"uint16", "int16", "uint32", "int32", "float32"},
+			DataTypes:   []string{"uint16", "int16", "uint32", "int32", "float32", "float64"},
 			Endpoint:    "/api/v1/iot/devices",
 		},
 		{
@@ -328,7 +391,18 @@ func (s *Service) ListDevices() ([]Device, error) {
 		}
 		devices = append(devices, d)
 	}
-	return devices, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	for i := range devices {
+		if err := s.populateDeviceSignals(&devices[i]); err != nil {
+			return nil, err
+		}
+	}
+	return devices, nil
 }
 
 func (s *Service) CreateDevice(input UpsertDeviceInput) (int, error) {
@@ -340,7 +414,12 @@ func (s *Service) CreateDevice(input UpsertDeviceInput) (int, error) {
 	if normalized.Enabled != nil {
 		enabled = *normalized.Enabled
 	}
-	res, err := s.db.Exec(`
+	tx, err := s.db.Begin()
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+	res, err := tx.Exec(`
 		INSERT INTO iot_devices (
 			name, protocol, sensor_type, host, port,
 			serial_port, baud_rate, data_bits, parity, stop_bits,
@@ -357,6 +436,12 @@ func (s *Service) CreateDevice(input UpsertDeviceInput) (int, error) {
 		return 0, err
 	}
 	id, _ := res.LastInsertId()
+	if err := replaceDeviceSignals(tx, int(id), normalized.Signals); err != nil {
+		return 0, err
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, err
+	}
 	return int(id), nil
 }
 
@@ -364,12 +449,21 @@ func (s *Service) UpdateDevice(id string, input UpsertDeviceInput) error {
 	if err := s.EnsureTables(); err != nil {
 		return err
 	}
+	deviceID, err := strconv.Atoi(id)
+	if err != nil || deviceID <= 0 {
+		return sql.ErrNoRows
+	}
 	normalized := normalizeInput(input)
 	enabled := true
 	if normalized.Enabled != nil {
 		enabled = *normalized.Enabled
 	}
-	res, err := s.db.Exec(`
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	res, err := tx.Exec(`
 		UPDATE iot_devices
 		SET name = ?, protocol = ?, sensor_type = ?, host = ?, port = ?,
 		    serial_port = ?, baud_rate = ?, data_bits = ?, parity = ?, stop_bits = ?,
@@ -388,21 +482,32 @@ func (s *Service) UpdateDevice(id string, input UpsertDeviceInput) error {
 	if rows, _ := res.RowsAffected(); rows == 0 {
 		return sql.ErrNoRows
 	}
-	return nil
+	if err := replaceDeviceSignals(tx, deviceID, normalized.Signals); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (s *Service) DeleteDevice(id string) error {
 	if err := s.EnsureTables(); err != nil {
 		return err
 	}
-	res, err := s.db.Exec(`DELETE FROM iot_devices WHERE id = ?`, id)
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.Exec(`DELETE FROM iot_device_signals WHERE device_id = ?`, id); err != nil {
+		return err
+	}
+	res, err := tx.Exec(`DELETE FROM iot_devices WHERE id = ?`, id)
 	if err != nil {
 		return err
 	}
 	if rows, _ := res.RowsAffected(); rows == 0 {
 		return sql.ErrNoRows
 	}
-	return nil
+	return tx.Commit()
 }
 
 func (s *Service) PollDevice(id string) (Device, error) {
@@ -460,6 +565,7 @@ func (s *Service) PollDueDevices() {
 	rows.Close()
 
 	for _, d := range due {
+		_ = s.populateDeviceSignals(&d)
 		_ = s.pollDevice(d)
 	}
 }
@@ -473,24 +579,11 @@ func (s *Service) pollDevice(d Device) error {
 	if !d.Enabled {
 		return errors.New("iot device is disabled")
 	}
-	d = normalizeDeviceForPoll(d)
-	var value float64
-	var raw string
-	var err error
-	switch d.Protocol {
-	case "modbus_tcp":
-		value, raw, err = readModbusTCP(d)
-	case "modbus_rtu_tcp":
-		value, raw, err = readModbusRTUOverTCP(d)
-	case "modbus_rtu", "modbus_rs485":
-		port := strings.TrimSpace(d.SerialPort)
-		mu := s.serialPortMu(port)
-		mu.Lock()
-		value, raw, err = readModbusRTU(d)
-		mu.Unlock()
-	default:
-		err = fmt.Errorf("protocol %q does not support active polling", d.Protocol)
+	if len(d.Signals) > 0 && strings.ToLower(strings.TrimSpace(d.SensorType)) != "temperature_humidity" {
+		return s.pollDeviceSignals(d)
 	}
+	d = normalizeDeviceForPoll(d)
+	value, raw, err := s.readConfiguredDevice(d)
 	if err != nil {
 		slog.Error("[IoT] poll failed", "device_id", d.ID, "name", d.Name, "protocol", d.Protocol, "error", err)
 		_, _ = dbutils.ExecWithRetry(s.db, `
@@ -502,10 +595,11 @@ func (s *Service) pollDevice(d Device) error {
 	}
 	if reading, ok := decodeTemperatureHumidityRaw(raw, d); ok {
 		slog.Info("[IoT] poll ok", "device_id", d.ID, "name", d.Name, "raw", raw, "temperature", reading.Temperature, "humidity", reading.Humidity)
-		if _, err := s.recordMeasurement(&d.ID, "", "temperature", reading.Temperature, raw); err != nil {
+		sampleID := uuid.NewString()
+		if _, err := s.recordMeasurementForSample(&d.ID, d.ExternalID, "temperature", reading.Temperature, raw, sampleID); err != nil {
 			return err
 		}
-		if _, err := s.recordMeasurement(&d.ID, "", "humidity", reading.Humidity, raw); err != nil {
+		if _, err := s.recordMeasurementForSample(&d.ID, d.ExternalID, "humidity", reading.Humidity, raw, sampleID); err != nil {
 			return err
 		}
 		_, err = dbutils.ExecWithRetry(s.db, `
@@ -523,7 +617,7 @@ func (s *Service) pollDevice(d Device) error {
 		metric = "value"
 	}
 	slog.Info("[IoT] poll ok", "device_id", d.ID, "name", d.Name, "raw", raw, "value", value, "metric", metric)
-	if _, err := s.recordMeasurement(&d.ID, "", metric, value, raw); err != nil {
+	if _, err := s.recordMeasurementForSample(&d.ID, d.ExternalID, metric, value, raw, uuid.NewString()); err != nil {
 		return err
 	}
 	_, err = dbutils.ExecWithRetry(s.db, `
@@ -533,6 +627,111 @@ func (s *Service) pollDevice(d Device) error {
 		WHERE id = ?
 	`, value, raw, d.ID)
 	return err
+}
+
+func (s *Service) readConfiguredDevice(d Device) (float64, string, error) {
+	d.Address = modbusWireAddress(d.Address, d.FunctionCode)
+	switch d.Protocol {
+	case "modbus_tcp":
+		return readModbusTCP(d)
+	case "modbus_rtu_tcp":
+		return readModbusRTUOverTCP(d)
+	case "modbus_rtu", "modbus_rs485":
+		port := strings.TrimSpace(d.SerialPort)
+		mu := s.serialPortMu(port)
+		mu.Lock()
+		defer mu.Unlock()
+		return readModbusRTU(d)
+	default:
+		return 0, "", fmt.Errorf("protocol %q does not support active polling", d.Protocol)
+	}
+}
+
+// Modbus documentation commonly labels holding register offset 0 as 40001
+// and input register offset 0 as 30001. Keep that readable reference in the
+// configuration, but send the zero-based address required by the wire protocol.
+func modbusWireAddress(address, functionCode int) int {
+	switch {
+	case functionCode == 2 && address >= 10001 && address <= 19999:
+		return address - 10001
+	case functionCode == 4 && address >= 30001 && address <= 39999:
+		return address - 30001
+	case functionCode == 3 && address >= 40001 && address <= 49999:
+		return address - 40001
+	default:
+		return address
+	}
+}
+
+func (s *Service) pollDeviceSignals(d Device) error {
+	sampleID := uuid.NewString()
+	var firstValue *float64
+	var firstRaw string
+	var failures []string
+	successes := 0
+	for _, signal := range d.Signals {
+		configured := d
+		configured.SensorType = ""
+		configured.Address = signal.Address
+		configured.Quantity = signal.Quantity
+		configured.FunctionCode = signal.FunctionCode
+		configured.DataType = signal.DataType
+		configured.ByteOrder = signal.ByteOrder
+		configured.WordOrder = signal.WordOrder
+		configured.Scale = signal.Scale
+		configured.Offset = signal.Offset
+		configured.Metric = signal.Metric
+		value, raw, err := s.readConfiguredDevice(configured)
+		if err != nil {
+			message := fmt.Sprintf("%s: %v", signal.Metric, err)
+			failures = append(failures, message)
+			_, _ = dbutils.ExecWithRetry(s.db, `
+				UPDATE iot_device_signals
+				SET last_error = ?, updated_at = CURRENT_TIMESTAMP
+				WHERE id = ?
+			`, truncateError(err), signal.ID)
+			continue
+		}
+		value = (value * signal.Scale) + signal.Offset
+		if _, err := s.recordMeasurementForSample(&d.ID, d.ExternalID, signal.Metric, value, raw, sampleID); err != nil {
+			failures = append(failures, fmt.Sprintf("%s: %v", signal.Metric, err))
+			continue
+		}
+		_, _ = dbutils.ExecWithRetry(s.db, `
+			UPDATE iot_device_signals
+			SET last_value = ?, last_raw = ?, last_seen = CURRENT_TIMESTAMP,
+			    last_error = '', updated_at = CURRENT_TIMESTAMP
+			WHERE id = ?
+		`, value, raw, signal.ID)
+		if firstValue == nil {
+			copyValue := value
+			firstValue = &copyValue
+			firstRaw = raw
+		}
+		successes++
+	}
+	lastError := strings.Join(failures, "; ")
+	if firstValue != nil {
+		_, _ = dbutils.ExecWithRetry(s.db, `
+			UPDATE iot_devices
+			SET last_value = ?, last_raw = ?, last_seen = CURRENT_TIMESTAMP,
+			    last_polled_at = CURRENT_TIMESTAMP, last_error = ?, updated_at = CURRENT_TIMESTAMP
+			WHERE id = ?
+		`, *firstValue, firstRaw, lastError, d.ID)
+	} else {
+		_, _ = dbutils.ExecWithRetry(s.db, `
+			UPDATE iot_devices
+			SET last_polled_at = CURRENT_TIMESTAMP, last_error = ?, updated_at = CURRENT_TIMESTAMP
+			WHERE id = ?
+		`, lastError, d.ID)
+	}
+	if successes == 0 {
+		if lastError == "" {
+			lastError = "no IoT signals configured"
+		}
+		return errors.New(lastError)
+	}
+	return nil
 }
 
 func (s *Service) Ingest(input IngestInput) error {
@@ -568,7 +767,7 @@ func (s *Service) RecentMeasurements(limit int) ([]Measurement, error) {
 		limit = 100
 	}
 	rows, err := s.db.Query(`
-		SELECT id, COALESCE(event_id, ''), device_id, external_id, metric, value, COALESCE(raw_json, ''),
+		SELECT id, COALESCE(event_id, ''), COALESCE(NULLIF(sample_id, ''), event_id, ''), device_id, external_id, metric, value, COALESCE(raw_json, ''),
 		       COALESCE(forward_status, 'pending'), COALESCE(forward_attempts, 0),
 		       COALESCE(forwarded_at, ''), COALESCE(drop_after, ''), COALESCE(last_error, ''),
 		       COALESCE(created_at, '')
@@ -614,12 +813,26 @@ func (s *Service) ForwarderSettings() (ForwarderSettings, error) {
 	settings.Enabled = s.getConfig("iot_forward_enabled") == "true"
 	settings.URL = s.getConfig("iot_forward_url")
 	settings.TokenConfigured = s.getConfig("iot_forward_token") != ""
+	settings.LastAttemptAt = s.getConfig("iot_forward_last_attempt_at")
+	settings.LastSuccessAt = s.getConfig("iot_forward_last_success_at")
+	settings.LastError = s.getConfig("iot_forward_last_error")
 	if batch, err := strconv.Atoi(s.getConfig("iot_forward_batch_size")); err == nil && batch > 0 && batch <= 500 {
 		settings.BatchSize = batch
 	}
 	if mins, err := strconv.Atoi(s.getConfig("iot_forward_sent_retention_minutes")); err == nil && mins > 0 {
 		settings.RetentionMinutes = mins
 	}
+	settings.IntervalMilliseconds = defaultForwardIntervalMillis
+	if milliseconds, err := strconv.Atoi(s.getConfig("iot_forward_interval_ms")); err == nil && milliseconds > 0 {
+		settings.IntervalMilliseconds = clampForwardIntervalMilliseconds(milliseconds)
+	} else if seconds, err := strconv.Atoi(s.getConfig("iot_forward_interval_seconds")); err == nil && seconds > 0 {
+		if seconds >= maxForwardIntervalMillis/1000 {
+			settings.IntervalMilliseconds = maxForwardIntervalMillis
+		} else {
+			settings.IntervalMilliseconds = clampForwardIntervalMilliseconds(seconds * 1000)
+		}
+	}
+	settings.IntervalSeconds = (settings.IntervalMilliseconds + 999) / 1000
 	return settings, nil
 }
 
@@ -658,7 +871,48 @@ func (s *Service) UpdateForwarderSettings(input ForwarderSettingsInput) error {
 			return err
 		}
 	}
+	intervalMilliseconds := input.IntervalMilliseconds
+	if intervalMilliseconds <= 0 && input.IntervalSeconds > 0 {
+		if input.IntervalSeconds >= maxForwardIntervalMillis/1000 {
+			intervalMilliseconds = maxForwardIntervalMillis
+		} else {
+			intervalMilliseconds = input.IntervalSeconds * 1000
+		}
+	}
+	if intervalMilliseconds > 0 {
+		intervalMilliseconds = clampForwardIntervalMilliseconds(intervalMilliseconds)
+		if err := s.setConfig("iot_forward_interval_ms", strconv.Itoa(intervalMilliseconds), "IoT forward schedule interval in milliseconds"); err != nil {
+			return err
+		}
+		legacySeconds := (intervalMilliseconds + 999) / 1000
+		if err := s.setConfig("iot_forward_interval_seconds", strconv.Itoa(legacySeconds), "Legacy IoT forward schedule interval in seconds"); err != nil {
+			return err
+		}
+	}
 	return nil
+}
+
+func clampForwardIntervalMilliseconds(value int) int {
+	if value < minForwardIntervalMillis {
+		return minForwardIntervalMillis
+	}
+	if value > maxForwardIntervalMillis {
+		return maxForwardIntervalMillis
+	}
+	return value
+}
+
+func (s *Service) flushForwardQueueIfDue() {
+	settings, err := s.ForwarderSettings()
+	if err != nil || !settings.Enabled || strings.TrimSpace(settings.URL) == "" {
+		return
+	}
+	if lastAttempt, err := time.Parse(time.RFC3339, settings.LastAttemptAt); err == nil {
+		if time.Since(lastAttempt) < time.Duration(settings.IntervalMilliseconds)*time.Millisecond {
+			return
+		}
+	}
+	_, _ = s.FlushForwardQueue()
 }
 
 func (s *Service) FlushForwardQueue() (int, error) {
@@ -675,16 +929,30 @@ func (s *Service) FlushForwardQueue() (int, error) {
 	if !settings.Enabled || strings.TrimSpace(settings.URL) == "" {
 		return 0, nil
 	}
+	attemptedAt := time.Now().UTC().Format(time.RFC3339)
+	_ = s.setConfig("iot_forward_last_attempt_at", attemptedAt, "IoT forward last attempt timestamp")
 	rows, err := s.db.Query(`
-		SELECT id, COALESCE(event_id, ''), device_id, external_id, metric, value, COALESCE(raw_json, ''),
+		WITH selected_samples AS (
+			SELECT COALESCE(NULLIF(sample_id, ''), NULLIF(event_id, ''), 'legacy:' || id) AS sample_key
+			FROM iot_measurements
+			WHERE COALESCE(forward_status, 'pending') IN ('pending', 'failed')
+			  AND (next_attempt_at IS NULL OR next_attempt_at = '' OR next_attempt_at <= CURRENT_TIMESTAMP)
+			GROUP BY sample_key
+			ORDER BY MIN(id) ASC
+			LIMIT ?
+		)
+		SELECT id, COALESCE(event_id, ''),
+		       COALESCE(NULLIF(sample_id, ''), NULLIF(event_id, ''), 'legacy:' || id),
+		       device_id, external_id, metric, value, COALESCE(raw_json, ''),
 		       COALESCE(forward_status, 'pending'), COALESCE(forward_attempts, 0),
 		       COALESCE(forwarded_at, ''), COALESCE(drop_after, ''), COALESCE(last_error, ''),
 		       COALESCE(created_at, '')
 		FROM iot_measurements
 		WHERE COALESCE(forward_status, 'pending') IN ('pending', 'failed')
 		  AND (next_attempt_at IS NULL OR next_attempt_at = '' OR next_attempt_at <= CURRENT_TIMESTAMP)
+		  AND COALESCE(NULLIF(sample_id, ''), NULLIF(event_id, ''), 'legacy:' || id)
+		      IN (SELECT sample_key FROM selected_samples)
 		ORDER BY id ASC
-		LIMIT ?
 	`, settings.BatchSize)
 	if err != nil {
 		return 0, err
@@ -708,9 +976,24 @@ func (s *Service) FlushForwardQueue() (int, error) {
 	if len(items) == 0 {
 		return 0, nil
 	}
-	if err := s.forwardMeasurements(settings, items); err != nil {
-		msg := truncateError(err)
+	sentIDs, forwardErr := s.forwardMeasurements(settings, items)
+	if len(sentIDs) > 0 {
+		if err := s.markMeasurementsSent(settings, sentIDs); err != nil {
+			return 0, err
+		}
+		_ = s.setConfig("iot_forward_last_success_at", time.Now().UTC().Format(time.RFC3339), "IoT forward last success timestamp")
+	}
+	if forwardErr != nil {
+		msg := truncateError(forwardErr)
+		_ = s.setConfig("iot_forward_last_error", msg, "IoT forward last error")
+		sentSet := make(map[int]struct{}, len(sentIDs))
+		for _, id := range sentIDs {
+			sentSet[id] = struct{}{}
+		}
 		for _, item := range items {
+			if _, sent := sentSet[item.ID]; sent {
+				continue
+			}
 			delay := retryDelaySeconds(item.ForwardAttempts + 1)
 			_, _ = s.db.Exec(`
 				UPDATE iot_measurements
@@ -721,12 +1004,20 @@ func (s *Service) FlushForwardQueue() (int, error) {
 				WHERE id = ?
 			`, delay, msg, item.ID)
 		}
-		return 0, err
+		return len(sentIDs), forwardErr
 	}
-	ids := make([]interface{}, 0, len(items))
-	placeholders := make([]string, 0, len(items))
-	for _, item := range items {
-		ids = append(ids, item.ID)
+	_ = s.setConfig("iot_forward_last_error", "", "IoT forward last error")
+	return len(sentIDs), nil
+}
+
+func (s *Service) markMeasurementsSent(settings ForwarderSettings, measurementIDs []int) error {
+	if len(measurementIDs) == 0 {
+		return nil
+	}
+	ids := make([]interface{}, 0, len(measurementIDs))
+	placeholders := make([]string, 0, len(measurementIDs))
+	for _, id := range measurementIDs {
+		ids = append(ids, id)
 		placeholders = append(placeholders, "?")
 	}
 	query := fmt.Sprintf(`
@@ -737,10 +1028,8 @@ func (s *Service) FlushForwardQueue() (int, error) {
 		    last_error = ''
 		WHERE id IN (%s)
 	`, settings.RetentionMinutes, strings.Join(placeholders, ","))
-	if _, err := s.db.Exec(query, ids...); err != nil {
-		return 0, err
-	}
-	return len(items), nil
+	_, err := s.db.Exec(query, ids...)
+	return err
 }
 
 func (s *Service) CleanupForwardedMeasurements() (int64, error) {
@@ -761,37 +1050,85 @@ func (s *Service) CleanupForwardedMeasurements() (int64, error) {
 	return rows, nil
 }
 
-func (s *Service) forwardMeasurements(settings ForwarderSettings, items []Measurement) error {
-	payload := map[string]interface{}{
-		"schema_version": "nms.iot.forward.v1",
-		"generated_at":   time.Now().UTC().Format(time.RFC3339),
-		"records":        items,
+func (s *Service) forwardMeasurements(settings ForwarderSettings, items []Measurement) ([]int, error) {
+	type deviceReport struct {
+		DeviceID       string             `json:"deviceId"`
+		SendTime       int64              `json:"sendTime"`
+		TagData        map[string]float64 `json:"tagData"`
+		sampleID       string
+		measurementIDs []int
 	}
-	body, err := json.Marshal(payload)
-	if err != nil {
-		return err
+	reportsBySample := make(map[string]*deviceReport)
+	order := make([]string, 0)
+	for _, item := range items {
+		sampleID := strings.TrimSpace(item.SampleID)
+		if sampleID == "" {
+			sampleID = item.EventID
+		}
+		deviceID := strings.TrimSpace(item.ExternalID)
+		if deviceID == "" && item.DeviceID != nil {
+			_ = s.db.QueryRow(`SELECT COALESCE(NULLIF(topic, ''), 'device:' || id) FROM iot_devices WHERE id = ?`, *item.DeviceID).Scan(&deviceID)
+		}
+		if deviceID == "" {
+			deviceID = "unknown"
+		}
+		key := deviceID + "\x00" + sampleID
+		report := reportsBySample[key]
+		if report == nil {
+			report = &deviceReport{
+				DeviceID: deviceID,
+				SendTime: formatForwardTime(item.CreatedAt),
+				TagData:  make(map[string]float64),
+				sampleID: sampleID,
+			}
+			reportsBySample[key] = report
+			order = append(order, key)
+		}
+		report.TagData[item.Metric] = item.Value
+		report.measurementIDs = append(report.measurementIDs, item.ID)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, settings.URL, bytes.NewReader(body))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-NMS-Idempotency-Key", items[0].EventID)
-	if token := s.getConfig("iot_forward_token"); token != "" {
-		req.Header.Set("Authorization", "Bearer "+token)
-	}
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+	sentIDs := make([]int, 0, len(items))
+	for _, key := range order {
+		report := reportsBySample[key]
+		body, err := json.Marshal(report)
+		if err != nil {
+			return sentIDs, err
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, settings.URL, bytes.NewReader(body))
+		if err != nil {
+			cancel()
+			return sentIDs, err
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-NMS-Idempotency-Key", report.sampleID)
+		if token := s.getConfig("iot_forward_token"); token != "" {
+			req.Header.Set("Authorization", "Bearer "+token)
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			cancel()
+			return sentIDs, err
+		}
 		data, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
-		return fmt.Errorf("forward target returned %d %s", resp.StatusCode, strings.TrimSpace(string(data)))
+		resp.Body.Close()
+		cancel()
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			return sentIDs, fmt.Errorf("forward target returned %d %s", resp.StatusCode, strings.TrimSpace(string(data)))
+		}
+		sentIDs = append(sentIDs, report.measurementIDs...)
 	}
-	return nil
+	return sentIDs, nil
+}
+
+func formatForwardTime(value string) int64 {
+	value = strings.TrimSpace(value)
+	for _, layout := range []string{"2006-01-02 15:04:05", time.RFC3339, time.RFC3339Nano} {
+		if parsed, err := time.Parse(layout, value); err == nil {
+			return parsed.UnixMilli()
+		}
+	}
+	return time.Now().UnixMilli()
 }
 
 func retryDelaySeconds(attempts int) int {
@@ -819,7 +1156,14 @@ func (s *Service) getDevice(id string) (Device, error) {
 		FROM iot_devices
 		WHERE id = ?
 	`, defaultPollIntervalSeconds, id)
-	return scanDevice(row)
+	d, err := scanDevice(row)
+	if err != nil {
+		return Device{}, err
+	}
+	if err := s.populateDeviceSignals(&d); err != nil {
+		return Device{}, err
+	}
+	return d, nil
 }
 
 func (s *Service) upsertExternalDevice(input IngestInput, protocol string) (int, error) {
@@ -849,6 +1193,10 @@ func (s *Service) upsertExternalDevice(input IngestInput, protocol string) (int,
 }
 
 func (s *Service) recordMeasurement(deviceID *int, externalID, metric string, value float64, raw string) (string, error) {
+	return s.recordMeasurementForSample(deviceID, externalID, metric, value, raw, uuid.NewString())
+}
+
+func (s *Service) recordMeasurementForSample(deviceID *int, externalID, metric string, value float64, raw, sampleID string) (string, error) {
 	var id interface{}
 	if deviceID != nil {
 		id = *deviceID
@@ -856,11 +1204,94 @@ func (s *Service) recordMeasurement(deviceID *int, externalID, metric string, va
 	eventID := uuid.NewString()
 	_, err := dbutils.ExecWithRetry(s.db, `
 		INSERT INTO iot_measurements (
-			event_id, device_id, external_id, metric, value, raw_json, forward_status, forward_attempts
+			event_id, sample_id, device_id, external_id, metric, value, raw_json, forward_status, forward_attempts
 		)
-		VALUES (?, ?, ?, ?, ?, ?, 'pending', 0)
-	`, eventID, id, externalID, metric, value, raw)
+		VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', 0)
+	`, eventID, sampleID, id, externalID, metric, value, raw)
 	return eventID, err
+}
+
+func replaceDeviceSignals(tx *sql.Tx, deviceID int, signals []DeviceSignalInput) error {
+	if _, err := tx.Exec(`DELETE FROM iot_device_signals WHERE device_id = ?`, deviceID); err != nil {
+		return err
+	}
+	for index, signal := range signals {
+		if _, err := tx.Exec(`
+			INSERT INTO iot_device_signals (
+				device_id, name, metric, address, quantity, function_code, data_type,
+				byte_order, word_order, scale, offset, unit, sort_order
+			)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`, deviceID, signal.Name, signal.Metric, signal.Address, signal.Quantity, signal.FunctionCode,
+			signal.DataType, signal.ByteOrder, signal.WordOrder, signal.Scale, signal.Offset,
+			signal.Unit, index); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *Service) populateDeviceSignals(device *Device) error {
+	rows, err := s.db.Query(`
+		SELECT id, device_id, name, metric, address, quantity, function_code, data_type,
+		       byte_order, word_order, scale, offset, unit, sort_order, last_value,
+		       COALESCE(last_raw, ''), COALESCE(last_seen, ''), COALESCE(last_error, '')
+		FROM iot_device_signals
+		WHERE device_id = ?
+		ORDER BY sort_order ASC, id ASC
+	`, device.ID)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	signals := make([]DeviceSignal, 0)
+	for rows.Next() {
+		var signal DeviceSignal
+		var lastValue sql.NullFloat64
+		if err := rows.Scan(
+			&signal.ID, &signal.DeviceID, &signal.Name, &signal.Metric, &signal.Address,
+			&signal.Quantity, &signal.FunctionCode, &signal.DataType, &signal.ByteOrder,
+			&signal.WordOrder, &signal.Scale, &signal.Offset, &signal.Unit, &signal.SortOrder,
+			&lastValue, &signal.LastRaw, &signal.LastSeen, &signal.LastError,
+		); err != nil {
+			return err
+		}
+		if lastValue.Valid {
+			value := lastValue.Float64
+			signal.LastValue = &value
+		}
+		signals = append(signals, signal)
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	device.Signals = signals
+	if len(signals) == 0 {
+		return nil
+	}
+	first := signals[0]
+	device.Address = first.Address
+	device.Quantity = first.Quantity
+	device.FunctionCode = first.FunctionCode
+	device.DataType = first.DataType
+	device.ByteOrder = first.ByteOrder
+	device.WordOrder = first.WordOrder
+	device.Scale = first.Scale
+	device.Offset = first.Offset
+	device.Metric = first.Metric
+	if first.LastValue != nil {
+		device.LastValue = first.LastValue
+		device.LastRaw = first.LastRaw
+	}
+	device.LastReadings = device.LastReadings[:0]
+	for _, signal := range signals {
+		if signal.LastValue != nil {
+			device.LastReadings = append(device.LastReadings, SensorReading{
+				Metric: signal.Metric, Value: *signal.LastValue, Unit: signal.Unit, DataType: signal.DataType,
+			})
+		}
+	}
+	return nil
 }
 
 func normalizeInput(input UpsertDeviceInput) UpsertDeviceInput {
@@ -873,11 +1304,26 @@ func normalizeInput(input UpsertDeviceInput) UpsertDeviceInput {
 		input.Protocol = "modbus_tcp"
 	}
 	input.SensorType = strings.ToLower(strings.TrimSpace(input.SensorType))
+	input.ExternalID = strings.TrimSpace(input.ExternalID)
+	input.Topic = strings.TrimSpace(input.Topic)
+	if input.ExternalID == "" {
+		input.ExternalID = input.Topic
+	}
+	input.Topic = input.ExternalID
 	if input.Port == 0 && (input.Protocol == "modbus_tcp" || input.Protocol == "modbus_rtu_tcp") {
 		input.Port = 502
 	}
-	// RTU serial defaults
+	if input.Protocol == "modbus_tcp" || input.Protocol == "modbus_rtu_tcp" {
+		input.SerialPort = ""
+		input.BaudRate = 0
+		input.DataBits = 0
+		input.Parity = ""
+		input.StopBits = 0
+	}
+	// RTU / RS485 serial defaults. Serial transports never retain a stale TCP endpoint.
 	if input.Protocol == "modbus_rtu" || input.Protocol == "modbus_rs485" {
+		input.Host = ""
+		input.Port = 0
 		if input.BaudRate <= 0 {
 			input.BaudRate = 9600
 		}
@@ -895,6 +1341,15 @@ func normalizeInput(input UpsertDeviceInput) UpsertDeviceInput {
 	if input.UnitID <= 0 {
 		input.UnitID = 1
 	}
+	if input.UnitID > 247 {
+		input.UnitID = 247
+	}
+	if input.Address < 0 {
+		input.Address = 0
+	}
+	if input.Address > 65535 {
+		input.Address = 65535
+	}
 	if input.FunctionCode == 0 {
 		input.FunctionCode = 3
 	}
@@ -909,6 +1364,9 @@ func normalizeInput(input UpsertDeviceInput) UpsertDeviceInput {
 	}
 	if input.Quantity <= 0 {
 		input.Quantity = quantityForType(input.DataType)
+	}
+	if input.Quantity > 125 {
+		input.Quantity = 125
 	}
 	if input.SensorType == "temperature_humidity" && is16BitDataType(input.DataType) && input.Quantity < 2 {
 		input.Quantity = 2
@@ -931,7 +1389,78 @@ func normalizeInput(input UpsertDeviceInput) UpsertDeviceInput {
 	if input.PollIntervalSeconds < 5 {
 		input.PollIntervalSeconds = 5
 	}
+	if len(input.Signals) == 0 && input.SensorType != "temperature_humidity" {
+		input.Signals = []DeviceSignalInput{{
+			Name:         input.Metric,
+			Metric:       input.Metric,
+			Address:      input.Address,
+			Quantity:     input.Quantity,
+			FunctionCode: input.FunctionCode,
+			DataType:     input.DataType,
+			ByteOrder:    input.ByteOrder,
+			WordOrder:    input.WordOrder,
+			Scale:        input.Scale,
+			Offset:       input.Offset,
+		}}
+	}
+	if len(input.Signals) > 200 {
+		input.Signals = input.Signals[:200]
+	}
+	for i := range input.Signals {
+		input.Signals[i] = normalizeSignalInput(input.Signals[i], i)
+	}
+	if len(input.Signals) > 0 {
+		first := input.Signals[0]
+		input.Address = first.Address
+		input.Quantity = first.Quantity
+		input.FunctionCode = first.FunctionCode
+		input.DataType = first.DataType
+		input.ByteOrder = first.ByteOrder
+		input.WordOrder = first.WordOrder
+		input.Scale = first.Scale
+		input.Offset = first.Offset
+		input.Metric = first.Metric
+	}
 	return input
+}
+
+func normalizeSignalInput(signal DeviceSignalInput, index int) DeviceSignalInput {
+	signal.Name = strings.TrimSpace(signal.Name)
+	signal.Metric = strings.TrimSpace(signal.Metric)
+	if signal.Metric == "" {
+		signal.Metric = fmt.Sprintf("signal_%d", index+1)
+	}
+	if signal.Name == "" {
+		signal.Name = signal.Metric
+	}
+	if signal.Address < 0 {
+		signal.Address = 0
+	}
+	if signal.Address > 65535 {
+		signal.Address = 65535
+	}
+	switch signal.FunctionCode {
+	case 1, 2, 3, 4:
+	default:
+		signal.FunctionCode = 3
+	}
+	signal.DataType = strings.ToLower(strings.TrimSpace(signal.DataType))
+	switch signal.DataType {
+	case "uint16", "int16", "uint32", "int32", "float32", "float64":
+	default:
+		signal.DataType = "uint16"
+	}
+	if signal.FunctionCode == 1 || signal.FunctionCode == 2 {
+		signal.DataType = "uint16"
+	}
+	signal.Quantity = quantityForType(signal.DataType)
+	signal.ByteOrder = normalizeEndian(signal.ByteOrder)
+	signal.WordOrder = normalizeEndian(signal.WordOrder)
+	if signal.Scale == 0 {
+		signal.Scale = 1
+	}
+	signal.Unit = strings.TrimSpace(signal.Unit)
+	return signal
 }
 
 func normalizeProtocol(protocol string) string {
@@ -966,6 +1495,8 @@ func quantityForType(dataType string) int {
 	switch strings.ToLower(strings.TrimSpace(dataType)) {
 	case "uint32", "int32", "float32":
 		return 2
+	case "float64":
+		return 4
 	default:
 		return 1
 	}
@@ -1023,13 +1554,14 @@ func readModbusTCP(d Device) (float64, string, error) {
 	_ = conn.SetDeadline(time.Now().Add(5 * time.Second))
 
 	request := make([]byte, 12)
+	// #nosec G115 -- Modbus transaction IDs intentionally use the low 16 bits.
 	binary.BigEndian.PutUint16(request[0:2], uint16(time.Now().UnixNano()))
 	binary.BigEndian.PutUint16(request[2:4], 0)
 	binary.BigEndian.PutUint16(request[4:6], 6)
-	request[6] = byte(d.UnitID)
-	request[7] = byte(d.FunctionCode)
-	binary.BigEndian.PutUint16(request[8:10], uint16(d.Address))
-	binary.BigEndian.PutUint16(request[10:12], uint16(d.Quantity))
+	request[6] = byte(d.UnitID)                                    // #nosec G115 -- normalized to Modbus range 1..247.
+	request[7] = byte(d.FunctionCode)                              // #nosec G115 -- normalized to supported range 1..4.
+	binary.BigEndian.PutUint16(request[8:10], uint16(d.Address))   // #nosec G115 -- normalized to 0..65535.
+	binary.BigEndian.PutUint16(request[10:12], uint16(d.Quantity)) // #nosec G115 -- normalized to 1..125.
 	if _, err := conn.Write(request); err != nil {
 		return 0, "", err
 	}
@@ -1049,7 +1581,7 @@ func readModbusTCP(d Device) (float64, string, error) {
 	if pdu[0]&0x80 != 0 {
 		return 0, fmt.Sprintf("%x", pdu), fmt.Errorf("modbus exception code %d", pdu[1])
 	}
-	if pdu[0] != byte(d.FunctionCode) || len(pdu) < 3 {
+	if pdu[0] != byte(d.FunctionCode) || len(pdu) < 3 { // #nosec G115 -- function code is normalized to 1..4.
 		return 0, fmt.Sprintf("%x", pdu), errors.New("unexpected modbus response")
 	}
 	data := pdu[2:]
@@ -1082,10 +1614,10 @@ func readModbusRTUOverTCP(d Device) (float64, string, error) {
 	_ = conn.SetDeadline(time.Now().Add(5 * time.Second))
 
 	request := make([]byte, 8)
-	request[0] = byte(d.UnitID)
-	request[1] = byte(d.FunctionCode)
-	binary.BigEndian.PutUint16(request[2:4], uint16(d.Address))
-	binary.BigEndian.PutUint16(request[4:6], uint16(d.Quantity))
+	request[0] = byte(d.UnitID)                                  // #nosec G115 -- normalized to Modbus range 1..247.
+	request[1] = byte(d.FunctionCode)                            // #nosec G115 -- normalized to supported range 1..4.
+	binary.BigEndian.PutUint16(request[2:4], uint16(d.Address))  // #nosec G115 -- normalized to 0..65535.
+	binary.BigEndian.PutUint16(request[4:6], uint16(d.Quantity)) // #nosec G115 -- normalized to 1..125.
 	crc := modbusCRC16(request[:6])
 	binary.LittleEndian.PutUint16(request[6:8], crc)
 	if _, err := conn.Write(request); err != nil {
@@ -1096,7 +1628,7 @@ func readModbusRTUOverTCP(d Device) (float64, string, error) {
 	if _, err := readFull(conn, header); err != nil {
 		return 0, "", err
 	}
-	if header[0] != byte(d.UnitID) {
+	if header[0] != byte(d.UnitID) { // #nosec G115 -- unit ID is normalized to 1..247.
 		return 0, fmt.Sprintf("%x", header), fmt.Errorf("unexpected RTU unit id %d", header[0])
 	}
 	if header[1]&0x80 != 0 {
@@ -1104,7 +1636,7 @@ func readModbusRTUOverTCP(d Device) (float64, string, error) {
 		_, _ = readFull(conn, rest)
 		return 0, fmt.Sprintf("%x%x", header, rest), fmt.Errorf("modbus exception code %d", header[2])
 	}
-	if header[1] != byte(d.FunctionCode) {
+	if header[1] != byte(d.FunctionCode) { // #nosec G115 -- function code is normalized to 1..4.
 		return 0, fmt.Sprintf("%x", header), errors.New("unexpected RTU response function code")
 	}
 
@@ -1184,15 +1716,15 @@ func readModbusRTU(d Device) (float64, string, error) {
 	}
 	defer client.Close()
 
-	if err := client.SetUnitId(uint8(d.UnitID)); err != nil {
+	if err := client.SetUnitId(uint8(d.UnitID)); err != nil { // #nosec G115 -- normalized to 1..247.
 		return 0, "", fmt.Errorf("set unit id: %w", err)
 	}
 
-	qty := uint16(d.Quantity)
+	qty := uint16(d.Quantity) // #nosec G115 -- normalized to 1..125.
 	if qty == 0 {
 		qty = 1
 	}
-	addr := uint16(d.Address)
+	addr := uint16(d.Address) // #nosec G115 -- normalized to 0..65535.
 
 	if d.FunctionCode == 1 || d.FunctionCode == 2 {
 		var bools []bool
@@ -1305,7 +1837,7 @@ func decodeTemperatureHumidityRaw(raw string, d Device) (temperatureHumidityRead
 			value = binary.BigEndian.Uint16(data[offset : offset+2])
 		}
 		if signed {
-			return float64(int16(value))
+			return float64(int16(value)) // #nosec G115 -- intentional two's-complement Modbus int16 decode.
 		}
 		return float64(value)
 	}
@@ -1334,7 +1866,7 @@ func decodeRegisters(data []byte, dataType, byteOrder, wordOrder string) (float6
 		if len(buf) < 2 {
 			return 0, errors.New("not enough data for int16")
 		}
-		return float64(int16(binary.BigEndian.Uint16(buf[0:2]))), nil
+		return float64(int16(binary.BigEndian.Uint16(buf[0:2]))), nil // #nosec G115 -- intentional two's-complement decode.
 	case "uint32":
 		if len(buf) < 4 {
 			return 0, errors.New("not enough data for uint32")
@@ -1344,12 +1876,17 @@ func decodeRegisters(data []byte, dataType, byteOrder, wordOrder string) (float6
 		if len(buf) < 4 {
 			return 0, errors.New("not enough data for int32")
 		}
-		return float64(int32(binary.BigEndian.Uint32(buf[0:4]))), nil
+		return float64(int32(binary.BigEndian.Uint32(buf[0:4]))), nil // #nosec G115 -- intentional two's-complement decode.
 	case "float32":
 		if len(buf) < 4 {
 			return 0, errors.New("not enough data for float32")
 		}
 		return float64(math.Float32frombits(binary.BigEndian.Uint32(buf[0:4]))), nil
+	case "float64":
+		if len(buf) < 8 {
+			return 0, errors.New("not enough data for float64")
+		}
+		return math.Float64frombits(binary.BigEndian.Uint64(buf[0:8])), nil
 	default:
 		return 0, fmt.Errorf("unsupported data type %q", dataType)
 	}
@@ -1389,6 +1926,19 @@ func scanDevice(row deviceScanner) (Device, error) {
 		return Device{}, err
 	}
 	d.Enabled = enabled
+	d.ExternalID = d.Topic
+	d.Protocol = normalizeProtocol(d.Protocol)
+	switch d.Protocol {
+	case "modbus_tcp", "modbus_rtu_tcp":
+		d.SerialPort = ""
+		d.BaudRate = 0
+		d.DataBits = 0
+		d.Parity = ""
+		d.StopBits = 0
+	case "modbus_rtu", "modbus_rs485":
+		d.Host = ""
+		d.Port = 0
+	}
 	if last.Valid {
 		value := last.Float64
 		d.LastValue = &value
@@ -1451,7 +2001,7 @@ func scanMeasurement(row measurementScanner) (Measurement, error) {
 	var item Measurement
 	var deviceID sql.NullInt64
 	if err := row.Scan(
-		&item.ID, &item.EventID, &deviceID, &item.ExternalID, &item.Metric, &item.Value, &item.RawJSON,
+		&item.ID, &item.EventID, &item.SampleID, &deviceID, &item.ExternalID, &item.Metric, &item.Value, &item.RawJSON,
 		&item.ForwardStatus, &item.ForwardAttempts, &item.ForwardedAt, &item.DropAfter,
 		&item.LastError, &item.CreatedAt,
 	); err != nil {
