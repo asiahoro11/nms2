@@ -105,7 +105,8 @@ build_platform() {
       "Artifacts: nms_server_linux_amd64, nms_server_linux_arm64" \
       "ReleaseNotes: RELEASE_NOTES.md" > "$target_dir/RELEASE_NOTE.txt"
     cp "$REPO_ROOT/scripts/run/start_nms_utf8.sh" "$target_dir/start_nms.sh"
-    chmod +x "$target_dir/start_nms.sh"
+    cp "$REPO_ROOT/scripts/run/init.sh" "$target_dir/init.sh"
+    chmod +x "$target_dir/start_nms.sh" "$target_dir/init.sh"
   fi
 
   mkdir -p "$target_dir/data"

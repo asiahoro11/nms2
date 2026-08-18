@@ -276,9 +276,14 @@ try {
     ) | Set-Content -Path (Join-Path $targetDir "RELEASE_NOTE.txt") -Encoding UTF8
 
     $startSh = Join-Path $repoRoot "scripts\\run\\start_nms_utf8.sh"
+    $initSh = Join-Path $repoRoot "scripts\\run\\init.sh"
     if (Test-Path $startSh) {
         Copy-Item -Force $startSh (Join-Path $targetDir "start_nms.sh")
     }
+    if (-not (Test-Path $initSh)) {
+        throw "missing Linux init script: $initSh"
+    }
+    Copy-Item -Force $initSh (Join-Path $targetDir "init.sh")
 
     $targetPrefix = (Resolve-Path -LiteralPath $targetDir).Path.TrimEnd([char[]]@(92, 47)) + [System.IO.Path]::DirectorySeparatorChar
     $manifest = Get-ChildItem -Path $targetDir -Recurse -File | Sort-Object FullName | ForEach-Object {
@@ -318,6 +323,7 @@ try {
     Copy-Item -Force (Join-Path $targetDir "tools\superadmin-local_linux_arm64") (Join-Path $arm64TargetDir "superadmin-local_linux_arm64")
     Copy-Item -Force $arm64Go2rtc (Join-Path $arm64TargetDir "bin\\go2rtc_linux_arm64")
     Copy-Item -Force $startSh (Join-Path $arm64TargetDir "start_nms.sh")
+    Copy-Item -Force $initSh (Join-Path $arm64TargetDir "init.sh")
 
     $ffmpegArm64Src = Join-Path $runtimeBin "ffmpeg_linux_arm64"
     if (Test-Path $ffmpegArm64Src) {
