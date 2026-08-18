@@ -293,13 +293,13 @@ func (s *Service) EncryptedMachineID(machineID string, secretKey []byte) (Encryp
 	}, nil
 }
 
-func (s *Service) ActivateLicense(rawKey, machineID string, publicKey, legacyFormal, legacyPoC []byte, allowLegacy bool, ensureCameraSchema func()) (ActivateResult, error) {
+func (s *Service) ActivateLicense(rawKey, machineID string, publicKey []byte, ensureCameraSchema func()) (ActivateResult, error) {
 	key := strings.TrimSpace(rawKey)
 	key = strings.ReplaceAll(key, "\n", "")
 	key = strings.ReplaceAll(key, "\r", "")
 	key = strings.ReplaceAll(key, " ", "")
 
-	payload, err := licensesvc.ValidateLicenseKeyWithPolicy(key, machineID, publicKey, legacyFormal, legacyPoC, allowLegacy)
+	payload, err := licensesvc.ValidateRuntimeLicenseKey(key, machineID, publicKey)
 	if err != nil {
 		return ActivateResult{}, err
 	}

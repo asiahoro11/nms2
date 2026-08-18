@@ -1,16 +1,17 @@
 package license
 
 import (
+	"crypto/ed25519"
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
-	"os"
+	"fmt"
 	"strings"
 	"sync"
 )
 
-// BuildPublicKeyB64 is injected with -ldflags for production releases. An
-// environment value can override it to support controlled public-key rotation.
+// BuildPublicKeyB64 is injected with -ldflags for production releases.
+// The runtime trust anchor is intentionally not environment-overridable.
 var BuildPublicKeyB64 string
 
 type RuntimeLicense struct {
@@ -23,11 +24,8 @@ type RuntimeLicense struct {
 }
 
 type runtimeValidationPolicy struct {
-	machineID    string
-	publicKey    []byte
-	legacyFormal []byte
-	legacyPoC    []byte
-	allowLegacy  bool
+	machineID string
+	publicKey []byte
 }
 
 var runtimePolicy struct {
@@ -35,25 +33,22 @@ var runtimePolicy struct {
 	runtimeValidationPolicy
 }
 
-func ConfigureRuntimeValidation(machineID string, legacyFormal, legacyPoC []byte) error {
-	encoded := strings.TrimSpace(os.Getenv("NMS_LICENSE_PUBLIC_KEY_B64"))
-	if encoded == "" {
-		encoded = strings.TrimSpace(BuildPublicKeyB64)
-	}
+func ConfigureRuntimeValidation(machineID string) error {
+	encoded := strings.TrimSpace(BuildPublicKeyB64)
 	var publicKey []byte
 	if encoded != "" {
 		decoded, err := base64.StdEncoding.DecodeString(encoded)
 		if err != nil {
-			return err
+			return fmt.Errorf("decode embedded license public key: %w", err)
+		}
+		if len(decoded) != ed25519.PublicKeySize {
+			return fmt.Errorf("embedded license public key must be %d bytes", ed25519.PublicKeySize)
 		}
 		publicKey = decoded
 	}
-	legacyFlag := strings.ToLower(strings.TrimSpace(os.Getenv("NMS_ALLOW_LEGACY_LICENSE")))
 	runtimePolicy.Lock()
 	runtimePolicy.runtimeValidationPolicy = runtimeValidationPolicy{
 		machineID: strings.TrimSpace(machineID), publicKey: append([]byte(nil), publicKey...),
-		legacyFormal: append([]byte(nil), legacyFormal...), legacyPoC: append([]byte(nil), legacyPoC...),
-		allowLegacy: legacyFlag == "1" || legacyFlag == "true" || legacyFlag == "yes",
 	}
 	runtimePolicy.Unlock()
 	return nil
@@ -71,18 +66,12 @@ func RuntimePublicKey() []byte {
 	return append([]byte(nil), runtimePolicy.publicKey...)
 }
 
-func RuntimeLegacyAllowed() bool {
-	runtimePolicy.RLock()
-	defer runtimePolicy.RUnlock()
-	return runtimePolicy.allowLegacy
-}
-
 // SetRuntimeValidationForTest replaces runtime validation state without
 // environment variables. It accepts public verification material only.
-func SetRuntimeValidationForTest(machineID string, publicKey []byte, allowLegacy bool) {
+func SetRuntimeValidationForTest(machineID string, publicKey []byte) {
 	runtimePolicy.Lock()
 	runtimePolicy.runtimeValidationPolicy = runtimeValidationPolicy{
-		machineID: strings.TrimSpace(machineID), publicKey: append([]byte(nil), publicKey...), allowLegacy: allowLegacy,
+		machineID: strings.TrimSpace(machineID), publicKey: append([]byte(nil), publicKey...),
 	}
 	runtimePolicy.Unlock()
 }
@@ -94,8 +83,6 @@ func VerifiedActiveLicenses(db *sql.DB) []RuntimeLicense {
 	runtimePolicy.RLock()
 	policy := runtimeValidationPolicy{
 		machineID: runtimePolicy.machineID, publicKey: append([]byte(nil), runtimePolicy.publicKey...),
-		legacyFormal: append([]byte(nil), runtimePolicy.legacyFormal...), legacyPoC: append([]byte(nil), runtimePolicy.legacyPoC...),
-		allowLegacy: runtimePolicy.allowLegacy,
 	}
 	runtimePolicy.RUnlock()
 	rows, err := db.Query(`SELECT license_key, COALESCE(license_type,'standard'), COALESCE(valid_until,''), COALESCE(enabled_features,'[]') FROM licenses WHERE is_active = 1 AND ` + ActiveLicenseWindowSQL)
@@ -119,7 +106,7 @@ func VerifiedActiveLicenses(db *sql.DB) []RuntimeLicense {
 			}
 			continue
 		}
-		payload, err := ValidateLicenseKeyWithPolicy(key, policy.machineID, policy.publicKey, policy.legacyFormal, policy.legacyPoC, policy.allowLegacy)
+		payload, err := ValidateRuntimeLicenseKey(key, policy.machineID, policy.publicKey)
 		if err != nil {
 			continue
 		}

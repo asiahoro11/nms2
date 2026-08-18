@@ -72,11 +72,7 @@ func main() {
 	defer db.Close()
 
 	machineID := license.SystemMachineID()
-	if err := license.ConfigureRuntimeValidation(
-		machineID,
-		license.DeriveKey("NMS-LICENSE-"+machineID),
-		license.DeriveKey("NMS-POC-LICENSE-v1.2.1-PoC"),
-	); err != nil {
+	if err := license.ConfigureRuntimeValidation(machineID); err != nil {
 		log.Fatalf("Invalid License public-key configuration: %v", err)
 	}
 

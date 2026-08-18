@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 )
 
 const Ed25519LicensePrefix = "ED25519-V1."
@@ -27,6 +28,20 @@ type SignedLicense struct {
 }
 
 var b64url = base64.RawURLEncoding
+
+var supportedSignedLicenseFeatures = map[string]struct{}{
+	"device_management": {},
+	"camera_viewer":     {},
+	"camera_recording":  {},
+	"access_control":    {},
+	"pdu":               {},
+	"iot":               {},
+	"line":              {},
+	"telegram":          {},
+	"whatsapp":          {},
+	"discord":           {},
+	"slack":             {},
+}
 
 // GenerateEd25519KeyPair is intended for an offline issuer setup tool only.
 func GenerateEd25519KeyPair() (publicKey, privateKey []byte, err error) {
@@ -74,4 +89,68 @@ func VerifyEd25519License(encoded string, publicKey []byte) (SignedLicense, erro
 		return payload, errors.New("invalid license payload")
 	}
 	return payload, nil
+}
+
+// ValidateSignedLicensePayload applies runtime schema and entitlement
+// invariants after the Ed25519 signature has been verified.
+func ValidateSignedLicensePayload(payload SignedLicense) error {
+	if payload.LicenseMode != FormalLicenseMode && payload.LicenseMode != PoCLicenseMode {
+		return errors.New("invalid license mode")
+	}
+	if payload.DeviceCount < 0 || payload.CameraCount < 0 {
+		return errors.New("license counts cannot be negative")
+	}
+	if len(payload.Features) == 0 {
+		return errors.New("license must contain at least one feature")
+	}
+	seen := make(map[string]struct{}, len(payload.Features))
+	for _, feature := range payload.Features {
+		if feature != strings.ToLower(strings.TrimSpace(feature)) {
+			return errors.New("license feature is not normalized")
+		}
+		if _, ok := supportedSignedLicenseFeatures[feature]; !ok {
+			return fmt.Errorf("unsupported license feature: %s", feature)
+		}
+		if _, duplicate := seen[feature]; duplicate {
+			return fmt.Errorf("duplicate license feature: %s", feature)
+		}
+		seen[feature] = struct{}{}
+	}
+	if _, ok := seen["device_management"]; ok && payload.DeviceCount < 1 {
+		return errors.New("device management requires a positive device count")
+	}
+	if _, ok := seen["camera_viewer"]; ok && payload.CameraCount < 1 {
+		return errors.New("camera viewer requires a positive camera count")
+	}
+	if _, ok := seen["camera_recording"]; ok && payload.CameraCount < 1 {
+		return errors.New("camera recording requires a positive camera count")
+	}
+
+	issuedAt, err := time.Parse(time.RFC3339, payload.IssuedAt)
+	if err != nil {
+		return errors.New("invalid issued_at")
+	}
+	if payload.LicenseMode == FormalLicenseMode {
+		if strings.TrimSpace(payload.MachineID) == "" {
+			return errors.New("formal license requires a machine ID")
+		}
+		if payload.DurationDays != 0 {
+			return errors.New("formal license cannot use duration_days")
+		}
+		if payload.ValidUntil != "" {
+			expiresAt, err := time.Parse(time.RFC3339, payload.ValidUntil)
+			if err != nil || !expiresAt.After(issuedAt) {
+				return errors.New("invalid valid_until")
+			}
+		}
+		return nil
+	}
+
+	if strings.TrimSpace(payload.MachineID) != "" {
+		return errors.New("PoC license cannot be machine-bound")
+	}
+	if payload.ValidUntil != "" {
+		return errors.New("PoC license expiry must be resolved on first activation")
+	}
+	return ValidatePoCDurationDays(payload.DurationDays)
 }

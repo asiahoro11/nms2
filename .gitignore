@@ -6,6 +6,10 @@ releases/
 artifacts/
 !artifacts/.gitkeep
 
+# Build automation is source code, not build output
+!scripts/build/
+!scripts/build/**
+
 # Runtime data
 runtime/data/*
 !runtime/data/.gitkeep
@@ -38,6 +42,12 @@ nms_sync*
 nms-lite*
 ffmpeg
 ffmpeg.exe
+
+# License issuer secrets and generated customer licenses
+issuer_private.key
+issuer_public.key
+license_*.txt
+customer-license*.txt
 
 # Go
 *.coverprofile

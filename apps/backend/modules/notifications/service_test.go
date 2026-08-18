@@ -37,7 +37,7 @@ func TestGetAlertSettingsSingleConnectionDoesNotBlock(t *testing.T) {
 	if err != nil {
 		t.Fatalf("generate test key: %v", err)
 	}
-	licensesvc.SetRuntimeValidationForTest("notification-test", publicKey, false)
+	licensesvc.SetRuntimeValidationForTest("notification-test", publicKey)
 	licenseKey, err := licensesvc.SignEd25519License(licensesvc.SignedLicense{
 		LicenseMode: licensesvc.FormalLicenseMode,
 		MachineID:   "notification-test",

@@ -139,7 +139,7 @@ func (m *Manager) ensureRunning() {
 	}
 
 	log.Printf("[Camera] go2rtc started with PID %d (bin: %s)", m.cmd.Process.Pid, binPath)
-	
+
 	// Start a goroutine to wait for the process to exit
 	go func(c *exec.Cmd) {
 		err := c.Wait()
@@ -161,7 +161,7 @@ func (m *Manager) isProcessAlive() bool {
 	if m.cmd == nil || m.cmd.Process == nil {
 		return false
 	}
-	// On Windows, checking if ProcessState is set is the most reliable way 
+	// On Windows, checking if ProcessState is set is the most reliable way
 	// after a Start() call has returned and we are using Wait() in background.
 	if m.cmd.ProcessState != nil {
 		return false

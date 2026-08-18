@@ -31,10 +31,6 @@ func (h *Handler) getLicensePublicKey() []byte {
 	return license.RuntimePublicKey()
 }
 
-func (h *Handler) allowLegacyLicense() bool {
-	return license.RuntimeLegacyAllowed()
-}
-
 func (h *Handler) getPOCSecretKey() []byte {
 	return license.DeriveKey("NMS-POC-LICENSE-v1.2.1-PoC")
 }

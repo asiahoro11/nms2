@@ -56,17 +56,21 @@ func insertActiveLicense(t *testing.T, db *sql.DB, licenseType string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	licensesvc.SetRuntimeValidationForTest("test-machine", pub, false)
+	licensesvc.SetRuntimeValidationForTest("test-machine", pub)
 	mode := licensesvc.FormalLicenseMode
 	machineID := "test-machine"
+	validUntil := time.Now().Add(time.Hour).UTC().Format(time.RFC3339)
+	durationDays := 0
 	if licenseType == "poc" {
 		mode = licensesvc.PoCLicenseMode
 		machineID = ""
+		validUntil = ""
+		durationDays = 1
 	}
 	key, err := licensesvc.SignEd25519License(licensesvc.SignedLicense{
 		LicenseMode: mode, MachineID: machineID, DeviceCount: 10,
-		IssuedAt:   time.Now().UTC().Format(time.RFC3339),
-		ValidUntil: time.Now().Add(time.Hour).UTC().Format(time.RFC3339),
+		DurationDays: durationDays, Features: []string{"device_management"},
+		IssuedAt: time.Now().UTC().Format(time.RFC3339), ValidUntil: validUntil,
 	}, priv)
 	if err != nil {
 		t.Fatal(err)

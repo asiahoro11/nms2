@@ -2,7 +2,7 @@
 // YTS工作室製作
 module management-server
 
-go 1.25.0
+go 1.26.6
 
 require (
 	github.com/beevik/ntp v1.5.0

@@ -1,5 +1,5 @@
 // Made by YTSworks
 // YTS工作室製作
-go 1.25.0
+go 1.26.6
 
 use ./apps/backend
